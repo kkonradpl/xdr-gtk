@@ -540,26 +540,6 @@ gfloat pattern_log_signal(gfloat signal)
     return pow(0.89, (-0.5*signal));
 }
 
-void pattern_rotate_ll(GtkWidget *widget, gpointer data)
-{
-    gint diff;
-
-    if(pattern.count)
-    {
-        diff = pattern.count / 18.0;
-        if(pattern.rotate_i - diff < 0)
-        {
-            pattern.rotate_i = pattern.count + (pattern.rotate_i - diff);
-        }
-        else
-        {
-            pattern.rotate_i -= diff;
-        }
-        gtk_widget_queue_draw(pattern.image);
-    }
-}
-
-
 void pattern_rotate(GtkWidget *widget, gpointer data)
 {
     gint mode = GPOINTER_TO_INT(data);
