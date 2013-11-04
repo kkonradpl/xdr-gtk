@@ -365,8 +365,8 @@ gboolean gui_update_status(gpointer nothing)
     }
     else if(conf.signal_display == SIGNAL_BAR)
     {
-        gfloat sig = (rssi[rssi_pos].value>100?100:rssi[rssi_pos].value);
-        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(gui.p_signal), (sig/100.0));
+        gfloat sig = (rssi[rssi_pos].value>75?75:rssi[rssi_pos].value);
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(gui.p_signal), (sig/75.0));
     }
     return FALSE;
 }
