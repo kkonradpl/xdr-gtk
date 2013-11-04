@@ -56,6 +56,7 @@ gpointer read_thread(gpointer nothing)
                 {
                     if (GetLastError() != ERROR_IO_PENDING)
                     {
+                        CloseHandle(osReader.hEvent);
                         break;
                     }
                     else
@@ -67,14 +68,17 @@ gpointer read_thread(gpointer nothing)
             if (fWaitingOnRead) {
                 if(WaitForSingleObject(osReader.hEvent, INFINITE) != WAIT_OBJECT_0)
                 {
+                    CloseHandle(osReader.hEvent);
                     break;
                 }
 
                 if (!GetOverlappedResult(serial, &osReader, &len_in, FALSE))
                 {
+                    CloseHandle(osReader.hEvent);
                     break;
                 }
             }
+            CloseHandle(osReader.hEvent);
 
             if(len_in != 1)
             {
