@@ -215,7 +215,7 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, scan_struct* scan
         cairo_destroy(cr);
         return FALSE;
     }
-    gfloat step = w/(float)(scan->data->len-1);
+    gfloat step = w/(gfloat)(scan->data->len-1);
 
     cairo_set_source_rgb(cr, 0, 0, 0);
     gdouble j = 0.0, sig;
@@ -321,7 +321,7 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_struct* scan
     gchar* text;
     if(scan->data)
     {
-        scan->focus = round(event->x/(widget->allocation.width/(float)(scan->data->len-1)));
+        scan->focus = round(event->x/(widget->allocation.width/(gfloat)(scan->data->len-1)));
         if(scan->focus < scan->data->len)
         {
             gint f = scan->data->signals[scan->focus].freq;
@@ -343,8 +343,5 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_struct* scan
 
 void scan_resize(GtkWidget* widget, gpointer data)
 {
-    gint w, h;
-    gtk_window_get_size(GTK_WINDOW(scan.dialog), &w, &h);
-    conf.scan_width = w;
-    conf.scan_height = h;
+    gtk_window_get_size(GTK_WINDOW(scan.dialog), &conf.scan_width, &conf.scan_height);
 }
