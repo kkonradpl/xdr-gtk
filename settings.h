@@ -8,7 +8,7 @@
 
 enum Mode {MODE_FM, MODE_AM};
 enum Signal {SIGNAL_NONE, SIGNAL_GRAPH, SIGNAL_BAR};
-enum Unit {UNIT_DBF, UNIT_DBM, UNIT_DBUV};
+enum Unit {UNIT_DBF, UNIT_DBM, UNIT_DBUV, UNIT_S};
 
 typedef struct
 {

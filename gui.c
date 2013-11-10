@@ -333,7 +333,7 @@ gboolean gui_update_status(gpointer nothing)
 
     if((rssi_pos % 3) == 0) // slower signal level label refresh
     {
-        gchar *s;
+        gchar *s, *s_m, *s_m2;
         if(conf.mode == MODE_FM)
         {
             switch(conf.signal_unit)
@@ -344,6 +344,14 @@ gboolean gui_update_status(gpointer nothing)
 
             case UNIT_DBUV:
                 s = g_markup_printf_escaped("<span color=\"#777777\">%3.0f/</span>%3.0f dBuV", max_signal-11.25, rssi[rssi_pos].value-11.25);
+                break;
+
+            case UNIT_S:
+                s_m = s_meter(max_signal);
+                s_m2 = s_meter(rssi[rssi_pos].value);
+                s = g_markup_printf_escaped("<span color=\"#777777\"> %5s/</span>%5s", s_m, s_m2);
+                g_free(s_m);
+                g_free(s_m2);
                 break;
 
             case UNIT_DBF:
@@ -875,4 +883,83 @@ gboolean volume_click(GtkWidget *widget, GdkEventButton *event)
         return TRUE;
     }
     return FALSE;
+}
+
+gchar* s_meter(gfloat val)
+{
+	gint s, plus;
+	plus = 0;
+	gchar* str;
+
+    if(val >= 85.2)
+    {
+        s = 9;
+		plus = 40;
+    }
+    if(val >= 75.2)
+    {
+        s = 9;
+		plus = 30;
+    }
+    else if(val >= 65.2)
+    {
+		s = 9;
+		plus = 20;
+    }
+    else if(val >= 55.2)
+    {
+		s = 9;
+		plus = 10;
+    }
+    else if(val >= 45.2)
+    {
+		s = 9;
+    }
+    else if(val >= 39.2)
+    {
+		s = 8;
+    }
+    else if(val >= 33.2)
+    {
+		s = 7;
+    }
+    else if(val >= 27.2)
+    {
+		s = 6;
+    }
+    else if(val >= 21.2)
+    {
+		s = 5;
+    }
+    else if(val >= 15.2)
+    {
+		s = 4;
+    }
+    else if(val >= 9.23)
+    {
+		s = 3;
+    }
+    else if(val >= 3.23)
+    {
+		s = 2;
+    }
+    else if(val >= -2.77)
+    {
+		s = 1;
+    }
+    else
+    {
+		s = 0;
+    }
+
+	if(plus)
+	{
+		str = g_strdup_printf("S%d+%d", s, plus);
+	}
+	else
+	{
+		str = g_strdup_printf("S%d", s);
+	}
+
+	return str;
 }

@@ -103,4 +103,5 @@ void tty_change_gain();
 gboolean gui_toggle_gain(GtkWidget*, GdkEventButton*, gpointer);
 gboolean gui_update_clock(gpointer);
 gboolean volume_click(GtkWidget*, GdkEventButton*);
+gchar* s_meter(gfloat);
 #endif

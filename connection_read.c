@@ -151,7 +151,7 @@ void read_parse(gchar c, gchar msg[])
         float sig = (smeter >> 16) + (smeter&0xFFFF)/65536.0;
         if(conf.mode == MODE_FM)
         {
-            sig = sig*0.79 + 4;
+            sig = sig*0.797 + 3.5;
         }
 
         if(sig > max_signal)

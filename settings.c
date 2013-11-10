@@ -283,6 +283,7 @@ void settings_dialog()
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "dBf");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "dBm");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "dBuV");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "S-meter");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_unit), conf.signal_unit);
     gtk_table_attach(GTK_TABLE(table_signal), c_unit, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
