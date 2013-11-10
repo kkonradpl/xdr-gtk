@@ -69,7 +69,7 @@ void window_on_top(GtkCheckMenuItem *item)
 void about_dialog()
 {
     GtkWidget *dialog = gtk_about_dialog_new();
-    gtk_window_set_transient_for(dialog, gui.window);
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(gui.window));
     gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(dialog), "XDR-GTK");
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), VERSION);
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog), "Copyright (C) 2012-2013  Konrad Kosmatka");
