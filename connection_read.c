@@ -437,14 +437,15 @@ gfloat signal_level(gfloat value)
     {
         switch(conf.signal_unit)
         {
-            case UNIT_DBF:
-                return value;
-
             case UNIT_DBM:
                 return value - 120;
 
             case UNIT_DBUV:
                 return value - 11.25;
+
+            default:
+            case UNIT_DBF:
+                return value;
         }
     }
     return value;
