@@ -241,6 +241,11 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
     // plot the pattern
     i = 0;
     gfloat prev, next;
+    if(pattern.head)
+    {
+        prev = pattern.tail->sig;
+    }
+
     for(node=pattern.head; node; node=node->next)
     {
         if(!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.avg)))
@@ -249,11 +254,6 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
         }
         else
         {
-            if(node == pattern.head)
-            {
-                prev = pattern.tail->sig;
-            }
-
             if(!node->next)
             {
                 next = pattern.head->sig;

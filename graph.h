@@ -22,7 +22,7 @@ GdkColor graph_color_font;
 
 void graph_init();
 gboolean graph_draw(GtkWidget*, GdkEventExpose*, gpointer);
-inline void graph_resize();
+void graph_resize();
 void graph_click(GtkWidget*, GdkEventButton*, gpointer);
 void graph_clear();
 void signal_display();

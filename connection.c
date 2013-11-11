@@ -234,7 +234,7 @@ gboolean connection()
             {
                 g_free(conf.serial);
             }
-            conf.serial = strdup(serial);
+            conf.serial = g_strdup(serial);
             conf.network = 0;
             settings_write();
 
@@ -258,7 +258,7 @@ gboolean connection()
         {
             g_free(conf.host);
         }
-        conf.host = strdup(destination);
+        conf.host = g_strdup(destination);
         conf.port = port;
         conf.network = 1;
         settings_write();

@@ -566,10 +566,10 @@ gboolean gui_mode_FM()
     conf.mode = MODE_FM;
     settings_write();
     gtk_label_set_text(GTK_LABEL(gui.l_band), "FM");
-    g_signal_handlers_block_by_func(gui.c_bw, G_CALLBACK(tty_change_bandwidth), NULL);
+    g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, TRUE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), 29);
-    g_signal_handlers_unblock_by_func(gui.c_bw, G_CALLBACK(tty_change_bandwidth), NULL);
+    g_signal_handlers_unblock_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
     gtk_widget_set_sensitive(gui.c_deemph, TRUE);
     return FALSE;
 }
@@ -580,10 +580,10 @@ gboolean gui_mode_AM()
     settings_write();
     rds_timer = 0;
     gtk_label_set_text(GTK_LABEL(gui.l_band), "AM");
-    g_signal_handlers_block_by_func(gui.c_bw, G_CALLBACK(tty_change_bandwidth), NULL);
+    g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, FALSE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), 16);
-    g_signal_handlers_unblock_by_func(gui.c_bw, G_CALLBACK(tty_change_bandwidth), NULL);
+    g_signal_handlers_unblock_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
     gtk_widget_set_sensitive(gui.c_deemph, FALSE);
     return FALSE;
 }

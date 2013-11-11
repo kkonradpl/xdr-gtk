@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <stdlib.h>
 #include <math.h>
 #include "settings.h"
 #include "connection_read.h"
@@ -166,7 +167,7 @@ gboolean graph_draw(GtkWidget *widget, GdkEventExpose *event, gpointer nothing)
     return FALSE;
 }
 
-inline void graph_resize()
+void graph_resize()
 {
     gtk_widget_set_size_request(gui.graph, -1, conf.graph_height+2*GRAPH_HALF_FONT+1);
 }

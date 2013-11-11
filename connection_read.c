@@ -206,7 +206,9 @@ void read_parse(gchar c, gchar msg[])
     }
     else if(c == 'P') // PI code
     {
-        sscanf(msg, "%x", &pi);
+        guint _pi;
+        sscanf(msg, "%x", &_pi);
+        pi = _pi;
         rds_timer = g_get_monotonic_time();
         gint isOK = 0;
         if(strlen((msg)) == 4) // double checked
@@ -227,7 +229,7 @@ void read_parse(gchar c, gchar msg[])
         if((!conf.rds_discard && pi>=0) || rssi[rssi_pos].rds)
         {
             enum { BLOCK_B, BLOCK_C, BLOCK_D };
-            gint i, data[3], errors;
+            guint i, data[3], errors;
             gchar hexbuffer[5];
             for (i=0; i<3; i++)
             {
