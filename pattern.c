@@ -299,6 +299,7 @@ void gui_pattern_destroy(gpointer data)
     pattern_clear();
     conf.pattern_size = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(pattern.s_size));
     conf.pattern_fill = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.fill));
+    conf.pattern_avg = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.avg));
     settings_write();
 }
 
