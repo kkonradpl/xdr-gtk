@@ -28,6 +28,8 @@ typedef struct
     GtkWidget* b_relative;
     GtkWidget* b_close;
 
+    GtkWidget* b_ccir;
+    GtkWidget* b_oirt;
     GtkWidget* l_frange;
     GtkWidget* e_fstart;
     GtkWidget* l_frange_;
@@ -61,4 +63,7 @@ gboolean scan_update(gpointer);
 gboolean scan_click(GtkWidget*, GdkEventButton*, scan_struct*);
 gboolean scan_motion(GtkWidget*, GdkEventMotion*, scan_struct*);
 void scan_resize(GtkWidget*, gpointer);
+void scan_ccir(GtkWidget*, gpointer);
+void scan_oirt(GtkWidget*, gpointer);
+
 #endif

@@ -54,6 +54,14 @@ void scan_dialog()
     GtkWidget *desc_box = gtk_hbox_new(FALSE, 4);
     gtk_box_pack_start(GTK_BOX(d_box), desc_box, FALSE, FALSE, 0);
 
+    scan.b_ccir = gtk_button_new_with_label("CCIR");
+    gtk_box_pack_start(GTK_BOX(desc_box), scan.b_ccir, FALSE, FALSE, 0);
+    g_signal_connect(scan.b_ccir, "clicked", G_CALLBACK(scan_ccir), NULL);
+
+    scan.b_oirt = gtk_button_new_with_label("OIRT");
+    gtk_box_pack_start(GTK_BOX(desc_box), scan.b_oirt, FALSE, FALSE, 0);
+    g_signal_connect(scan.b_oirt, "clicked", G_CALLBACK(scan_oirt), NULL);
+
     scan.l_frange = gtk_label_new("Range:");
     scan.e_fstart = gtk_entry_new_with_max_length(6);
     gtk_entry_set_width_chars(GTK_ENTRY(scan.e_fstart), 6);
@@ -144,6 +152,8 @@ void scan_toggle(GtkWidget *widget, scan_struct* scan)
         gtk_widget_set_sensitive(scan->e_fstop, FALSE);
         gtk_widget_set_sensitive(scan->s_fstep, FALSE);
         gtk_widget_set_sensitive(scan->d_bw, FALSE);
+        gtk_widget_set_sensitive(scan->b_ccir, FALSE);
+        gtk_widget_set_sensitive(scan->b_oirt, FALSE);
     }
     else
     {
@@ -156,6 +166,8 @@ void scan_toggle(GtkWidget *widget, scan_struct* scan)
         gtk_widget_set_sensitive(scan->e_fstop, TRUE);
         gtk_widget_set_sensitive(scan->s_fstep, TRUE);
         gtk_widget_set_sensitive(scan->d_bw, TRUE);
+        gtk_widget_set_sensitive(scan->b_ccir, TRUE);
+        gtk_widget_set_sensitive(scan->b_oirt, TRUE);
     }
 
     gtk_widget_queue_draw(scan->image);
@@ -344,4 +356,18 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_struct* scan
 void scan_resize(GtkWidget* widget, gpointer data)
 {
     gtk_window_get_size(GTK_WINDOW(scan.dialog), &conf.scan_width, &conf.scan_height);
+}
+
+void scan_ccir(GtkWidget *widget, gpointer data)
+{
+    gtk_entry_set_text(GTK_ENTRY(scan.e_fstart), "87500");
+    gtk_entry_set_text(GTK_ENTRY(scan.e_fstop), "108000");
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_fstep), 100.0);
+}
+
+void scan_oirt(GtkWidget *widget, gpointer data)
+{
+    gtk_entry_set_text(GTK_ENTRY(scan.e_fstart), "65750");
+    gtk_entry_set_text(GTK_ENTRY(scan.e_fstop), "74000");
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_fstep), 30.0);
 }
