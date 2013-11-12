@@ -2,6 +2,7 @@
 #include <glib/gprintf.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "gui.h"
 #include "connection.h"
 #include "graph.h"
@@ -42,6 +43,7 @@ gpointer read_thread(gpointer nothing)
         }
         else
         {
+            DWORD state;
             BOOL fWaitingOnRead = FALSE;
             OVERLAPPED osReader = {0};
             osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -65,11 +67,18 @@ gpointer read_thread(gpointer nothing)
                     }
                }
             }
-            if (fWaitingOnRead) {
-                if(WaitForSingleObject(osReader.hEvent, INFINITE) != WAIT_OBJECT_0)
+            if (fWaitingOnRead)
+            {
+                state = WaitForSingleObject(osReader.hEvent, 200);
+                if(state == WAIT_FAILED)
                 {
                     CloseHandle(osReader.hEvent);
                     break;
+                }
+                else if(state != WAIT_OBJECT_0)
+                {
+                    CloseHandle(osReader.hEvent);
+                    continue;
                 }
 
                 if (!GetOverlappedResult(serial, &osReader, &len_in, FALSE))
