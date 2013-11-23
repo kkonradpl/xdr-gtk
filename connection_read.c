@@ -69,16 +69,11 @@ gpointer read_thread(gpointer nothing)
             }
             if (fWaitingOnRead)
             {
-                state = WaitForSingleObject(osReader.hEvent, 200);
-                if(state == WAIT_FAILED)
+                state = WaitForSingleObject(osReader.hEvent, INFINITE);
+                if(state != WAIT_OBJECT_0)
                 {
                     CloseHandle(osReader.hEvent);
                     break;
-                }
-                else if(state != WAIT_OBJECT_0)
-                {
-                    CloseHandle(osReader.hEvent);
-                    continue;
                 }
 
                 if (!GetOverlappedResult(serial, &osReader, &len_in, FALSE))

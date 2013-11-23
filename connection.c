@@ -87,7 +87,7 @@ void connection_dialog()
     gint64 timer = g_get_monotonic_time();
     while(!ready)
     {
-        if((g_get_monotonic_time() - timer) >= 10000000)
+        if((g_get_monotonic_time() - timer) >= 12000000)
         {
             gtk_widget_destroy(dialog);
             dialog_error("Unable to start the tuner.");

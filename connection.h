@@ -10,7 +10,7 @@ gint serial;
 #endif
 
 #define DEBUG_READ 0
-#define DEBUG_WRITE 1
+#define DEBUG_WRITE 0
 #define SERIAL_BUFFER 10000
 
 extern gint freq, prevfreq;
