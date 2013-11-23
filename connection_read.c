@@ -17,20 +17,34 @@
 
 gpointer read_thread(gpointer nothing)
 {
+    thread = TRUE;
+
     gchar c, buffer[SERIAL_BUFFER];
     gint pos = 0;
 #ifdef G_OS_WIN32
     DWORD len_in = 0;
+    BOOL fWaitingOnRead = FALSE;
+    DWORD state;
+    OVERLAPPED osReader = {0};
+    if (serial_socket == INVALID_SOCKET)
+    {
+        osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+        if (osReader.hEvent == NULL)
+        {
+            thread = FALSE;
+        }
+    }
 #else
     gint n;
     fd_set input;
     struct timeval timeout;
 #endif
-
-    thread = TRUE;
-    g_usleep(1750000); // arduino may restart during port opening
-    xdr_write("x");
-    g_usleep(50000);
+    if(thread)
+    {
+        g_usleep(1750000); // arduino may restart during port opening
+        xdr_write("x");
+        g_usleep(50000);
+    }
     while(thread)
     {
 #ifdef G_OS_WIN32
@@ -43,15 +57,6 @@ gpointer read_thread(gpointer nothing)
         }
         else
         {
-            DWORD state;
-            BOOL fWaitingOnRead = FALSE;
-            OVERLAPPED osReader = {0};
-            osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-            if (osReader.hEvent == NULL)
-            {
-                break;
-            }
-
             if (!fWaitingOnRead)
             {
                 if (!ReadFile(serial, &c, 1, &len_in, &osReader))
@@ -67,9 +72,14 @@ gpointer read_thread(gpointer nothing)
                     }
                }
             }
+
             if (fWaitingOnRead)
             {
-                state = WaitForSingleObject(osReader.hEvent, INFINITE);
+                state = WaitForSingleObject(osReader.hEvent, 200);
+                if(state == WAIT_TIMEOUT)
+                {
+                    continue;
+                }
                 if(state != WAIT_OBJECT_0)
                 {
                     CloseHandle(osReader.hEvent);
@@ -81,9 +91,9 @@ gpointer read_thread(gpointer nothing)
                     CloseHandle(osReader.hEvent);
                     break;
                 }
-            }
-            CloseHandle(osReader.hEvent);
 
+                fWaitingOnRead = FALSE;
+            }
             if(len_in != 1)
             {
                 continue;
