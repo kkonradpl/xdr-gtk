@@ -55,14 +55,14 @@ void gui_init()
     gui.event_band = gtk_event_box_new();
     gui.l_band = gtk_label_new("");
     gtk_container_add(GTK_CONTAINER(gui.event_band), gui.l_band);
-    gtk_widget_modify_font(gui.l_band, pango_font_description_from_string("Bitstream Vera Sans Mono 20"));
+    gtk_widget_modify_font(gui.l_band, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_band, TRUE, FALSE, 5);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_band), FALSE);
     g_signal_connect(gui.event_band, "button-press-event", G_CALLBACK(gui_mode_toggle), NULL);
 
     gui.event_freq = gtk_event_box_new();
     gui.l_freq = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_freq, pango_font_description_from_string("Bitstream Vera Sans Mono 20"));
+    gtk_widget_modify_font(gui.l_freq, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_container_add(GTK_CONTAINER(gui.event_freq), gui.l_freq);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_freq, TRUE, FALSE, 8);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_freq), FALSE);
@@ -70,7 +70,7 @@ void gui_init()
 
     gui.event_pi = gtk_event_box_new();
     gui.l_pi = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_pi, pango_font_description_from_string("Bitstream Vera Sans Mono 20"));
+    gtk_widget_modify_font(gui.l_pi, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_container_add(GTK_CONTAINER(gui.event_pi), gui.l_pi);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_pi, TRUE, FALSE, 12);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_pi), FALSE);
@@ -78,7 +78,7 @@ void gui_init()
 
     gui.event_ps = gtk_event_box_new();
     gui.l_ps = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_ps, pango_font_description_from_string("Bitstream Vera Sans Mono 20"));
+    gtk_widget_modify_font(gui.l_ps, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_container_add(GTK_CONTAINER(gui.event_ps), gui.l_ps);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_ps, TRUE, FALSE, 5);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_ps), FALSE);
@@ -96,7 +96,7 @@ void gui_init()
 
     gui.e_freq = gtk_entry_new_with_max_length(7);
     gtk_entry_set_width_chars(GTK_ENTRY(gui.e_freq), 10);
-    gtk_widget_modify_font(gui.e_freq, pango_font_description_from_string("Bitstream Vera Sans Mono 10"));
+    gtk_widget_modify_font(gui.e_freq, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 10"));
     gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.e_freq, FALSE, FALSE, 0);
 
     gui.b_tune_reset = gtk_button_new_with_label("R");
@@ -136,42 +136,42 @@ void gui_init()
     gtk_container_add(GTK_CONTAINER(gui.box_left), gui.box_left_indicators);
 
     gui.l_st = gtk_label_new("ST");
-    gtk_widget_modify_font(gui.l_st, pango_font_description_from_string("Bitstream Vera Sans Mono 16"));
+    gtk_widget_modify_font(gui.l_st, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
     gtk_misc_set_alignment(GTK_MISC(gui.l_st), 0, 0);
     gtk_widget_set_tooltip_text(gui.l_st, "19kHz stereo subcarrier indicator (>4kHz injection)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_st, TRUE, TRUE,  3);
 
     gui.l_rds = gtk_label_new("RDS");
-    gtk_widget_modify_font(gui.l_rds, pango_font_description_from_string("Bitstream Vera Sans Mono 16"));
+    gtk_widget_modify_font(gui.l_rds, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
     gtk_misc_set_alignment(GTK_MISC(gui.l_rds), 0, 0);
     gtk_widget_set_tooltip_text(gui.l_rds, "RDS PI indicator (timeout configurable in settings)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_rds, TRUE, TRUE,  3);
 
     gui.l_tp = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_tp, pango_font_description_from_string("Bitstream Vera Sans Mono 16"));
+    gtk_widget_modify_font(gui.l_tp, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_set_tooltip_text(gui.l_tp, "RDS Traffic Programme flag");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_tp, TRUE, TRUE, 2);
 
     gui.l_ta = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_ta, pango_font_description_from_string("Bitstream Vera Sans Mono 16"));
+    gtk_widget_modify_font(gui.l_ta, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_set_tooltip_text(gui.l_ta, "RDS Traffic Announcement flag");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ta, TRUE, TRUE, 2);
 
     gui.l_ms = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_ms, pango_font_description_from_string("Bitstream Vera Sans Mono 16"));
+    gtk_widget_modify_font(gui.l_ms, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_set_tooltip_text(gui.l_ms, "RDS Music/Speech flag");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ms, TRUE, TRUE, 2);
 
     gui.l_pty = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_pty, pango_font_description_from_string("Bitstream Vera Sans Mono 14"));
+    gtk_widget_modify_font(gui.l_pty, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14"));
     gtk_misc_set_alignment(GTK_MISC(gui.l_pty), 1, 0.5);
     gtk_widget_set_tooltip_text(gui.l_pty, "RDS Programme Type (PTY)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_pty, TRUE, TRUE, 2);
 
     gui.l_sig = gtk_label_new("");
-    gtk_widget_modify_font(gui.l_sig, pango_font_description_from_string("Bitstream Vera Sans Mono 14"));
+    gtk_widget_modify_font(gui.l_sig, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14"));
     gtk_misc_set_alignment(GTK_MISC(gui.l_sig), 1, 0.5);
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_sig, TRUE, TRUE, 1);
     gtk_widget_set_tooltip_text(gui.l_sig, "max / current signal level");
@@ -248,7 +248,7 @@ void gui_init()
         g_sprintf(rt_data[i], "%64s", "");
         gui.event_rt[i] = gtk_event_box_new();
         gui.l_rt[i] = gtk_label_new(rt_data[i]);
-        gtk_widget_modify_font(gui.l_rt[i], pango_font_description_from_string("Bitstream Vera Sans Mono 9"));
+        gtk_widget_modify_font(gui.l_rt[i], pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 9"));
         gtk_container_add(GTK_CONTAINER(gui.event_rt[i]), gui.l_rt[i]);
         gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_rt[i]), FALSE);
         gtk_box_pack_start(GTK_BOX(gui.box_left), gui.event_rt[i], TRUE, TRUE, 0);
@@ -263,7 +263,7 @@ void gui_init()
     // ----------------
 
     gui.l_af = gtk_label_new("  AF:  ");
-    gtk_widget_modify_font(gui.l_af, pango_font_description_from_string("Bitstream Vera Sans Mono 11"));
+    gtk_widget_modify_font(gui.l_af, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 11"));
     gtk_box_pack_start(GTK_BOX(gui.box_right), gui.l_af, FALSE, FALSE, 3);
 
     gui.af = gtk_list_store_new(1, G_TYPE_STRING);

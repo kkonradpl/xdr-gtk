@@ -18,14 +18,27 @@
 #include "gui.h"
 #include "settings.h"
 #include "graph.h"
+#ifdef G_OS_WIN32
+#define _WIN32_WINNT 0x0500
+#include "Windows.h"
+#endif
 
 gint main(gint argc, gchar* argv[])
 {
+    #ifdef G_OS_WIN32
+    gint font = AddFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
+    #endif
     gtk_disable_setlocale();
     gtk_init(&argc, &argv);
     settings_read();
     gui_init();
     gtk_main();
     g_free(rssi);
+    #ifdef G_OS_WIN32
+    if(font)
+    {
+        RemoveFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
+    }
+    #endif
     return 0;
 }

@@ -3,6 +3,8 @@
 #include "gui_net.h"
 #include "menu.h"
 
+#define FONT_FILE "VeraMono.ttf"
+
 typedef struct
 {
     GdkColor background;

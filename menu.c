@@ -8,7 +8,7 @@
 #include "graph.h"
 #include "alignment.h"
 #include "pattern.h"
-#define VERSION "v0.2a"
+#define VERSION "v0.2b"
 
 GtkWidget* menu_create()
 {
