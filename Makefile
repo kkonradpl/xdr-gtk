@@ -1,9 +1,9 @@
-CC = gcc
+CC = gcc -g
 CFLAGS = -Wall -pedantic -std=c99 -c `pkg-config --cflags gtk+-2.0` -D_GNU_SOURCE -O2
 LIBS = `pkg-config --libs gtk+-2.0` -lgthread-2.0 -lm
 
 xdr-gtk:			alignment.o clipboard.o connection.o connection_read.o graph.o gui.o gui_net.o keyboard.o main.o menu.o pattern.o scan.o settings.o
-					$(CC) $(LIBS) -o xdr-gtk alignment.o clipboard.o connection.o connection_read.o graph.o gui.o gui_net.o keyboard.o main.o menu.o pattern.o scan.o settings.o
+					$(CC) -o xdr-gtk alignment.o clipboard.o connection.o connection_read.o graph.o gui.o gui_net.o keyboard.o main.o menu.o pattern.o scan.o settings.o $(LIBS)
 
 alignment.o:		alignment.c menu.h gui.h connection.h alignment.h graph.h
 					$(CC) $(CFLAGS) alignment.c
