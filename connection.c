@@ -33,7 +33,7 @@ gint prevpi, pi = -1;
 gchar ps_data[9], rt_data[2][65];
 gboolean ps_available;
 short prevpty, prevtp, prevta, prevms;
-gint64 rds_timer;
+gint rds_timer;
 gfloat max_signal;
 gint online = -1;
 
@@ -66,34 +66,31 @@ void connection_dialog()
     graph_clear();
 
     ready = FALSE;
-
+    thread = TRUE;
     g_thread_new("thread", read_thread, NULL);
 
     GtkWidget *dialog = gtk_dialog_new_with_buttons("", GTK_WINDOW(gui.window), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL);
     GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
+    gtk_container_set_border_width(GTK_CONTAINER(dialog), 2);
 
-    GtkWidget *hbox = gtk_hbox_new(FALSE, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(hbox), 5);
-    gtk_container_add(GTK_CONTAINER(content), hbox);
+    GtkWidget *vbox = gtk_vbox_new(FALSE, 3);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
+    gtk_container_add(GTK_CONTAINER(content), vbox);
 
     GtkWidget *spinner = gtk_spinner_new();
     gtk_spinner_start(GTK_SPINNER(spinner));
-    gtk_box_pack_start(GTK_BOX(hbox), spinner, TRUE, FALSE, 8);
-    gtk_widget_set_size_request(spinner, 80, 80);
-    gtk_widget_show_all(dialog);
-    gtk_widget_show(dialog);
+    gtk_box_pack_start(GTK_BOX(vbox), spinner, TRUE, FALSE, 8);
+    gtk_widget_set_size_request(spinner, 100, 100);
 
-    gint64 timer = g_get_monotonic_time();
-    while(!ready)
+    GtkWidget *button = gtk_button_new_with_label("Cancel");
+    gtk_button_set_image(GTK_BUTTON(button), gtk_image_new_from_stock(GTK_STOCK_CANCEL, GTK_ICON_SIZE_BUTTON));
+    g_signal_connect(button, "clicked", G_CALLBACK(connection_cancel), NULL);
+    gtk_box_pack_start(GTK_BOX(vbox), button, TRUE, TRUE, 0);
+
+    gtk_widget_show_all(dialog);
+
+    while(!ready && thread)
     {
-        if((g_get_monotonic_time() - timer) >= 12000000)
-        {
-            gtk_widget_destroy(dialog);
-            dialog_error("Unable to start the tuner.");
-            thread = FALSE;
-            return;
-        }
         while(gtk_events_pending())
         {
             gtk_main_iteration();
@@ -102,6 +99,11 @@ void connection_dialog()
     }
 
     gtk_widget_destroy(dialog);
+
+    if(!thread)
+    {
+        return;
+    }
 
     if(conn_mode == 1)
     {
@@ -274,6 +276,11 @@ gboolean connection()
     gtk_widget_destroy(dialog);
     return result;
 
+}
+
+void connection_cancel(GtkWidget *widget, gpointer data)
+{
+    thread = FALSE;
 }
 
 gint open_serial(gchar* tty_name)

@@ -19,7 +19,7 @@ extern gint prevpi, pi;
 extern gchar ps_data[9], rt_data[2][65];
 extern gboolean ps_available;
 extern short prevpty, prevtp, prevta, prevms;
-extern gint64 rds_timer;
+extern gint rds_timer;
 extern gfloat max_signal;
 extern gint online;
 gboolean stereo, rds;
@@ -32,6 +32,7 @@ extern short filters_n;
 
 void connection_dialog();
 gboolean connection();
+void connection_cancel(GtkWidget*, gpointer);
 gpointer read_thread(gpointer);
 void read_parse(gchar, gchar[]);
 int open_serial(gchar*);

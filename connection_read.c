@@ -13,12 +13,12 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#else
+#include <sys/ioctl.h>
 #endif
 
 gpointer read_thread(gpointer nothing)
 {
-    thread = TRUE;
-
     gchar c, buffer[SERIAL_BUFFER];
     gint pos = 0;
 #ifdef G_OS_WIN32
@@ -145,9 +145,27 @@ gpointer read_thread(gpointer nothing)
     }
     else
     {
+        // restart Arduino using RTS & DTR lines
+        EscapeCommFunction(serial, CLRDTR);
+        EscapeCommFunction(serial, CLRRTS);
+        g_usleep(10000);
+        EscapeCommFunction(serial, SETDTR);
+        EscapeCommFunction(serial, SETRTS);
         CloseHandle(serial);
     }
 #else
+    int ctl;
+    // restart Arduino using RTS & DTR lines
+    // is this really a serial port?
+    if(ioctl(serial, TIOCMGET, &ctl) != -1)
+    {
+        ctl &= ~(TIOCM_DTR | TIOCM_RTS);
+        ioctl(serial, TIOCMSET, &ctl);
+        g_usleep(10000);
+        ctl |=  (TIOCM_DTR | TIOCM_RTS);
+        ioctl(serial, TIOCMSET, &ctl);
+    }
+
     close(serial);
 #endif
     online = -1;
@@ -165,6 +183,7 @@ void read_parse(gchar c, gchar msg[])
         float sig = (smeter >> 16) + (smeter&0xFFFF)/65536.0;
         if(conf.mode == MODE_FM)
         {
+            // calibrated signal level meter (simple linear interpolation)
             sig = sig*0.797 + 3.5;
         }
 
@@ -182,7 +201,7 @@ void read_parse(gchar c, gchar msg[])
         rssi_pos = (rssi_pos + 1)%rssi_len;
         rssi[rssi_pos].value = sig;
 
-        if((g_get_monotonic_time() - rds_timer) <= (conf.rds_timeout*1000))
+        if(rds_timer)
         {
             rssi[rssi_pos].rds = TRUE;
         }
@@ -191,6 +210,7 @@ void read_parse(gchar c, gchar msg[])
             rssi[rssi_pos].rds = FALSE;
         }
 
+        rds_timer = (rds_timer ? (rds_timer-1) : 0);
         rssi[rssi_pos].stereo = (msg[0]=='s'?TRUE:FALSE);
 
         g_idle_add_full(G_PRIORITY_DEFAULT, gui_update_status, NULL, NULL);
@@ -223,7 +243,7 @@ void read_parse(gchar c, gchar msg[])
         guint _pi;
         sscanf(msg, "%x", &_pi);
         pi = _pi;
-        rds_timer = g_get_monotonic_time();
+        rds_timer = conf.rds_timeout;
         gint isOK = 0;
         if(strlen((msg)) == 4) // double checked
         {

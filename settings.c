@@ -56,7 +56,7 @@ void settings_read()
         conf.utc = TRUE;
         conf.replace_spaces = TRUE;
 
-        conf.rds_timeout = 500;
+        conf.rds_timeout = 7;
         conf.rds_discard = FALSE;
         conf.rds_pty = 0;
         conf.rds_info_error = 1;
@@ -345,9 +345,9 @@ void settings_dialog()
     gtk_container_add(GTK_CONTAINER(page_rds), table_rds);
 
     row = 0;
-    GtkWidget *l_indicator = gtk_label_new("Indicator timeout [ms]:");
+    GtkWidget *l_indicator = gtk_label_new("Indicator timeout:");
     gtk_table_attach(GTK_TABLE(table_rds), l_indicator, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-    GtkAdjustment *adj2 = (GtkAdjustment*)gtk_adjustment_new(conf.rds_timeout, 100.0, 2000.0, 100.0, 200.0, 0.0);
+    GtkAdjustment *adj2 = (GtkAdjustment*)gtk_adjustment_new(conf.rds_timeout, 2.0, 30.0, 2.0, 200.0, 0.0);
     GtkWidget *s_indicator = gtk_spin_button_new(adj2, 0, 0);
     gtk_table_attach(GTK_TABLE(table_rds), s_indicator, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
