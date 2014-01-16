@@ -1,4 +1,4 @@
-CC = gcc -g
+CC = gcc
 CFLAGS = -Wall -pedantic -std=c99 -c `pkg-config --cflags gtk+-2.0` -D_GNU_SOURCE -O2
 LIBS = `pkg-config --libs gtk+-2.0` -lgthread-2.0 -lm
 
