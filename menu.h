@@ -8,6 +8,7 @@ typedef struct
     GtkWidget *scan;
     GtkWidget *pattern;
     GtkWidget *alwaysontop;
+    GtkWidget *rdsspy;
     GtkWidget *settings;
     GtkWidget *about;
 } menu_struct;

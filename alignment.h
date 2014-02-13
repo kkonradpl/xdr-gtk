@@ -5,4 +5,3 @@ void alignment_dialog();
 void alignment_update(GtkAdjustment*, gpointer);
 
 #endif
-

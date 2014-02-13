@@ -1,5 +1,5 @@
 /*
- *  XDR-GTK v0.2
+ *  XDR-GTK v0.2.1
  *  Copyright (C) 2012-2013  Konrad Kosmatka
  *  http://redakcja.radiopolska.pl/konrad/
 
@@ -18,20 +18,30 @@
 #include "gui.h"
 #include "settings.h"
 #include "graph.h"
+#include "rdsspy.h"
 #ifdef G_OS_WIN32
 #define _WIN32_WINNT 0x0500
-#include "Windows.h"
+#include <windows.h>
 #endif
 
 gint main(gint argc, gchar* argv[])
 {
-    #ifdef G_OS_WIN32
-    gint font = AddFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
-    #endif
     gtk_disable_setlocale();
     gtk_init(&argc, &argv);
+    #ifdef G_OS_WIN32
+    gint font = AddFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2,2), &wsaData))
+    {
+        dialog_error("Unable to initialize Winsock");
+    }
+    #endif
     settings_read();
     gui_init();
+    if(conf.rds_spy_auto)
+    {
+        rdsspy_toggle();
+    }
     gtk_main();
     g_free(rssi);
     #ifdef G_OS_WIN32
@@ -39,6 +49,7 @@ gint main(gint argc, gchar* argv[])
     {
         RemoveFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
     }
+    WSACleanup();
     #endif
     return 0;
 }

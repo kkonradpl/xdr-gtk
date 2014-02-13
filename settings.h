@@ -16,6 +16,7 @@ typedef struct
     gchar* serial;
     gchar* host;
     unsigned short port;
+    gchar* password;
 
     enum Mode mode;
     gboolean rfgain;
@@ -37,12 +38,16 @@ typedef struct
 
     gint rds_timeout;
     gboolean rds_discard;
+    gboolean rds_reset;
+    gint rds_reset_timeout;
     gint rds_pty; // 0=europe, 1=usa
     gint rds_info_error;
     gint rds_data_error;
     // 0=no errors
     // 1=max 2 bit err. corr.
     // 2=max 5 bit err. corr.
+    gint rds_spy_port;
+    gboolean rds_spy_auto;
 
     gint scan_width;
     gint scan_height;
@@ -59,6 +64,20 @@ typedef struct
     gint pattern_size;
     gboolean pattern_fill;
     gboolean pattern_avg;
+
+    guint key_tune_up;
+    guint key_tune_down;
+    guint key_tune_up_5;
+    guint key_tune_down_5;
+    guint key_tune_up_1000;
+    guint key_tune_down_1000;
+    guint key_tune_back;
+    guint key_reset;
+    guint key_screen;
+    guint key_bw_up;
+    guint key_bw_down;
+    guint key_bw_auto;
+
 } settings;
 
 settings conf;
@@ -66,5 +85,6 @@ settings conf;
 void settings_read();
 void settings_write();
 void settings_dialog();
-
+void settings_key(GtkWidget*, GdkEventButton*, gpointer);
+gboolean settings_key_press(GtkWidget*, GdkEventKey*, gpointer);
 #endif

@@ -20,6 +20,7 @@ extern gchar ps_data[9], rt_data[2][65];
 extern gboolean ps_available;
 extern short prevpty, prevtp, prevta, prevms;
 extern gint rds_timer;
+extern gint64 rds_reset_timer;
 extern gfloat max_signal;
 extern gint online;
 gboolean stereo, rds;
@@ -36,7 +37,7 @@ void connection_cancel(GtkWidget*, gpointer);
 gpointer read_thread(gpointer);
 void read_parse(gchar, gchar[]);
 int open_serial(gchar*);
-int open_socket(const gchar*, guint);
+int open_socket(const gchar*, guint, const gchar*);
 void xdr_write(gchar*);
 void tune(gint);
 #define tune_r(f) tune(((f)/100)*100 + (((f)%100<50)?0:100))

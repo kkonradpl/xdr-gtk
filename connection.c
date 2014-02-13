@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "gui.h"
 #include "connection.h"
 #include "graph.h"
@@ -10,6 +11,7 @@
 #include "scan.h"
 #include "menu.h"
 #include "pattern.h"
+#include "sha1.h"
 #ifdef G_OS_WIN32
 #define _WIN32_WINNT 0x0501
 #include <windows.h>
@@ -26,7 +28,6 @@ SOCKET serial_socket = INVALID_SOCKET;
 #include <dirent.h>
 #endif
 
-
 gint freq = 87500, prevfreq;
 gchar daa;
 gint prevpi, pi = -1;
@@ -34,6 +35,7 @@ gchar ps_data[9], rt_data[2][65];
 gboolean ps_available;
 short prevpty, prevtp, prevta, prevms;
 gint rds_timer;
+gint64 rds_reset_timer;
 gfloat max_signal;
 gint online = -1;
 
@@ -122,33 +124,31 @@ void connection_dialog()
         tty_change_gain();
         tty_change_ant();
     }
+
     gtk_menu_item_set_label(GTK_MENU_ITEM(gui.menu_items.connect), "Disconnect");
     gtk_widget_set_sensitive(gui.menu_items.connect, TRUE);
 }
 
 gboolean connection()
 {
-    GtkWidget *dialog = gtk_dialog_new_with_buttons("XDR-GTK", GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT, NULL);
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *dialog, *content;
+    gint i;
+
+    dialog = gtk_dialog_new_with_buttons("Connect", GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT, NULL);
+    content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
-    GtkWidget *d_boxh = gtk_hbox_new(FALSE, 5);
-    gtk_container_add(GTK_CONTAINER(content), d_boxh);
+    gtk_box_set_spacing(GTK_BOX(content), 3);
 
-    GtkWidget *d_box = gtk_vbox_new(FALSE, 5);
-    gtk_container_add(GTK_CONTAINER(d_boxh), d_box);
-
-    GtkWidget* local = gtk_radio_button_new_with_label(NULL, "Local connection");
-    gtk_box_pack_start(GTK_BOX(d_box), local, TRUE, TRUE, 2);
+    GtkWidget* local = gtk_radio_button_new_with_label(NULL, "Serial port");
+    gtk_box_pack_start(GTK_BOX(content), local, TRUE, TRUE, 2);
 
     GtkWidget *d_cb = gtk_combo_box_new_text();
-    gint i;
 #ifdef G_OS_WIN32
     gchar tmp[10];
     for(i=1; i<=20; i++)
     {
-        g_sprintf(tmp, "COM%d", i);
+        g_snprintf(tmp, sizeof(tmp), "COM%d", i);
         gtk_combo_box_append_text(GTK_COMBO_BOX(d_cb), tmp);
-
         if(g_ascii_strcasecmp(tmp, conf.serial) == 0)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(d_cb), i-1);
@@ -179,27 +179,48 @@ gboolean connection()
     }
     closedir(d);
 #endif
-    gtk_box_pack_start(GTK_BOX(d_box), d_cb, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(content), d_cb, TRUE, TRUE, 0);
 
-    GtkWidget *remote = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(local), "Network connection");
-    if(conf.network)
-    {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remote), TRUE);
-    }
-    gtk_box_pack_start(GTK_BOX(d_box), remote, TRUE, TRUE, 2);
+    GtkWidget *remote = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(local), "TCP/IP");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remote), conf.network);
+    gtk_box_pack_start(GTK_BOX(content), remote, TRUE, TRUE, 2);
 
     GtkWidget *d_boxh2 = gtk_hbox_new(FALSE, 5);
-    gtk_container_add(GTK_CONTAINER(d_box), d_boxh2);
+    gtk_container_add(GTK_CONTAINER(content), d_boxh2);
 
+    GtkWidget *host = gtk_label_new("Host:");
+    gtk_box_pack_start(GTK_BOX(d_boxh2), host, TRUE, FALSE, 1);
     GtkWidget *e_host = gtk_entry_new();
+    gtk_entry_set_width_chars(GTK_ENTRY(e_host), 15);
     gtk_entry_set_text(GTK_ENTRY(e_host), conf.host);
-    gtk_box_pack_start(GTK_BOX(d_boxh2), e_host, TRUE, FALSE, 7);
+    gtk_box_pack_start(GTK_BOX(d_boxh2), e_host, TRUE, FALSE, 1);
+
+    GtkWidget *port = gtk_label_new("Port:");
+    gtk_box_pack_start(GTK_BOX(d_boxh2), port, TRUE, FALSE, 1);
     GtkWidget *e_port = gtk_entry_new_with_max_length(5);
     gtk_entry_set_width_chars(GTK_ENTRY(e_port), 5);
-    gchar* port = g_strdup_printf("%d", conf.port);
-    gtk_entry_set_text(GTK_ENTRY(e_port), port);
-    g_free(port);
-    gtk_box_pack_start(GTK_BOX(d_boxh2), e_port, TRUE, FALSE, 7);
+    gchar* s_port = g_strdup_printf("%d", conf.port);
+    gtk_entry_set_text(GTK_ENTRY(e_port), s_port);
+    g_free(s_port);
+    gtk_box_pack_start(GTK_BOX(d_boxh2), e_port, TRUE, FALSE, 1);
+
+    GtkWidget *d_boxh3 = gtk_hbox_new(FALSE, 5);
+    gtk_container_add(GTK_CONTAINER(content), d_boxh3);
+
+    GtkWidget *password = gtk_label_new("Password:");
+    gtk_box_pack_start(GTK_BOX(d_boxh3), password, FALSE, FALSE, 1);
+    GtkWidget *e_password = gtk_entry_new();
+    gtk_entry_set_width_chars(GTK_ENTRY(e_password), 15);
+    gtk_entry_set_text(GTK_ENTRY(e_password), conf.password);
+    gtk_entry_set_visibility(GTK_ENTRY(e_password), FALSE);
+    gtk_box_pack_start(GTK_BOX(d_boxh3), e_password, TRUE, TRUE, 1);
+
+    GtkWidget *c_password = gtk_check_button_new_with_label("Keep");
+    if(conf.password && strlen(conf.password))
+    {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(c_password), TRUE);
+    }
+    gtk_box_pack_start(GTK_BOX(d_boxh3), c_password, FALSE, FALSE, 1);
 
     gtk_widget_show_all(dialog);
 
@@ -254,7 +275,7 @@ gboolean connection()
     {
         const gchar* destination = gtk_entry_get_text(GTK_ENTRY(e_host));
         gint port = atoi(gtk_entry_get_text(GTK_ENTRY(e_port)));
-
+        const gchar* password = gtk_entry_get_text(GTK_ENTRY(e_password));
         g_snprintf(gui.window_title, 100, "XDR-GTK / %s", destination);
 
         if(conf.host)
@@ -264,9 +285,23 @@ gboolean connection()
         conf.host = g_strdup(destination);
         conf.port = port;
         conf.network = 1;
+
+        if(conf.password)
+        {
+            g_free(conf.password);
+        }
+
+        if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(c_password)))
+        {
+            conf.password = g_strdup(password);
+        }
+        else
+        {
+            conf.password = g_strdup("");
+        }
         settings_write();
 
-        result = open_socket(destination, port);
+        result = open_socket(destination, port, password);
     }
 
     if(!result)
@@ -344,74 +379,62 @@ gint open_serial(gchar* tty_name)
     return 1;
 }
 
-gint open_socket(const gchar* destination, guint port)
+gint open_socket(const gchar* destination, guint port, const gchar* password)
 {
-#ifdef G_OS_WIN32
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2,2), &wsaData))
-    {
-        dialog_error("Unable to initialize Winsock");
-        return 0;
-    }
-    struct addrinfo *result = NULL, *ptr = NULL, hints;
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    gchar cport[6];
-    g_snprintf(cport, sizeof(cport), "%d", port);
-    if(getaddrinfo(destination, cport, &hints, &result))
-    {
-        dialog_error("Unable to resolve the hostname");
-        WSACleanup();
-        return 0;
-    }
-
-    for(ptr=result; ptr != NULL; ptr=ptr->ai_next)
-    {
-        serial_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-        if(serial_socket == INVALID_SOCKET)
-        {
-            WSACleanup();
-            return 0;
-        }
-
-        if(connect(serial_socket, ptr->ai_addr, (gint)ptr->ai_addrlen) == SOCKET_ERROR)
-        {
-            closesocket(serial_socket);
-            serial_socket = INVALID_SOCKET;
-            continue;
-        }
-        break;
-    }
-
-    freeaddrinfo(result);
-
-    if(serial_socket == INVALID_SOCKET)
-    {
-        dialog_error("Unable to connect to server.");
-        WSACleanup();
-        return 0;
-    }
-#else
-    struct sockaddr_in serv_addr;
+    gint s = socket(AF_INET, SOCK_STREAM, 0);
     struct hostent *server;
-    serial = socket(AF_INET, SOCK_STREAM, 0);
     if(!(server = gethostbyname(destination)))
     {
-        dialog_error("Unable to resolve hostname.");
+        dialog_error("Unable to resolve the hostname.");
         return 0;
     }
-    bzero((gchar *)&serv_addr, sizeof(serv_addr));
+    struct sockaddr_in serv_addr;
+    memset((gchar *)&serv_addr, 0, sizeof(serv_addr));
+    memmove((gchar *)&serv_addr.sin_addr.s_addr, (gchar *)server->h_addr, server->h_length);
     serv_addr.sin_family = AF_INET;
-    bcopy((gchar *)server->h_addr, (gchar *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if(connect(serial, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+
+    if(connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
     {
         dialog_error("Unable to connect to server.");
         return 0;
     }
+
+    gchar salt[17];
+    if(recv(s, salt, 17, 0) != 17)
+    {
+        dialog_error("auth error");
+        return 0;
+    }
+
+    guchar sha[SHA1_DIGEST_SIZE];
+    gchar sha_string[SHA1_DIGEST_SIZE*2+2];
+    int i;
+
+    SHA1_CTX ctx;
+    SHA1_Init(&ctx);
+    SHA1_Update(&ctx, (guchar*)salt, 16);
+    if(strlen(password))
+    {
+        SHA1_Update(&ctx, (guchar*)password, strlen(password));
+    }
+    SHA1_Final(&ctx, sha);
+
+    for(i=0; i<SHA1_DIGEST_SIZE; i++)
+    {
+        sprintf(sha_string+(i*2), "%02x", sha[i]);
+    }
+    sha_string[i*2] = '\n';
+    sha_string[i*2+1] = 0;
+
+    send(s, sha_string, strlen(sha_string), 0);
+
+#ifdef G_OS_WIN32
+    serial_socket = s;
+#else
+    serial = s;
 #endif
+
     return 2;
 }
 

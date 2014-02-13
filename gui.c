@@ -30,7 +30,7 @@ void gui_init()
     gui.box_header = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box), gui.box_header);
 
-    gui.box_gui = gtk_hbox_new(FALSE, 1);
+    gui.box_gui = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box), gui.box_gui);
 
     gui.box_left = gtk_vbox_new(FALSE, 2);
@@ -53,7 +53,7 @@ void gui_init()
     gtk_container_add(GTK_CONTAINER(gui.box_header), gui.volume);
 
     gui.event_band = gtk_event_box_new();
-    gui.l_band = gtk_label_new("");
+    gui.l_band = gtk_label_new(NULL);
     gtk_container_add(GTK_CONTAINER(gui.event_band), gui.l_band);
     gtk_widget_modify_font(gui.l_band, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_band, TRUE, FALSE, 5);
@@ -61,7 +61,7 @@ void gui_init()
     g_signal_connect(gui.event_band, "button-press-event", G_CALLBACK(gui_mode_toggle), NULL);
 
     gui.event_freq = gtk_event_box_new();
-    gui.l_freq = gtk_label_new("");
+    gui.l_freq = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_freq, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_container_add(GTK_CONTAINER(gui.event_freq), gui.l_freq);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_freq, TRUE, FALSE, 8);
@@ -69,7 +69,7 @@ void gui_init()
     g_signal_connect(gui.event_freq, "button-press-event", G_CALLBACK(clipboard_full), NULL);
 
     gui.event_pi = gtk_event_box_new();
-    gui.l_pi = gtk_label_new("");
+    gui.l_pi = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_pi, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_container_add(GTK_CONTAINER(gui.event_pi), gui.l_pi);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_pi, TRUE, FALSE, 12);
@@ -77,7 +77,7 @@ void gui_init()
     g_signal_connect(gui.event_pi, "button-press-event", G_CALLBACK(clipboard_pi), NULL);
 
     gui.event_ps = gtk_event_box_new();
-    gui.l_ps = gtk_label_new("");
+    gui.l_ps = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_ps, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
     gtk_container_add(GTK_CONTAINER(gui.event_ps), gui.l_ps);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_ps, TRUE, FALSE, 5);
@@ -149,31 +149,31 @@ void gui_init()
     gtk_widget_set_tooltip_text(gui.l_rds, "RDS PI indicator (timeout configurable in settings)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_rds, TRUE, TRUE,  3);
 
-    gui.l_tp = gtk_label_new("");
+    gui.l_tp = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_tp, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_set_tooltip_text(gui.l_tp, "RDS Traffic Programme flag");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_tp, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_tp, TRUE, TRUE, 3);
 
-    gui.l_ta = gtk_label_new("");
+    gui.l_ta = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_ta, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_set_tooltip_text(gui.l_ta, "RDS Traffic Announcement flag");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ta, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ta, TRUE, TRUE, 3);
 
-    gui.l_ms = gtk_label_new("");
+    gui.l_ms = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_ms, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
     gtk_widget_set_tooltip_text(gui.l_ms, "RDS Music/Speech flag");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ms, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ms, TRUE, TRUE, 3);
 
-    gui.l_pty = gtk_label_new("");
+    gui.l_pty = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_pty, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14"));
     gtk_misc_set_alignment(GTK_MISC(gui.l_pty), 1, 0.5);
     gtk_widget_set_tooltip_text(gui.l_pty, "RDS Programme Type (PTY)");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_pty, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_pty, TRUE, TRUE, 3);
 
-    gui.l_sig = gtk_label_new("");
+    gui.l_sig = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_sig, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14"));
     gtk_misc_set_alignment(GTK_MISC(gui.l_sig), 1, 0.5);
-    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_sig, TRUE, TRUE, 1);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_sig, TRUE, TRUE, 2);
     gtk_widget_set_tooltip_text(gui.l_sig, "max / current signal level");
 
     // ----------------
@@ -243,25 +243,6 @@ void gui_init()
 
     // ----------------
 
-    for(i=0; i<2; i++)
-    {
-        g_sprintf(rt_data[i], "%64s", "");
-        gui.event_rt[i] = gtk_event_box_new();
-        gui.l_rt[i] = gtk_label_new(rt_data[i]);
-        gtk_widget_modify_font(gui.l_rt[i], pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 9"));
-        gtk_container_add(GTK_CONTAINER(gui.event_rt[i]), gui.l_rt[i]);
-        gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_rt[i]), FALSE);
-        gtk_box_pack_start(GTK_BOX(gui.box_left), gui.event_rt[i], TRUE, TRUE, 0);
-        g_signal_connect(gui.event_rt[i], "button-press-event", G_CALLBACK(clipboard_str), rt_data[i]);
-    }
-
-    // ----------------
-
-    gui.l_status = gtk_label_new("");
-    gtk_box_pack_start(GTK_BOX(gui.box_left), gui.l_status, TRUE, TRUE, 0);
-
-    // ----------------
-
     gui.l_af = gtk_label_new("  AF:  ");
     gtk_widget_modify_font(gui.l_af, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 11"));
     gtk_box_pack_start(GTK_BOX(gui.box_right), gui.l_af, FALSE, FALSE, 3);
@@ -281,6 +262,26 @@ void gui_init()
     gtk_container_add(GTK_CONTAINER(gui.af_box), view);
     gtk_box_pack_start(GTK_BOX(gui.box_right), gui.af_box, TRUE, TRUE, 0);
 
+    // ----------------
+
+    for(i=0; i<2; i++)
+    {
+        gui.event_rt[i] = gtk_event_box_new();
+        gui.l_rt[i] = gtk_label_new(NULL);
+        gtk_widget_modify_font(gui.l_rt[i], pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 9"));
+        gtk_misc_set_alignment(GTK_MISC(gui.l_rt[i]), 0.0, 0.5);
+        gtk_label_set_width_chars(GTK_LABEL(gui.l_rt[i]), 66);
+        gtk_container_add(GTK_CONTAINER(gui.event_rt[i]), gui.l_rt[i]);
+        gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_rt[i]), FALSE);
+        gtk_box_pack_start(GTK_BOX(gui.box), gui.event_rt[i], TRUE, TRUE, 0);
+        g_signal_connect(gui.event_rt[i], "button-press-event", G_CALLBACK(clipboard_str), rt_data[i]);
+    }
+
+    // ----------------
+
+    gui.l_status = gtk_label_new(NULL);
+    gtk_box_pack_start(GTK_BOX(gui.box), gui.l_status, TRUE, TRUE, 0);
+
     if(conf.mode == MODE_FM)
     {
         gui_mode_FM();
@@ -290,12 +291,12 @@ void gui_init()
         gui_mode_AM();
     }
 
+    gui_clear(NULL);
     gtk_widget_show_all(gui.window);
     g_signal_connect(gui.window, "destroy", G_CALLBACK(gui_quit), NULL);
     g_signal_connect(gui.window, "key-press-event", G_CALLBACK(keyboard), NULL);
     gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
     graph_init();
-    gui_clear(NULL);
 }
 
 void gui_quit()
@@ -391,7 +392,13 @@ gboolean gui_clear(gpointer freq)
         gtk_label_set_text(GTK_LABEL(gui.l_freq), (gchar*)freq);
         g_free(freq);
     }
+    gui_clear_rds();
 
+    return FALSE;
+}
+
+void gui_clear_rds()
+{
     gtk_label_set_text(GTK_LABEL(gui.l_pi), "     ");
     gtk_label_set_text(GTK_LABEL(gui.l_ps), "          ");
     gtk_label_set_text(GTK_LABEL(gui.l_pty), "        ");
@@ -399,12 +406,13 @@ gboolean gui_clear(gpointer freq)
     gtk_label_set_text(GTK_LABEL(gui.l_ta), "  ");
     gtk_label_set_text(GTK_LABEL(gui.l_ms), "  ");
 
+    gtk_label_set_text(GTK_LABEL(gui.l_rt[0]), " ");
+    gtk_label_set_text(GTK_LABEL(gui.l_rt[1]), " ");
+
     g_sprintf(ps_data, "%8s", "");
     g_sprintf(rt_data[0], "%64s", "");
     g_sprintf(rt_data[1], "%64s", "");
 
-    gtk_label_set_text(GTK_LABEL(gui.l_rt[0]), rt_data[0]);
-    gtk_label_set_text(GTK_LABEL(gui.l_rt[1]), rt_data[1]);
     gtk_list_store_clear(GTK_LIST_STORE(gui.af));
 
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
@@ -413,12 +421,14 @@ gboolean gui_clear(gpointer freq)
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
     rds = FALSE;
 
-    return FALSE;
+    rds_timer = 0;
+    pi = prevpi = prevpty = prevtp = prevta = prevms = rds_reset_timer = -1;
+    ps_available = FALSE;
 }
 
 gboolean gui_update_ps(gpointer nothing)
 {
-    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span><span color=\"#000000\">%s</span><span color=\"#C8C8C8\">]</span>", ps_data);
+    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", ps_data);
     gtk_label_set_markup(GTK_LABEL(gui.l_ps), markup);
     g_free(markup);
     return FALSE;
@@ -426,7 +436,9 @@ gboolean gui_update_ps(gpointer nothing)
 
 gboolean gui_update_rt(gpointer flag)
 {
-    gtk_label_set_text(GTK_LABEL(gui.l_rt[GPOINTER_TO_INT(flag)]), rt_data[GPOINTER_TO_INT(flag)]);
+    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", rt_data[GPOINTER_TO_INT(flag)]);
+    gtk_label_set_markup(GTK_LABEL(gui.l_rt[GPOINTER_TO_INT(flag)]), markup);
+    g_free(markup);
     return FALSE;
 }
 
@@ -438,7 +450,9 @@ gboolean gui_update_pi(gpointer isOK)
     else
         g_snprintf(pi_text, 6, "%04X?", pi);
     if(pi != -1)
+    {
         gtk_label_set_text(GTK_LABEL(gui.l_pi), pi_text);
+    }
     return FALSE;
 }
 
@@ -447,16 +461,19 @@ gboolean gui_update_ptytp(gpointer nothing)
     static gchar* ptys_eu[] = {"None", "News", "Affairs", "Info", "Sport", "Educate", "Drama", "Culture", "Science", "Varied", "Pop M", "Rock M", "Easy M", "Light M", "Classics", "Other M", "Weather", "Finance", "Children", "Social", "Religion", "Phone In", "Travel", "Leisure", "Jazz", "Country", "Nation M", "Oldies", "Folk M", "Document", "TEST", "Alarm !"};
     static gchar* ptys_usa[] = {"None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!"};
 
-    gchar tmp[15];
-    g_sprintf(tmp, "%-8s", (conf.rds_pty ? ptys_usa[prevpty] : ptys_eu[prevpty]));
-    gtk_label_set_text(GTK_LABEL(gui.l_pty), tmp);
+    if(prevpty != -1)
+    {
+        gchar tmp[15];
+        g_sprintf(tmp, "%-8s", (conf.rds_pty ? ptys_usa[prevpty] : ptys_eu[prevpty]));
+        gtk_label_set_text(GTK_LABEL(gui.l_pty), tmp);
+    }
 
-    if(prevtp)
+    if(prevtp == 1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, &gui.colors.black);
     }
-    else
+    else if(prevtp == 0)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
         gtk_label_set_text(GTK_LABEL(gui.l_ta), "  ");
@@ -468,29 +485,30 @@ gboolean gui_update_ptytp(gpointer nothing)
 
 gboolean gui_update_tams(gpointer nothing)
 {
-    if(prevtp && prevta)
+    if(prevtp == 1 && prevta == 1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.black);
     }
-    else if(prevtp)
+    else if(prevtp == 1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.grey);
     }
 
     gchar *markup;
-    if(prevms)
+    if(prevms == 1)
     {
         markup = g_markup_printf_escaped("M<span color=\"#DDDDDD\">S</span>");
+        gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
+        g_free(markup);
     }
-    else
+    else if(prevms == 0)
     {
         markup = g_markup_printf_escaped("<span color=\"#DDDDDD\">M</span>S");
+        gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
+        g_free(markup);
     }
-
-    gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
-    g_free(markup);
 
     return FALSE;
 }
@@ -666,7 +684,7 @@ void gui_fill_bandwidths(GtkWidget* combo, gboolean auto_mode)
 void tty_change_bandwidth()
 {
     gchar buffer[10];
-    g_snprintf(buffer, 10, "F%d", filters[gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw))]);
+    g_snprintf(buffer, sizeof(buffer), "F%d", filters[gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw))]);
     xdr_write(buffer);
 }
 
@@ -824,6 +842,7 @@ gboolean gui_update_clock(gpointer label)
         strftime(buff, sizeof(buff), "%d-%m-%Y %H:%M:%S LT", localtime(&tt));
     }
 
+    // network connection
     if(online > 0)
     {
         g_snprintf(buff2, sizeof(buff2), "Online: %d  |  %s", online, buff);
@@ -832,6 +851,15 @@ gboolean gui_update_clock(gpointer label)
     else
     {
         gtk_label_set_text(GTK_LABEL(label), buff);
+    }
+
+    // reset RDS data after timeout
+    if(conf.rds_reset && rds_reset_timer != -1)
+    {
+        if((g_get_real_time() - rds_reset_timer) > (conf.rds_reset_timeout*1000000))
+        {
+            gui_clear_rds();
+        }
     }
     return TRUE;
 }
@@ -887,29 +915,27 @@ gboolean volume_click(GtkWidget *widget, GdkEventButton *event)
 
 gchar* s_meter(gfloat val)
 {
-	gint s, plus;
-	plus = 0;
-	gchar* str;
+	gint s, plus = 0;
 
     if(val >= 85.2)
     {
         s = 9;
-		plus = 40;
+        plus = 40;
     }
     if(val >= 75.2)
     {
         s = 9;
-		plus = 30;
+        plus = 30;
     }
     else if(val >= 65.2)
     {
 		s = 9;
-		plus = 20;
+        plus = 20;
     }
     else if(val >= 55.2)
     {
 		s = 9;
-		plus = 10;
+        plus = 10;
     }
     else if(val >= 45.2)
     {
@@ -954,12 +980,10 @@ gchar* s_meter(gfloat val)
 
 	if(plus)
 	{
-		str = g_strdup_printf("S%d+%d", s, plus);
+        return g_strdup_printf("S%d+%d", s, plus);
 	}
 	else
 	{
-		str = g_strdup_printf("S%d", s);
+        return g_strdup_printf("S%d", s);
 	}
-
-	return str;
 }

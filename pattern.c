@@ -44,7 +44,7 @@ void pattern_dialog()
 
     pattern.b_close = gtk_button_new_with_label("Close");
     gtk_button_set_image(GTK_BUTTON(pattern.b_close), gtk_image_new_from_stock(GTK_STOCK_CLOSE, GTK_ICON_SIZE_BUTTON));
-    g_signal_connect_swapped(pattern.b_close, "clicked", G_CALLBACK(gtk_widget_destroy), pattern.dialog);
+    g_signal_connect_swapped(pattern.b_close, "clicked", G_CALLBACK(gui_pattern_destroy), pattern.dialog);
     gtk_box_pack_start(GTK_BOX(menu_box), pattern.b_close, TRUE, TRUE, 0);
 
     GtkWidget *settings_box = gtk_hbox_new(FALSE, 4);
@@ -108,7 +108,7 @@ void pattern_dialog()
     g_signal_connect_swapped(pattern.avg, "toggled", G_CALLBACK(gtk_widget_queue_draw), pattern.image);
 
     g_signal_connect(pattern.image, "expose-event", G_CALLBACK(draw_pattern), NULL);
-    g_signal_connect(pattern.dialog, "destroy", G_CALLBACK(gui_pattern_destroy), NULL);
+    g_signal_connect(pattern.dialog, "response", G_CALLBACK(gui_pattern_destroy), NULL);
 
     gtk_widget_show_all(pattern.dialog);
 #ifdef G_OS_WIN32
@@ -125,7 +125,6 @@ void pattern_dialog()
 #else
     gtk_dialog_run(GTK_DIALOG(pattern.dialog));
 #endif
-    gtk_widget_destroy(pattern.dialog);
 }
 
 gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
@@ -294,13 +293,14 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
     return FALSE;
 }
 
-void gui_pattern_destroy(gpointer data)
+void gui_pattern_destroy(gpointer dialog)
 {
     pattern_clear();
     conf.pattern_size = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(pattern.s_size));
     conf.pattern_fill = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.fill));
     conf.pattern_avg = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.avg));
     settings_write();
+    gtk_widget_destroy(GTK_WIDGET(dialog));
 }
 
 void pattern_init(gint freq)

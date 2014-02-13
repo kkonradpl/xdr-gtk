@@ -8,7 +8,8 @@
 #include "graph.h"
 #include "alignment.h"
 #include "pattern.h"
-#define VERSION "v0.2b"
+#include "rdsspy.h"
+#define VERSION "v0.2.1 beta3"
 
 GtkWidget* menu_create()
 {
@@ -36,6 +37,10 @@ GtkWidget* menu_create()
     gui.menu_items.alwaysontop = gtk_check_menu_item_new_with_label("Always on top");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gui.menu_items.alwaysontop);
     g_signal_connect(gui.menu_items.alwaysontop, "toggled", G_CALLBACK(window_on_top), NULL);
+
+    gui.menu_items.rdsspy = gtk_check_menu_item_new_with_label("RDS Spy link");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), gui.menu_items.rdsspy);
+    g_signal_connect(gui.menu_items.rdsspy, "activate", G_CALLBACK(rdsspy_toggle), NULL);
 
     gui.menu_items.settings = gtk_image_menu_item_new_with_label("Settings");
     gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(gui.menu_items.settings), GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_PREFERENCES, GTK_ICON_SIZE_MENU)));
@@ -72,7 +77,7 @@ void about_dialog()
     gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(gui.window));
     gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(dialog), "XDR-GTK");
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), VERSION);
-    gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog), "Copyright (C) 2012-2013  Konrad Kosmatka");
+    gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog), "Copyright (C) 2012-2014  Konrad Kosmatka");
     gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog), "XDR-F1HD controlling software\nfor Linux, Windows and OS X\n\nhttp://redakcja.radiopolska.pl/konrad/");
 
 #ifdef G_OS_WIN32

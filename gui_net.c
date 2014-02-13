@@ -80,3 +80,19 @@ gboolean gui_update_filter(gpointer data)
     g_free(id);
     return FALSE;
 }
+
+gboolean gui_auth_err(gpointer nothing)
+{
+    dialog_error("Wrong password!");
+    return FALSE;
+}
+
+gboolean gui_auth_ro(gpointer nothing)
+{
+    gchar buff[30];
+    g_source_remove(gui.status_timeout);
+    g_snprintf(buff, sizeof(buff), "Logged in as a guest!");
+    gtk_label_set_text(GTK_LABEL(gui.l_status), buff);
+    gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
+    return FALSE;
+}

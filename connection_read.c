@@ -5,10 +5,12 @@
 #include <unistd.h>
 #include "gui.h"
 #include "connection.h"
+#include "connection_read.h"
 #include "graph.h"
 #include "settings.h"
 #include "scan.h"
 #include "pattern.h"
+#include "rdsspy.h"
 #ifdef G_OS_WIN32
 #include <windows.h>
 #include <winsock2.h>
@@ -34,11 +36,11 @@ gpointer read_thread(gpointer nothing)
             thread = FALSE;
         }
     }
-#else
+#endif
     gint n;
     fd_set input;
     struct timeval timeout;
-#endif
+
     if(thread)
     {
         g_usleep(1750000); // arduino may restart during port opening
@@ -50,7 +52,15 @@ gpointer read_thread(gpointer nothing)
 #ifdef G_OS_WIN32
         if (serial_socket != INVALID_SOCKET)
         {
-            if (recv(serial_socket, &c, 1, 0) <= 0)
+            FD_ZERO(&input);
+            FD_SET(serial_socket, &input);
+            timeout.tv_sec  = 0;
+            timeout.tv_usec = 50000;
+            if(! (n = select(serial_socket+1, &input, NULL, NULL, &timeout)))
+            {
+                continue;
+            }
+            if(n < 0 || recv(serial_socket, &c, 1, 0) <= 0)
             {
                 break;
             }
@@ -104,15 +114,15 @@ gpointer read_thread(gpointer nothing)
         FD_SET(serial, &input);
         timeout.tv_sec  = 0;
         timeout.tv_usec = 50000;
-        n = select(serial+1, &input, NULL, NULL, &timeout);
-
-        if(!n)
+        if(! (n = select(serial+1, &input, NULL, NULL, &timeout)))
+        {
             continue;
-
+        }
         if(n < 0 || read(serial, &c, 1) <= 0)
+        {
             break;
+        }
 #endif
-
         if(c != '\n' && pos != SERIAL_BUFFER-1)
         {
             buffer[pos++] = c;
@@ -131,6 +141,18 @@ gpointer read_thread(gpointer nothing)
         {
             break;
         }
+        else if(buffer[0] == 'a') // socket auth
+        {
+            if(buffer[1] == '0')
+            {
+                g_idle_add_full(G_PRIORITY_DEFAULT, gui_auth_err, NULL, NULL);
+                break;
+            }
+            else if(buffer[1] == '1')
+            {
+                g_idle_add_full(G_PRIORITY_DEFAULT, gui_auth_ro, NULL, NULL);
+            }
+        }
         else
         {
             read_parse(buffer[0], buffer+1);
@@ -141,7 +163,6 @@ gpointer read_thread(gpointer nothing)
     if(serial_socket != INVALID_SOCKET)
     {
         closesocket(serial_socket);
-        WSACleanup();
     }
     else
     {
@@ -154,7 +175,7 @@ gpointer read_thread(gpointer nothing)
         CloseHandle(serial);
     }
 #else
-    int ctl;
+    gint ctl;
     // restart Arduino using RTS & DTR lines
     // is this really a serial port?
     if(ioctl(serial, TIOCMGET, &ctl) != -1)
@@ -179,17 +200,12 @@ void read_parse(gchar c, gchar msg[])
     if(c == 'S') // signal level + stereo/mono
     {
         guint smeter = atoi(msg+1);
+        gfloat sig = (smeter >> 16) + (smeter&0xFFFF)/65536.0;
 
-        float sig = (smeter >> 16) + (smeter&0xFFFF)/65536.0;
         if(conf.mode == MODE_FM)
         {
             // calibrated signal level meter (simple linear interpolation)
             sig = sig*0.797 + 3.5;
-        }
-
-        if(sig > max_signal)
-        {
-            max_signal = sig;
         }
 
         if(pattern.active)
@@ -200,38 +216,30 @@ void read_parse(gchar c, gchar msg[])
 
         rssi_pos = (rssi_pos + 1)%rssi_len;
         rssi[rssi_pos].value = sig;
-
-        if(rds_timer)
-        {
-            rssi[rssi_pos].rds = TRUE;
-        }
-        else
-        {
-            rssi[rssi_pos].rds = FALSE;
-        }
+        rssi[rssi_pos].rds = (rds_timer?TRUE:FALSE);
+        rssi[rssi_pos].stereo = (msg[0]=='s'?TRUE:FALSE);
 
         rds_timer = (rds_timer ? (rds_timer-1) : 0);
-        rssi[rssi_pos].stereo = (msg[0]=='s'?TRUE:FALSE);
+
+        if(sig > max_signal)
+        {
+            max_signal = sig;
+        }
 
         g_idle_add_full(G_PRIORITY_DEFAULT, gui_update_status, NULL, NULL);
     }
     else if(c == 'T') // tuned frequency
     {
         gint newfreq = atoi(msg);
-
         if(newfreq != freq)
         {
             prevfreq = freq;
         }
-
         freq = newfreq;
+        rdsspy_reset();
 
-        rds_timer = max_signal = 0;
-        pi = prevpi = prevpty = prevtp = prevta = prevms = -1;
-        ps_available = FALSE;
-
-        gchar *freq_text = g_new(gchar, 10);
-        g_sprintf(freq_text, "%7.3f", newfreq/1000.0);
+        max_signal = 0;
+        gchar *freq_text = g_strdup_printf("%7.3f", newfreq/1000.0);
         g_idle_add_full(G_PRIORITY_DEFAULT, gui_clear, freq_text, NULL);
     }
     else if(c == 'V') // alignment data
@@ -243,7 +251,13 @@ void read_parse(gchar c, gchar msg[])
         guint _pi;
         sscanf(msg, "%x", &_pi);
         pi = _pi;
+
         rds_timer = conf.rds_timeout;
+        if(conf.rds_reset)
+        {
+            rds_reset_timer = g_get_real_time();
+        }
+
         gint isOK = 0;
         if(strlen((msg)) == 4) // double checked
         {
@@ -260,22 +274,28 @@ void read_parse(gchar c, gchar msg[])
     }
     else if(c == 'R') // RDS data
     {
+        gint i;
+        guint data[3];
+        guint errors;
+
+        for(i=0; i<3; i++)
+        {
+            gchar hex[5];
+            strncpy(hex, msg+i*4, 4);
+            hex[4] = 0;
+            sscanf(hex, "%x", &data[i]);
+        }
+        sscanf(msg+12, "%x", &errors);
+
+        if(pi >= 0)
+        {
+			rdsspy_send(pi, msg, errors);
+		}
+
         if((!conf.rds_discard && pi>=0) || rssi[rssi_pos].rds)
         {
-            enum { BLOCK_B, BLOCK_C, BLOCK_D };
-            guint i, data[3], errors;
-            gchar hexbuffer[5];
-            for (i=0; i<3; i++)
-            {
-                strncpy(hexbuffer, msg+i*4, 4);
-                hexbuffer[4]=0x00;
-                sscanf(hexbuffer, "%x", &data[i]);
-            }
-            sscanf(msg+12, "%x", &errors);
-
-            short group = (data[BLOCK_B] & 0xF000) >> 12;
+            guchar group = (data[BLOCK_B] & 0xF000) >> 12;
             gboolean flag = (data[BLOCK_B] & 0x0800) >> 11;
-
             // PTY, TP, TA, MS: error-free blocks
             if((errors&3) == 0)
             {
@@ -309,8 +329,7 @@ void read_parse(gchar c, gchar msg[])
                 {
                     if(af[i]>0 && af[i]<205)
                     {
-                        gchar* af_new_freq = g_new(gchar, 6);
-                        g_snprintf(af_new_freq, 6, "%.1f", ((87500+af[i]*100)/1000.0));
+                        gchar* af_new_freq = g_strdup_printf("%.1f", ((87500+af[i]*100)/1000.0));
                         g_idle_add_full(G_PRIORITY_DEFAULT, gui_update_af, af_new_freq, NULL);
                     }
                 }
@@ -352,10 +371,18 @@ void read_parse(gchar c, gchar msg[])
 
                     for(i=0; i<4; i++)
                     {
-                        // only ASCII printable characters
-                        if(rt[i] >= 32 && rt[i] < 127 && rt_data[flag][pos*4+i] != rt[i])
+                        if(rt[i] == 0x0D) // end of the RadioText message
                         {
-                            if( (i <= 1 && ((errors&12)>>2) <= conf.rds_data_error) ||  (i >= 2 && ((errors&48)>>4) <= conf.rds_data_error) )
+                            if ((i <= 1 && (errors&15) == 0) || (i >= 2 && (errors&51) == 0))
+                            {
+                                rt_data[flag][pos*4+i] = 0;
+                                changed = TRUE;
+                            }
+                        }
+                        // only ASCII printable characters
+                        else if(rt[i] >= 32 && rt[i] < 127 && rt_data[flag][pos*4+i] != rt[i])
+                        {
+                            if( (i <= 1 && ((errors&12)>>2) <= conf.rds_data_error) || (i >= 2 && ((errors&48)>>4) <= conf.rds_data_error) )
                             {
                                 rt_data[flag][pos*4+i] = rt[i];
                                 changed = TRUE;
@@ -435,7 +462,7 @@ void read_parse(gchar c, gchar msg[])
 
         g_idle_add_full(G_PRIORITY_DEFAULT, gui_update_ant, (gpointer)id, NULL);
     }
-    else if(c == 'G') // RF/IF Gain  (network)
+    else if(c == 'G') // RF/IF Gain (network)
     {
         gchar *data = g_new(gchar, 2);
         data[0] = msg[0];

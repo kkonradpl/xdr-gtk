@@ -79,6 +79,7 @@ void gui_quit();
 void dialog_error(gchar* msg);
 gboolean gui_update_status(gpointer);
 gboolean gui_clear(gpointer);
+void gui_clear_rds();
 gboolean gui_update_ps(gpointer);
 gboolean gui_update_rt(gpointer);
 gboolean gui_update_pi(gpointer);

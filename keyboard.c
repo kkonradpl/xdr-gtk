@@ -10,18 +10,11 @@
 
 gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 {
+    guint current = gdk_keyval_to_upper(event->keyval);
+
     // tuning
-    switch(event->keyval)
+    if(current == conf.key_tune_down)
     {
-    case GDK_Page_Down:
-        tune_r(freq-1000);
-        return TRUE;
-
-    case GDK_Page_Up:
-        tune_r(freq+1000);
-        return TRUE;
-
-    case GDK_Left:
         if(freq > 65750 && freq <= 74000)
         {
             if(((freq-65750) % 30) == 0)
@@ -37,8 +30,10 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
                 tune_r(freq-100);
         }
         return TRUE;
+    }
 
-    case GDK_Right:
+    if(current == conf.key_tune_up)
+    {
         if(freq >= 65750 && freq < 74000)
         {
             if(((freq-65750) % 30) == 0)
@@ -54,28 +49,45 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
                 tune_r(freq+100);
         }
         return TRUE;
+    }
 
-    case GDK_Up:
+    if(current == conf.key_tune_up_5)
+    {
         tune(freq+5);
         return TRUE;
+    }
 
-    case GDK_Down:
+    if(current == conf.key_tune_down_5)
+    {
         tune(freq-5);
         return TRUE;
+    }
 
-    case GDK_b:
-    case GDK_B:
+    if(current == conf.key_tune_down_1000)
+    {
+        tune_r(freq-1000);
+        return TRUE;
+    }
+
+    if(current == conf.key_tune_up_1000)
+    {
+        tune_r(freq+1000);
+        return TRUE;
+    }
+
+    if(current == conf.key_tune_back)
+    {
         tune(prevfreq);
         return TRUE;
+    }
 
-    case GDK_r:
-    case GDK_R:
+    if(current == conf.key_reset)
+    {
         tune_r(freq);
         return TRUE;
     }
 
-    // screenshot
-    if(event->keyval == GDK_s || event->keyval == GDK_S)
+    if(current == conf.key_screen)
     {
         gchar t[20], filename[50];
         time_t tt = time(NULL);
@@ -128,30 +140,33 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         return TRUE;
     }
 
-    // increase filter bandwidth
-    if(event->keyval == GDK_KEY_bracketleft)
+    // decrease filter bandwidth
+    if(current == conf.key_bw_down)
     {
         gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw));
         if(current != gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(gui.c_bw))), NULL)-1)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), current+1);
         }
+        return TRUE;
     }
 
-    // decrease filter bandwidth
-    if(event->keyval == GDK_KEY_bracketright)
+    // increase filter bandwidth
+    if(current == conf.key_bw_up)
     {
         gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw));
         if(current != 0)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), current-1);
         }
+        return TRUE;
     }
 
     // adaptive filter bandwidth
-    if(event->keyval == GDK_KEY_backslash)
+    if(current == conf.key_bw_auto)
     {
         gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(gui.c_bw))), NULL) - 1);
+        return TRUE;
     }
 
     // freq entry
