@@ -88,7 +88,7 @@ void rdsspy_init(int port)
 
     if(bind(rdsspy_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
-        dialog_error("RDS Spy link:\nFailed to bind to a port.\nIs it already in use by another app instance?");
+        dialog_error("RDS Spy link:\nFailed to bind to a port.\nIt may be already in use by another application.");
 #ifdef G_OS_WIN32
         closesocket(rdsspy_socket);
 #else
@@ -188,7 +188,7 @@ void rdsspy_send(gint pi, gchar *msg, guint errors)
     }
 
     // 3rd block
-    if((errors&12) == 0) //
+    if((errors&12) == 0)
     {
         strncpy(groups[2], msg+4, 4);
         groups[2][4] = 0;

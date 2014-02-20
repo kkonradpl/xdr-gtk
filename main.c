@@ -1,6 +1,6 @@
 /*
  *  XDR-GTK v0.2.1
- *  Copyright (C) 2012-2013  Konrad Kosmatka
+ *  Copyright (C) 2012-2014  Konrad Kosmatka
  *  http://redakcja.radiopolska.pl/konrad/
 
  *  This program is free software; you can redistribute it and/or
