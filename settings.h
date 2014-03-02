@@ -2,7 +2,12 @@
 #define XDR_SETTINGS_H_
 #include <gtk/gtk.h>
 
+#ifdef __APPLE__
+#define CONF_FILE "/Library/Preferences/xdr-gtk.conf"
+#else
 #define CONF_FILE "xdr-gtk.conf"
+#endif
+
 #define PRESETS 12
 #define ANTENNAS 4
 
