@@ -15,75 +15,75 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
     // tuning
     if(current == conf.key_tune_down)
     {
-        if(freq > 65750 && freq <= 74000)
+        if(tuner.freq > 65750 && tuner.freq <= 74000)
         {
-            if(((freq-65750) % 30) == 0)
-                tune(freq-30);
+            if(((tuner.freq-65750) % 30) == 0)
+                tune(tuner.freq-30);
             else
-                tune(65750+((freq-65750)/30*30));
+                tune(65750+((tuner.freq-65750)/30*30));
         }
         else
         {
-            if(freq%100<50 && freq%100!=0)
-                tune_r(freq);
+            if(tuner.freq%100<50 && tuner.freq%100!=0)
+                tune_r(tuner.freq);
             else
-                tune_r(freq-100);
+                tune_r(tuner.freq-100);
         }
         return TRUE;
     }
 
     if(current == conf.key_tune_up)
     {
-        if(freq >= 65750 && freq < 74000)
+        if(tuner.freq >= 65750 && tuner.freq < 74000)
         {
-            if(((freq-65750) % 30) == 0)
-                tune(freq+30);
+            if(((tuner.freq-65750) % 30) == 0)
+                tune(tuner.freq+30);
             else
-                tune(65750+((freq-65750)/30*30)+30);
+                tune(65750+((tuner.freq-65750)/30*30)+30);
         }
         else
         {
-            if(freq%100>=50)
-                tune_r(freq);
+            if(tuner.freq%100>=50)
+                tune_r(tuner.freq);
             else
-                tune_r(freq+100);
+                tune_r(tuner.freq+100);
         }
         return TRUE;
     }
 
     if(current == conf.key_tune_up_5)
     {
-        tune(freq+5);
+        tune(tuner.freq+5);
         return TRUE;
     }
 
     if(current == conf.key_tune_down_5)
     {
-        tune(freq-5);
+        tune(tuner.freq-5);
         return TRUE;
     }
 
     if(current == conf.key_tune_down_1000)
     {
-        tune_r(freq-1000);
+        tune_r(tuner.freq-1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_up_1000)
     {
-        tune_r(freq+1000);
+        tune_r(tuner.freq+1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_back)
     {
-        tune(prevfreq);
+        tune(tuner.prevfreq);
         return TRUE;
     }
 
     if(current == conf.key_reset)
     {
-        tune_r(freq);
+        tune_r(tuner.freq);
         return TRUE;
     }
 
@@ -99,13 +99,13 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         {
             strftime(t, sizeof(t), "%Y%m%d-%H%M%S", localtime(&tt));
         }
-        if(pi!=-1)
+        if(tuner.pi!=-1)
         {
-            g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d-%04X.png", t, freq, pi);
+            g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d-%04X.png", t, tuner.freq, tuner.pi);
         }
         else
         {
-            g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d.png", t, freq);
+            g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d.png", t, tuner.freq);
         }
         GdkPixmap *pixmap = gtk_widget_get_snapshot(gui.window, NULL);
         GdkPixbuf *pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 0, 0, 0, 0, -1, -1);
@@ -126,9 +126,9 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         if(event->state & GDK_SHIFT_MASK)
         {
             gchar buff[50];
-            conf.presets[id] = freq;
+            conf.presets[id] = tuner.freq;
             g_source_remove(gui.status_timeout);
-            g_snprintf(buff, sizeof(buff), "Preset F%d saved: %d kHz", id+1, freq);
+            g_snprintf(buff, sizeof(buff), "Preset F%d saved: %d kHz", id+1, tuner.freq);
             gtk_label_set_text(GTK_LABEL(gui.l_status), buff);
             gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
             settings_write();

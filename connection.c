@@ -1,3 +1,4 @@
+#define _WIN32_WINNT 0x0501
 #include <gtk/gtk.h>
 #include <glib/gprintf.h>
 #include <string.h>
@@ -13,11 +14,9 @@
 #include "pattern.h"
 #include "sha1.h"
 #ifdef G_OS_WIN32
-#define _WIN32_WINNT 0x0501
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-SOCKET serial_socket = INVALID_SOCKET;
 #else
 #include <fcntl.h>
 #include <termios.h>
@@ -28,17 +27,6 @@ SOCKET serial_socket = INVALID_SOCKET;
 #include <dirent.h>
 #endif
 
-gint freq = 87500, prevfreq;
-gchar daa;
-gint prevpi, pi = -1;
-gchar ps_data[9], rt_data[2][65];
-gboolean ps_available;
-short prevpty, prevtp, prevta, prevms;
-gint rds_timer;
-gint64 rds_reset_timer;
-gfloat max_signal;
-gint online = -1;
-
 volatile gboolean thread = FALSE;
 volatile gboolean ready = FALSE;
 
@@ -47,6 +35,8 @@ short filters_n = sizeof(filters)/sizeof(short);
 
 void connection_dialog()
 {
+    gint conn_mode;
+
     gtk_widget_set_sensitive(gui.menu_items.connect, FALSE);
     if(thread)
     {
@@ -56,9 +46,7 @@ void connection_dialog()
         return;
     }
 
-    online = -1;
-    gint conn_mode = connection();
-    if(!conn_mode)
+    if(!(conn_mode = connection()))
     {
         gui_clear_power_off(NULL);
         return;
@@ -109,12 +97,12 @@ void connection_dialog()
 
     if(conn_mode == 1)
     {
-        tune(freq);
-        if(conf.mode == MODE_FM)
+        tune(tuner.freq);
+        if(tuner.mode == MODE_FM)
         {
             xdr_write("M0");
         }
-        if(conf.mode == MODE_AM)
+        if(tuner.mode == MODE_AM)
         {
             xdr_write("M1");
         }
@@ -262,13 +250,7 @@ gboolean connection()
             conf.network = 0;
             settings_write();
 
-            gchar serial_fn[32];
-#ifdef G_OS_WIN32
-            g_snprintf((gchar*)serial_fn, sizeof(serial_fn), "\\\\.\\%s", serial);
-#else
-            g_snprintf((gchar*)serial_fn, sizeof(serial_fn), "/dev/%s", serial);
-#endif
-            result = open_serial(serial_fn);
+            result = open_serial(serial);
         }
     }
     else
@@ -318,17 +300,21 @@ void connection_cancel(GtkWidget *widget, gpointer data)
     thread = FALSE;
 }
 
-gint open_serial(gchar* tty_name)
+gint open_serial(const gchar* serial_port)
 {
+    gchar path[32];
 #ifdef G_OS_WIN32
-    serial = CreateFile(tty_name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
-    if(serial == INVALID_HANDLE_VALUE)
+    DCB dcbSerialParams = {0};
+
+    g_snprintf(path, sizeof(path), "\\\\.\\%s", serial_port);
+    tuner.socket = INVALID_SOCKET;
+    tuner.serial = CreateFile(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    if(tuner.serial == INVALID_HANDLE_VALUE)
     {
         dialog_error("Unable to open the serial port.");
         return 0;
     }
-    DCB dcbSerialParams = {0};
-    if(!GetCommState(serial, &dcbSerialParams))
+    if(!GetCommState(tuner.serial, &dcbSerialParams))
     {
         dialog_error("Unable to read serial port parameters.");
         return 0;
@@ -337,23 +323,24 @@ gint open_serial(gchar* tty_name)
     dcbSerialParams.ByteSize = 8;
     dcbSerialParams.StopBits = ONESTOPBIT;
     dcbSerialParams.Parity = NOPARITY;
-    if(!SetCommState(serial, &dcbSerialParams))
+    if(!SetCommState(tuner.serial, &dcbSerialParams))
     {
         dialog_error("Unable to set serial port parameters.");
         return 0;
     }
 #else
-    serial = open(tty_name, O_RDWR | O_NOCTTY | O_NDELAY);
-    if(serial < 0)
+    struct termios options;
+
+    g_snprintf(path, sizeof(path), "/dev/%s", serial_port);
+    if((tuner.serial = open(path, O_RDWR | O_NOCTTY | O_NDELAY)) < 0)
     {
         dialog_error("Unable to open the serial port.");
         return 0;
     }
-    fcntl(serial, F_SETFL, 0);
-    tcflush(serial, TCIOFLUSH);
+    fcntl(tuner.serial, F_SETFL, 0);
+    tcflush(tuner.serial, TCIOFLUSH);
 
-    struct termios options;
-    if(tcgetattr(serial, &options))
+    if(tcgetattr(tuner.serial, &options))
     {
         dialog_error("Unable to read serial port parameters.");
         return 0;
@@ -370,7 +357,7 @@ gint open_serial(gchar* tty_name)
     options.c_oflag |= NOFLSH;
     options.c_cflag |= CS8;
     options.c_cflag &= ~(CRTSCTS);
-    if(tcsetattr(serial, TCSANOW, &options))
+    if(tcsetattr(tuner.serial, TCSANOW, &options))
     {
         dialog_error("Unable to set serial port parameters.");
         return 0;
@@ -430,9 +417,9 @@ gint open_socket(const gchar* destination, guint port, const gchar* password)
     send(s, sha_string, strlen(sha_string), 0);
 
 #ifdef G_OS_WIN32
-    serial_socket = s;
+    tuner.socket = s;
 #else
-    serial = s;
+    tuner.serial = s;
 #endif
 
     return 2;
@@ -449,10 +436,10 @@ void xdr_write(gchar* command)
         g_print("write: %s\n", command);
 #endif
 #ifdef G_OS_WIN32
-        if(serial_socket != INVALID_SOCKET)
+        if(tuner.socket != INVALID_SOCKET)
         {
             // network connection
-            send(serial_socket, tmp, len, 0);
+            send(tuner.socket, tmp, len, 0);
         }
         else
         {
@@ -467,20 +454,20 @@ void xdr_write(gchar* command)
                 return;
             }
 
-            if (!WriteFile(serial, tmp, len, &dwWritten, &osWrite))
+            if (!WriteFile(tuner.serial, tmp, len, &dwWritten, &osWrite))
             {
                 if (GetLastError() == ERROR_IO_PENDING)
                 {
                     if(WaitForSingleObject(osWrite.hEvent, INFINITE) == WAIT_OBJECT_0)
                     {
-                        GetOverlappedResult(serial, &osWrite, &dwWritten, FALSE);
+                        GetOverlappedResult(tuner.serial, &osWrite, &dwWritten, FALSE);
                     }
                 }
             }
             CloseHandle(osWrite.hEvent);
         }
 #else
-        write(serial, tmp, len);
+        write(tuner.serial, tmp, len);
 #endif
         g_free(tmp);
     }

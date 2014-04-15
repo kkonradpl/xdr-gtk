@@ -12,7 +12,7 @@ void alignment_dialog()
     GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
 
-    GtkObject* adj = gtk_adjustment_new(daa, 0.0, 127.0, 1.0, 1.0, 0);
+    GtkObject* adj = gtk_adjustment_new(tuner.daa, 0.0, 127.0, 1.0, 1.0, 0);
     GtkWidget *d_scale = gtk_hscale_new(GTK_ADJUSTMENT(adj));
     gtk_scale_set_digits(GTK_SCALE(d_scale), 0);
     gtk_box_pack_start(GTK_BOX(content), d_scale, TRUE, TRUE, 0);
@@ -57,7 +57,7 @@ void alignment_dialog()
 void alignment_update(GtkAdjustment *get, gpointer nothing)
 {
     gchar command[5];
-    daa = get->value;
-    g_snprintf(command, sizeof(command), "V%d", daa);
+    tuner.daa = get->value;
+    g_snprintf(command, sizeof(command), "V%d", tuner.daa);
     xdr_write(command);
 }

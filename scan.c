@@ -342,7 +342,7 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_struct* scan
             g_free(text);
             if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan->b_tune)))
             {
-                if(freq!=f)
+                if(tuner.freq!=f)
                 {
                     tune(f);
                 }

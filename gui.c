@@ -26,16 +26,12 @@ void gui_init()
 
     gui.box = gtk_vbox_new(FALSE, 2);
     gtk_container_add(GTK_CONTAINER(gui.window), gui.box);
-
     gui.box_header = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box), gui.box_header);
-
     gui.box_gui = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box), gui.box_gui);
-
     gui.box_left = gtk_vbox_new(FALSE, 2);
     gtk_container_add(GTK_CONTAINER(gui.box_gui), gui.box_left);
-
     gui.box_right = gtk_vbox_new(FALSE, 1);
     gtk_container_add(GTK_CONTAINER(gui.box_gui), gui.box_right);
 
@@ -82,7 +78,7 @@ void gui_init()
     gtk_container_add(GTK_CONTAINER(gui.event_ps), gui.l_ps);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_ps, TRUE, FALSE, 5);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_ps), FALSE);
-    g_signal_connect(gui.event_ps, "button-press-event", G_CALLBACK(clipboard_str), ps_data);
+    g_signal_connect(gui.event_ps, "button-press-event", G_CALLBACK(clipboard_ps), tuner.ps);
 
     // ----------------
 
@@ -274,7 +270,7 @@ void gui_init()
         gtk_container_add(GTK_CONTAINER(gui.event_rt[i]), gui.l_rt[i]);
         gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_rt[i]), FALSE);
         gtk_box_pack_start(GTK_BOX(gui.box), gui.event_rt[i], TRUE, TRUE, 0);
-        g_signal_connect(gui.event_rt[i], "button-press-event", G_CALLBACK(clipboard_str), rt_data[i]);
+        g_signal_connect(gui.event_rt[i], "button-press-event", G_CALLBACK(clipboard_rt), tuner.rt[i]);
     }
 
     // ----------------
@@ -282,14 +278,9 @@ void gui_init()
     gui.l_status = gtk_label_new(NULL);
     gtk_box_pack_start(GTK_BOX(gui.box), gui.l_status, TRUE, TRUE, 0);
 
-    if(conf.mode == MODE_FM)
-    {
-        gui_mode_FM();
-    }
-    else if(conf.mode == MODE_AM)
-    {
-        gui_mode_AM();
-    }
+    gui_mode_FM();
+    tuner.online = 0;
+    tuner.freq = 87500;
 
     gui_clear(NULL);
     gtk_widget_show_all(gui.window);
@@ -313,42 +304,43 @@ void gui_quit()
 
 void dialog_error(gchar* msg)
 {
-    GtkWidget* dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, msg);
+    GtkWidget* dialog;
+    dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, msg);
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
 }
 
 gboolean gui_update_status(gpointer nothing)
 {
-    if(stereo != rssi[rssi_pos].stereo)
+    if(tuner.stereo != rssi[rssi_pos].stereo)
     {
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, rssi[rssi_pos].stereo?&gui.colors.stereo:&gui.colors.grey);
-        stereo = !stereo;
+        tuner.stereo = !tuner.stereo;
     }
 
-    if(rds != rssi[rssi_pos].rds)
+    if(tuner.rds != rssi[rssi_pos].rds)
     {
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, rssi[rssi_pos].rds?&conf.color_rds:&gui.colors.grey);
-        rds = !rds;
+        tuner.rds = !tuner.rds;
     }
 
     if((rssi_pos % 3) == 0) // slower signal level label refresh
     {
         gchar *s, *s_m, *s_m2;
-        if(conf.mode == MODE_FM)
+        if(tuner.mode == MODE_FM)
         {
             switch(conf.signal_unit)
             {
             case UNIT_DBM:
-                s = g_markup_printf_escaped("<span color=\"#777777\">%4.0f/</span>%4.0fdBm", max_signal-120, rssi[rssi_pos].value-120);
+                s = g_markup_printf_escaped("<span color=\"#777777\">%4.0f/</span>%4.0fdBm", tuner.max_signal-120, rssi[rssi_pos].value-120);
                 break;
 
             case UNIT_DBUV:
-                s = g_markup_printf_escaped("<span color=\"#777777\">%3.0f/</span>%3.0f dBuV", max_signal-11.25, rssi[rssi_pos].value-11.25);
+                s = g_markup_printf_escaped("<span color=\"#777777\">%3.0f/</span>%3.0f dBuV", tuner.max_signal-11.25, rssi[rssi_pos].value-11.25);
                 break;
 
             case UNIT_S:
-                s_m = s_meter(max_signal);
+                s_m = s_meter(tuner.max_signal);
                 s_m2 = s_meter(rssi[rssi_pos].value);
                 s = g_markup_printf_escaped("<span color=\"#777777\"> %5s/</span>%5s", s_m, s_m2);
                 g_free(s_m);
@@ -357,13 +349,13 @@ gboolean gui_update_status(gpointer nothing)
 
             case UNIT_DBF:
             default:
-                s = g_markup_printf_escaped("<span color=\"#777777\"> %3.0f/</span>%3.0f dBf", max_signal, rssi[rssi_pos].value);
+                s = g_markup_printf_escaped("<span color=\"#777777\"> %3.0f/</span>%3.0f dBf", tuner.max_signal, rssi[rssi_pos].value);
                 break;
             }
         }
         else
         {
-            s = g_markup_printf_escaped("<span color=\"#777777\">     %3.0f/</span>%3.0f", max_signal, rssi[rssi_pos].value);
+            s = g_markup_printf_escaped("<span color=\"#777777\">     %3.0f/</span>%3.0f", tuner.max_signal, rssi[rssi_pos].value);
         }
         gtk_label_set_markup(GTK_LABEL(gui.l_sig), s);
         g_free(s);
@@ -399,6 +391,8 @@ gboolean gui_clear(gpointer freq)
 
 void gui_clear_rds()
 {
+    int i;
+
     gtk_label_set_text(GTK_LABEL(gui.l_pi), "     ");
     gtk_label_set_text(GTK_LABEL(gui.l_ps), "          ");
     gtk_label_set_text(GTK_LABEL(gui.l_pty), "        ");
@@ -409,26 +403,65 @@ void gui_clear_rds()
     gtk_label_set_text(GTK_LABEL(gui.l_rt[0]), " ");
     gtk_label_set_text(GTK_LABEL(gui.l_rt[1]), " ");
 
-    g_sprintf(ps_data, "%8s", "");
-    g_sprintf(rt_data[0], "%64s", "");
-    g_sprintf(rt_data[1], "%64s", "");
+    g_sprintf(tuner.ps, "%8s", "");
+    for(i=0; i<8; i++)
+    {
+        tuner.ps_err[i] = 0xFF;
+    }
+
+    g_sprintf(tuner.rt[0], "%64s", "");
+    g_sprintf(tuner.rt[1], "%64s", "");
 
     gtk_list_store_clear(GTK_LIST_STORE(gui.af));
 
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
-    stereo = FALSE;
+    tuner.stereo = FALSE;
 
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
-    rds = FALSE;
+    tuner.rds = FALSE;
 
-    rds_timer = 0;
-    pi = prevpi = prevpty = prevtp = prevta = prevms = rds_reset_timer = -1;
-    ps_available = FALSE;
+    tuner.rds_timer = 0;
+    tuner.pi = tuner.prevpi = tuner.prevpty = tuner.prevtp = tuner.prevta = tuner.prevms = tuner.rds_reset_timer = -1;
+    tuner.ps_avail = FALSE;
 }
 
 gboolean gui_update_ps(gpointer nothing)
 {
-    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", ps_data);
+    unsigned char c[8];
+    int i;
+    gchar *markup;
+
+    if(conf.rds_ps_color)
+    {
+
+        for(i=0; i<8; i++)
+        {
+            c[i] = (tuner.ps_err[i] ? 110+(tuner.ps_err[i] * 12) : 0);
+        }
+        markup = g_markup_printf_escaped(
+                     "<span color=\"#C8C8C8\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#C8C8C8\">%c</span>",
+                     (conf.rds_ps_progressive?'(':'['),
+                     c[0], c[0], c[0], tuner.ps[0],
+                     c[1], c[1], c[1], tuner.ps[1],
+                     c[2], c[2], c[2], tuner.ps[2],
+                     c[3], c[3], c[3], tuner.ps[3],
+                     c[4], c[4], c[4], tuner.ps[4],
+                     c[5], c[5], c[5], tuner.ps[5],
+                     c[6], c[6], c[6], tuner.ps[6],
+                     c[7], c[7], c[7], tuner.ps[7],
+                     (conf.rds_ps_progressive?')':']')
+                 );
+    }
+    else
+    {
+        markup = g_markup_printf_escaped(
+                     "<span color=\"#C8C8C8\">%c</span>%s<span color=\"#C8C8C8\">%c</span>",
+                     (conf.rds_ps_progressive?'(':'['),
+                     tuner.ps,
+                     (conf.rds_ps_progressive?')':']')
+                 );
+    }
+
     gtk_label_set_markup(GTK_LABEL(gui.l_ps), markup);
     g_free(markup);
     return FALSE;
@@ -436,7 +469,7 @@ gboolean gui_update_ps(gpointer nothing)
 
 gboolean gui_update_rt(gpointer flag)
 {
-    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", rt_data[GPOINTER_TO_INT(flag)]);
+    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", tuner.rt[GPOINTER_TO_INT(flag)]);
     gtk_label_set_markup(GTK_LABEL(gui.l_rt[GPOINTER_TO_INT(flag)]), markup);
     g_free(markup);
     return FALSE;
@@ -446,10 +479,10 @@ gboolean gui_update_pi(gpointer isOK)
 {
     gchar pi_text[6];
     if(GPOINTER_TO_INT(isOK))
-        g_snprintf(pi_text, 6, "%04X ", pi);
+        g_snprintf(pi_text, 6, "%04X ", tuner.pi);
     else
-        g_snprintf(pi_text, 6, "%04X?", pi);
-    if(pi != -1)
+        g_snprintf(pi_text, 6, "%04X?", tuner.pi);
+    if(tuner.pi != -1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_pi), pi_text);
     }
@@ -461,19 +494,19 @@ gboolean gui_update_ptytp(gpointer nothing)
     static gchar* ptys_eu[] = {"None", "News", "Affairs", "Info", "Sport", "Educate", "Drama", "Culture", "Science", "Varied", "Pop M", "Rock M", "Easy M", "Light M", "Classics", "Other M", "Weather", "Finance", "Children", "Social", "Religion", "Phone In", "Travel", "Leisure", "Jazz", "Country", "Nation M", "Oldies", "Folk M", "Document", "TEST", "Alarm !"};
     static gchar* ptys_usa[] = {"None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!"};
 
-    if(prevpty != -1)
+    if(tuner.prevpty != -1)
     {
         gchar tmp[15];
-        g_sprintf(tmp, "%-8s", (conf.rds_pty ? ptys_usa[prevpty] : ptys_eu[prevpty]));
+        g_sprintf(tmp, "%-8s", (conf.rds_pty ? ptys_usa[tuner.prevpty] : ptys_eu[tuner.prevpty]));
         gtk_label_set_text(GTK_LABEL(gui.l_pty), tmp);
     }
 
-    if(prevtp == 1)
+    if(tuner.prevtp == 1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, &gui.colors.black);
     }
-    else if(prevtp == 0)
+    else if(tuner.prevtp == 0)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
         gtk_label_set_text(GTK_LABEL(gui.l_ta), "  ");
@@ -485,25 +518,25 @@ gboolean gui_update_ptytp(gpointer nothing)
 
 gboolean gui_update_tams(gpointer nothing)
 {
-    if(prevtp == 1 && prevta == 1)
+    if(tuner.prevtp == 1 && tuner.prevta == 1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.black);
     }
-    else if(prevtp == 1)
+    else if(tuner.prevtp == 1)
     {
         gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
         gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.grey);
     }
 
     gchar *markup;
-    if(prevms == 1)
+    if(tuner.prevms == 1)
     {
         markup = g_markup_printf_escaped("M<span color=\"#DDDDDD\">S</span>");
         gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
         g_free(markup);
     }
-    else if(prevms == 0)
+    else if(tuner.prevms == 0)
     {
         markup = g_markup_printf_escaped("<span color=\"#DDDDDD\">M</span>S");
         gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
@@ -566,7 +599,7 @@ void gui_mode_toggle(GtkWidget *widget, GdkEventButton *event, gpointer step)
 {
     if(event->type == GDK_BUTTON_PRESS && event->button == 1)
     {
-        if(conf.mode != MODE_FM)
+        if(tuner.mode != MODE_FM)
         {
             xdr_write("M0");
             gui_mode_FM();
@@ -581,8 +614,7 @@ void gui_mode_toggle(GtkWidget *widget, GdkEventButton *event, gpointer step)
 
 gboolean gui_mode_FM()
 {
-    conf.mode = MODE_FM;
-    settings_write();
+    tuner.mode = MODE_FM;
     gtk_label_set_text(GTK_LABEL(gui.l_band), "FM");
     g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, TRUE);
@@ -594,9 +626,8 @@ gboolean gui_mode_FM()
 
 gboolean gui_mode_AM()
 {
-    conf.mode = MODE_AM;
-    settings_write();
-    rds_timer = 0;
+    tuner.mode = MODE_AM;
+    tuner.rds_timer = 0;
     gtk_label_set_text(GTK_LABEL(gui.l_band), "AM");
     g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, FALSE);
@@ -611,7 +642,7 @@ void gui_fill_bandwidths(GtkWidget* combo, gboolean auto_mode)
     GtkTreeModel *store = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
     gtk_list_store_clear(GTK_LIST_STORE(store));
 
-    switch(conf.mode)
+    switch(tuner.mode)
     {
     case MODE_FM:
         gtk_combo_box_append_text(GTK_COMBO_BOX(combo), "309 kHz");
@@ -677,8 +708,11 @@ void gui_fill_bandwidths(GtkWidget* combo, gboolean auto_mode)
         gtk_combo_box_append_text(GTK_COMBO_BOX(combo), "1.1 kHz");
         break;
     }
+
     if(auto_mode)
+    {
         gtk_combo_box_append_text(GTK_COMBO_BOX(combo), "auto");
+    }
 }
 
 void tty_change_bandwidth()
@@ -690,8 +724,8 @@ void tty_change_bandwidth()
 
 void tty_change_deemphasis()
 {
-    gint deemphasis = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_deemph));
-    switch(deemphasis)
+    conf.deemphasis = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_deemph));
+    switch(conf.deemphasis)
     {
     case 0:
         xdr_write("D0");
@@ -703,7 +737,6 @@ void tty_change_deemphasis()
         xdr_write("D2");
         break;
     }
-    conf.deemphasis = deemphasis;
     settings_write();
 }
 
@@ -717,8 +750,7 @@ void tty_change_volume(GtkScaleButton *widget, gdouble volume, gpointer data)
 
 void tty_change_ant()
 {
-    gint ant = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant));
-    switch(ant)
+    switch(gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant)))
     {
     case 0:
         xdr_write("Z0");
@@ -737,8 +769,8 @@ void tty_change_ant()
 
 void tty_change_agc()
 {
-    gint agc = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_agc));
-    switch(agc)
+    conf.agc = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_agc));
+    switch(conf.agc)
     {
     case 0:
         xdr_write("A0");
@@ -754,7 +786,6 @@ void tty_change_agc()
         break;
     }
 
-    conf.agc = agc;
     settings_write();
 }
 
@@ -774,7 +805,7 @@ void tune_gui_back(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
 {
     if(event->type == GDK_BUTTON_PRESS)
     {
-        tune(prevfreq);
+        tune(tuner.prevfreq);
     }
 }
 
@@ -782,7 +813,7 @@ void tune_gui_round(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
 {
     if(event->type == GDK_BUTTON_PRESS)
     {
-        tune_r(freq);
+        tune_r(tuner.freq);
     }
 }
 
@@ -790,11 +821,11 @@ void tune_gui_step_click(GtkWidget *widget, GdkEventButton *event, gpointer step
 {
     if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click, tune down
     {
-        tune(freq-(GPOINTER_TO_INT(step)));
+        tune(tuner.freq-(GPOINTER_TO_INT(step)));
     }
     else if(event->type == GDK_BUTTON_PRESS && event->button == 1) // left click, tune up
     {
-        tune(freq+(GPOINTER_TO_INT(step)));
+        tune(tuner.freq+(GPOINTER_TO_INT(step)));
     }
 }
 
@@ -802,11 +833,11 @@ void tune_gui_step_scroll(GtkWidget *widget, GdkEventScroll *event, gpointer ste
 {
     if(event->direction)
     {
-        tune(freq-(GPOINTER_TO_INT(step)));
+        tune(tuner.freq-(GPOINTER_TO_INT(step)));
     }
     else
     {
-        tune(freq+(GPOINTER_TO_INT(step)));
+        tune(tuner.freq+(GPOINTER_TO_INT(step)));
     }
 }
 
@@ -831,32 +862,26 @@ gboolean gui_toggle_gain(GtkWidget *widget, GdkEventButton *event, gpointer noth
 
 gboolean gui_update_clock(gpointer label)
 {
-    gchar buff[30], buff2[50];
+    gchar buff[20], buff2[50];
     time_t tt = time(NULL);
-    if(conf.utc)
-    {
-        strftime(buff, sizeof(buff), "%d-%m-%Y %H:%M:%S UTC", gmtime(&tt));
-    }
-    else
-    {
-        strftime(buff, sizeof(buff), "%d-%m-%Y %H:%M:%S LT", localtime(&tt));
-    }
+    strftime(buff, sizeof(buff), "%d-%m-%Y %H:%M:%S", (conf.utc ? gmtime(&tt) : localtime(&tt)));
 
     // network connection
-    if(online > 0)
+    if(tuner.online)
     {
-        g_snprintf(buff2, sizeof(buff2), "Online: %d  |  %s", online, buff);
-        gtk_label_set_text(GTK_LABEL(label), buff2);
+        g_snprintf(buff2, sizeof(buff2), "Online: %d  |  %s %s", tuner.online, buff, (conf.utc ? "UTC" : "LT"));
     }
     else
     {
-        gtk_label_set_text(GTK_LABEL(label), buff);
+        g_snprintf(buff2, sizeof(buff2), "%s %s", buff, (conf.utc ? "UTC" : "LT"));
     }
 
+    gtk_label_set_text(GTK_LABEL(label), buff2);
+
     // reset RDS data after timeout
-    if(conf.rds_reset && rds_reset_timer != -1)
+    if(conf.rds_reset && tuner.rds_reset_timer != -1)
     {
-        if((g_get_real_time() - rds_reset_timer) > (conf.rds_reset_timeout*1000000))
+        if((g_get_real_time() - tuner.rds_reset_timer) > (conf.rds_reset_timeout*1000000))
         {
             gui_clear_rds();
         }
@@ -884,7 +909,7 @@ void tune_gui_af(GtkTreeSelection *ts, gpointer nothing)
         size_t i;
         for(i=0; i<strlen(v); i++)
         {
-            if(v[i] == '.' || v[i] == ',')
+            if(v[i] == '.')
             {
                 v[i] = v[i+1];
                 v[i+1] = 0x00;
@@ -915,7 +940,7 @@ gboolean volume_click(GtkWidget *widget, GdkEventButton *event)
 
 gchar* s_meter(gfloat val)
 {
-	gint s, plus = 0;
+    gint s, plus = 0;
 
     if(val >= 85.2)
     {
@@ -929,61 +954,61 @@ gchar* s_meter(gfloat val)
     }
     else if(val >= 65.2)
     {
-		s = 9;
+        s = 9;
         plus = 20;
     }
     else if(val >= 55.2)
     {
-		s = 9;
+        s = 9;
         plus = 10;
     }
     else if(val >= 45.2)
     {
-		s = 9;
+        s = 9;
     }
     else if(val >= 39.2)
     {
-		s = 8;
+        s = 8;
     }
     else if(val >= 33.2)
     {
-		s = 7;
+        s = 7;
     }
     else if(val >= 27.2)
     {
-		s = 6;
+        s = 6;
     }
     else if(val >= 21.2)
     {
-		s = 5;
+        s = 5;
     }
     else if(val >= 15.2)
     {
-		s = 4;
+        s = 4;
     }
     else if(val >= 9.23)
     {
-		s = 3;
+        s = 3;
     }
     else if(val >= 3.23)
     {
-		s = 2;
+        s = 2;
     }
     else if(val >= -2.77)
     {
-		s = 1;
+        s = 1;
     }
     else
     {
-		s = 0;
+        s = 0;
     }
 
-	if(plus)
-	{
+    if(plus)
+    {
         return g_strdup_printf("S%d+%d", s, plus);
-	}
-	else
-	{
+    }
+    else
+    {
         return g_strdup_printf("S%d", s);
-	}
+    }
 }

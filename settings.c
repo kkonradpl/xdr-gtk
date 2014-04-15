@@ -29,7 +29,6 @@ void settings_read()
         conf.port = 7373;
         conf.password = g_strdup("");
 
-        conf.mode = MODE_FM;
         conf.rfgain = 0;
         conf.ifgain = 0;
         conf.agc = 1;
@@ -61,11 +60,13 @@ void settings_read()
 
         conf.rds_timeout = 2;
         conf.rds_discard = FALSE;
-        conf.rds_reset = TRUE;
+        conf.rds_reset = FALSE;
         conf.rds_reset_timeout = 60;
         conf.rds_pty = 0;
         conf.rds_info_error = 2;
         conf.rds_data_error = 1;
+        conf.rds_ps_progressive = FALSE;
+        conf.rds_ps_color = TRUE;
         conf.rds_spy_port = 7376;
         conf.rds_spy_auto = FALSE;
 
@@ -106,7 +107,6 @@ void settings_read()
     conf.port = g_key_file_get_integer(keyfile, "connection", "port", NULL);
     conf.password = g_key_file_get_string(keyfile, "connection", "password", NULL);
 
-    conf.mode = g_key_file_get_integer(keyfile, "tuner", "mode", NULL);
     conf.rfgain = g_key_file_get_boolean(keyfile, "tuner", "rfgain", NULL);
     conf.ifgain = g_key_file_get_boolean(keyfile, "tuner", "ifgain", NULL);
     conf.agc = g_key_file_get_integer(keyfile, "tuner", "agc", NULL);
@@ -144,6 +144,8 @@ void settings_read()
     conf.rds_pty = g_key_file_get_integer(keyfile, "settings", "rds_pty", NULL);
     conf.rds_info_error = g_key_file_get_integer(keyfile, "settings", "rds_info_error", NULL);
     conf.rds_data_error = g_key_file_get_integer(keyfile, "settings", "rds_data_error", NULL);
+    conf.rds_ps_progressive = g_key_file_get_boolean(keyfile, "settings", "rds_ps_progressive", NULL);
+    conf.rds_ps_color = g_key_file_get_boolean(keyfile, "settings", "rds_ps_color", NULL);
     conf.rds_spy_port = g_key_file_get_integer(keyfile, "settings", "rds_spy_port", NULL);
     conf.rds_spy_auto = g_key_file_get_boolean(keyfile, "settings", "rds_spy_auto", NULL);
 
@@ -216,7 +218,6 @@ void settings_write()
     g_key_file_set_integer(keyfile, "connection", "port", conf.port);
     g_key_file_set_string(keyfile, "connection", "password", conf.password);
 
-    g_key_file_set_integer(keyfile, "tuner", "mode", conf.mode);
     g_key_file_set_boolean(keyfile, "tuner", "rfgain", conf.rfgain);
     g_key_file_set_boolean(keyfile, "tuner", "ifgain", conf.ifgain);
     g_key_file_set_integer(keyfile, "tuner", "agc", conf.agc);
@@ -250,6 +251,8 @@ void settings_write()
     g_key_file_set_integer(keyfile, "settings", "rds_pty", conf.rds_pty);
     g_key_file_set_integer(keyfile, "settings", "rds_info_error", conf.rds_info_error);
     g_key_file_set_integer(keyfile, "settings", "rds_data_error", conf.rds_data_error);
+    g_key_file_set_boolean(keyfile, "settings", "rds_ps_progressive", conf.rds_ps_progressive);
+    g_key_file_set_boolean(keyfile, "settings", "rds_ps_color", conf.rds_ps_color);
     g_key_file_set_integer(keyfile, "settings", "rds_spy_port", conf.rds_spy_port);
     g_key_file_set_boolean(keyfile, "settings", "rds_spy_auto", conf.rds_spy_auto);
 
@@ -282,20 +285,19 @@ void settings_write()
     g_key_file_set_integer(keyfile, "keyboard", "key_bw_down", conf.key_bw_down);
     g_key_file_set_integer(keyfile, "keyboard", "key_bw_auto", conf.key_bw_auto);
 
-    tmp = g_key_file_to_data(keyfile, &length, &error);
+    if(!(tmp = g_key_file_to_data(keyfile, &length, &error)))
+    {
+        dialog_error("Unable to generate the configuration file.");
+        g_error_free(error);
+        error = NULL;
+    }
     g_key_file_free(keyfile);
 
-    FILE *f = fopen(CONF_FILE, "w");
-    if (f == NULL)
+    if (!g_file_set_contents(CONF_FILE, tmp, length, &error))
     {
         dialog_error("Unable to save the configuration file.");
+        g_error_free(error);
     }
-    else
-    {
-        fwrite(tmp, 1, length, f);
-        fclose(f);
-    }
-
     g_free(tmp);
 }
 
@@ -365,13 +367,19 @@ void settings_dialog()
     GtkWidget *box_colors = gtk_hbox_new(FALSE, 5);
     GtkWidget *c_mono = gtk_color_button_new_with_color(&conf.color_mono);
     gtk_color_button_set_title(GTK_COLOR_BUTTON(c_mono), "Mono color");
+    gtk_widget_set_tooltip_text(c_mono, "Mono color");
     gtk_box_pack_start(GTK_BOX(box_colors), c_mono, TRUE, TRUE, 0);
+
     GtkWidget *c_stereo = gtk_color_button_new_with_color(&conf.color_stereo);
     gtk_color_button_set_title(GTK_COLOR_BUTTON(c_stereo), "Stereo color");
+    gtk_widget_set_tooltip_text(c_stereo, "Stereo color");
     gtk_box_pack_start(GTK_BOX(box_colors), c_stereo, TRUE, TRUE, 0);
+
     GtkWidget *c_rds = gtk_color_button_new_with_color(&conf.color_rds);
     gtk_color_button_set_title(GTK_COLOR_BUTTON(c_rds), "RDS color");
+    gtk_widget_set_tooltip_text(c_rds, "RDS color");
     gtk_box_pack_start(GTK_BOX(box_colors), c_rds, TRUE, TRUE, 0);
+
     gtk_table_attach(GTK_TABLE(table_signal), box_colors, 1, 2, row, row+1, 0, 0, 0, 0);
 
     row++;
@@ -470,6 +478,19 @@ void settings_dialog()
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_rds_data_error), "max 5-bit");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_rds_data_error), conf.rds_data_error);
     gtk_table_attach(GTK_TABLE(table_rds), c_rds_data_error, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_psprog = gtk_check_button_new_with_label("PS progressive correction");
+    gtk_widget_set_tooltip_text(x_psprog, "Replace characters in the RDS PS only with lower or the same error level. This also overrides the error correction to 5/5bit. Useful for static RDS PS. For a quick toggle, click a right mouse button on the displayed RDS PS.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_psprog), conf.rds_ps_progressive);
+    gtk_table_attach(GTK_TABLE(table_rds), x_psprog, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_pscolor = gtk_check_button_new_with_label("Dim PS depending on the correction");
+    gtk_widget_set_tooltip_text(x_pscolor, "Display RDS PS characters in a grayscale depending on the error correction level.");
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_pscolor), conf.rds_ps_color);
+    gtk_table_attach(GTK_TABLE(table_rds), x_pscolor, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     GtkWidget *hs_rdsspy = gtk_hseparator_new();
@@ -714,6 +735,8 @@ void settings_dialog()
         conf.rds_pty = gtk_combo_box_get_active(GTK_COMBO_BOX(c_pty));
         conf.rds_info_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rds_info_error));
         conf.rds_data_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rds_data_error));
+        conf.rds_ps_progressive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_psprog));
+        conf.rds_ps_color = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_pscolor));
 
         // restart RDS Spy server if the port has been changed
         gint tmp_port = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_rdsspy_port));

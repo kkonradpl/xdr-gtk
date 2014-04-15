@@ -343,7 +343,7 @@ void pattern_start(GtkWidget *widget, gpointer data)
     if(!pattern.active)
     {
         pattern_clear();
-        pattern_init(freq);
+        pattern_init(tuner.freq);
         gtk_button_set_label(GTK_BUTTON(widget), "Stop ");
         gtk_button_set_image(GTK_BUTTON(widget), gtk_image_new_from_stock(GTK_STOCK_MEDIA_STOP, GTK_ICON_SIZE_BUTTON));
         gtk_widget_set_sensitive(pattern.b_load, FALSE);
@@ -446,7 +446,7 @@ void pattern_save(GtkWidget *widget, gpointer data)
 
     if((f = fopen(filename, "w")))
     {
-        g_snprintf(buffer, sizeof(buffer), "%d\n", freq);
+        g_snprintf(buffer, sizeof(buffer), "%d\n", tuner.freq);
         fwrite(buffer, 1, strlen(buffer), f);
 
         title = gtk_entry_get_text(GTK_ENTRY(pattern.e_title));

@@ -9,7 +9,7 @@
 #include "alignment.h"
 #include "pattern.h"
 #include "rdsspy.h"
-#define VERSION "v0.2.1"
+#define VERSION "v0.2.2"
 
 GtkWidget* menu_create()
 {

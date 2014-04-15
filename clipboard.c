@@ -9,28 +9,28 @@ gboolean clipboard_full(GtkWidget *widget, GdkEvent *event, gpointer nothing)
 {
     gchar buff[30];
     gchar* pi_text = get_pi();
-    gchar* rds_ps;
+    gchar* ps;
 
-    if(ps_available)
+    if(tuner.ps_avail)
     {
         if(conf.replace_spaces)
         {
-            rds_ps = replace_spaces(ps_data);
-            g_snprintf(buff, sizeof(buff), "%.3f %s %s", (freq/1000.0), pi_text, rds_ps);
-            g_free(rds_ps);
+            ps = replace_spaces(tuner.ps);
+            g_snprintf(buff, sizeof(buff), "%.3f %s %s", (tuner.freq/1000.0), pi_text, ps);
+            g_free(ps);
         }
         else
         {
-            g_snprintf(buff, sizeof(buff), "%.3f %s %s", (freq/1000.0), pi_text, ps_data);
+            g_snprintf(buff, sizeof(buff), "%.3f %s %s", (tuner.freq/1000.0), pi_text, tuner.ps);
         }
     }
-    else if(pi >= 0)
+    else if(tuner.pi >= 0)
     {
-        g_snprintf(buff, sizeof(buff), "%.3f %s", (freq/1000.0), pi_text);
+        g_snprintf(buff, sizeof(buff), "%.3f %s", (tuner.freq/1000.0), pi_text);
     }
     else
     {
-        g_snprintf(buff, sizeof(buff), "%.3f", (freq/1000.0));
+        g_snprintf(buff, sizeof(buff), "%.3f", (tuner.freq/1000.0));
     }
 
     gtk_clipboard_set_text(gui.clipboard, buff, -1);
@@ -41,7 +41,7 @@ gboolean clipboard_full(GtkWidget *widget, GdkEvent *event, gpointer nothing)
 gboolean clipboard_pi(GtkWidget *widget, GdkEvent *event, gpointer nothing)
 {
     gchar* pi_text;
-    if(pi >= 0)
+    if(tuner.pi >= 0)
     {
         pi_text = get_pi();
         gtk_clipboard_set_text(gui.clipboard, pi_text, -1);
@@ -50,7 +50,35 @@ gboolean clipboard_pi(GtkWidget *widget, GdkEvent *event, gpointer nothing)
     return FALSE;
 }
 
-gboolean clipboard_str(GtkWidget *widget, GdkEvent *event, gpointer data)
+gboolean clipboard_ps(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+    gchar* str;
+    if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click
+	{
+		conf.rds_ps_progressive = !conf.rds_ps_progressive;
+		settings_write();
+		if(tuner.ps_avail)
+		{
+			gui_update_ps(NULL);
+		}
+	}
+	else
+	{
+		if(conf.replace_spaces)
+		{
+		    str = replace_spaces((gchar*)data);
+		    gtk_clipboard_set_text(gui.clipboard, str, -1);
+		    g_free(str);
+		}
+		else
+		{
+		    gtk_clipboard_set_text(gui.clipboard, (gchar*)data, -1);
+		}
+	}
+    return FALSE;
+}
+
+gboolean clipboard_rt(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
     gchar* str;
     if(conf.replace_spaces)

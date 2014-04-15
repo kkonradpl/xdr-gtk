@@ -11,7 +11,6 @@
 #define PRESETS 12
 #define ANTENNAS 4
 
-enum Mode {MODE_FM, MODE_AM};
 enum Signal {SIGNAL_NONE, SIGNAL_GRAPH, SIGNAL_BAR};
 enum Unit {UNIT_DBF, UNIT_DBM, UNIT_DBUV, UNIT_S};
 
@@ -23,7 +22,6 @@ typedef struct
     unsigned short port;
     gchar* password;
 
-    enum Mode mode;
     gboolean rfgain;
     gboolean ifgain;
     gint agc;
@@ -48,6 +46,9 @@ typedef struct
     gint rds_pty; // 0=europe, 1=usa
     gint rds_info_error;
     gint rds_data_error;
+    gboolean rds_ps_progressive;
+    gboolean rds_ps_color;
+
     // 0=no errors
     // 1=max 2 bit err. corr.
     // 2=max 5 bit err. corr.

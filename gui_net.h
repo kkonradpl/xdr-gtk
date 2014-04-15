@@ -7,7 +7,6 @@ gboolean gui_update_deemphasis(gpointer data);
 gboolean gui_update_ant(gpointer data);
 gboolean gui_update_gain(gpointer data);
 gboolean gui_update_filter(gpointer data);
-gboolean gui_auth_err(gpointer);
-gboolean gui_auth_ro(gpointer);
+gboolean gui_auth(gpointer data);
 
 #endif
