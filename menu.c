@@ -78,7 +78,7 @@ void about_dialog()
     gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(dialog), "XDR-GTK");
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), VERSION);
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog), "Copyright (C) 2012-2014  Konrad Kosmatka");
-    gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog), "XDR-F1HD controlling software\nfor Linux, Windows and OS X\n\nhttp://redakcja.radiopolska.pl/konrad/");
+    gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog), "XDR-F1HD controlling software\nfor Linux, Windows and OS X\n\nhttp://fmdx.pl/");
 
 #ifdef G_OS_WIN32
     // workaround for windows to keep dialog over main window
