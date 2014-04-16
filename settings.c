@@ -293,11 +293,17 @@ void settings_write()
     }
     g_key_file_free(keyfile);
 
-    if (!g_file_set_contents(CONF_FILE, tmp, length, &error))
+    FILE *f = fopen(CONF_FILE, "w");
+    if (f == NULL)
     {
         dialog_error("Unable to save the configuration file.");
-        g_error_free(error);
     }
+    else
+    {
+        fwrite(tmp, 1, length, f);
+        fclose(f);
+    }
+
     g_free(tmp);
 }
 
