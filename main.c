@@ -19,6 +19,7 @@
 #include "settings.h"
 #include "graph.h"
 #include "rdsspy.h"
+#include "stationlist.h"
 #ifdef G_OS_WIN32
 #define _WIN32_WINNT 0x0500
 #include <windows.h>
@@ -41,6 +42,10 @@ gint main(gint argc, gchar* argv[])
     if(conf.rds_spy_auto)
     {
         rdsspy_toggle();
+    }
+    if(conf.stationlist)
+    {
+        stationlist_init();
     }
     gtk_main();
     g_free(rssi);

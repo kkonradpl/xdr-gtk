@@ -9,7 +9,7 @@
 #include "alignment.h"
 #include "pattern.h"
 #include "rdsspy.h"
-#define VERSION "v0.2.2"
+#define VERSION "v0.2.3\nbeta"
 
 GtkWidget* menu_create()
 {
@@ -75,7 +75,8 @@ void about_dialog()
 {
     GtkWidget *dialog = gtk_about_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(gui.window));
-    gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(dialog), "XDR-GTK");
+    gtk_about_dialog_set_logo_icon_name(GTK_ABOUT_DIALOG(dialog), "network-wireless");
+    gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(dialog), "XDR-GTK");
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), VERSION);
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog), "Copyright (C) 2012-2014  Konrad Kosmatka");
     gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog), "XDR-F1HD controlling software\nfor Linux, Windows and OS X\n\nhttp://fmdx.pl/");

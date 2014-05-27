@@ -1,8 +1,6 @@
 #ifndef XDR_RDSSPY_H_
 #define XDR_RDSSPY_H_
 
-#define RDSSPY_READ_BUFF 100
-
 void rdsspy_toggle();
 gboolean rdsspy_is_up();
 gboolean rdsspy_is_connected();

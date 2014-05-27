@@ -2,6 +2,8 @@
 #define XDR_CONNECTION_H
 #ifdef G_OS_WIN32
 #include <windows.h>
+#else
+#define closesocket(x) close(x)
 #endif
 
 #define DEBUG_READ 0

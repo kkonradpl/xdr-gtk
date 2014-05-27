@@ -9,6 +9,7 @@
 #include "settings.h"
 #include "clipboard.h"
 #include "keyboard.h"
+#include "stationlist.h"
 
 void gui_init()
 {
@@ -23,6 +24,7 @@ void gui_init()
     gtk_window_set_resizable(GTK_WINDOW(gui.window), FALSE);
     gtk_widget_modify_bg(gui.window, GTK_STATE_NORMAL, &gui.colors.background);
     gui.clipboard = gtk_widget_get_clipboard(gui.window, GDK_SELECTION_CLIPBOARD);
+    gtk_window_set_default_icon_name("network-wireless");
 
     gui.box = gtk_vbox_new(FALSE, 2);
     gtk_container_add(GTK_CONTAINER(gui.window), gui.box);
@@ -332,30 +334,30 @@ gboolean gui_update_status(gpointer nothing)
             switch(conf.signal_unit)
             {
             case UNIT_DBM:
-                s = g_markup_printf_escaped("<span color=\"#777777\">%4.0f/</span>%4.0fdBm", tuner.max_signal-120, rssi[rssi_pos].value-120);
+                s = g_markup_printf_escaped("<span color=\"#777777\">%4.0f↑</span>%4.0fdBm", tuner.max_signal-120, rssi[rssi_pos].value-120);
                 break;
 
             case UNIT_DBUV:
-                s = g_markup_printf_escaped("<span color=\"#777777\">%3.0f/</span>%3.0f dBuV", tuner.max_signal-11.25, rssi[rssi_pos].value-11.25);
+                s = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span>%3.0f dBuV", tuner.max_signal-11.25, rssi[rssi_pos].value-11.25);
                 break;
 
             case UNIT_S:
                 s_m = s_meter(tuner.max_signal);
                 s_m2 = s_meter(rssi[rssi_pos].value);
-                s = g_markup_printf_escaped("<span color=\"#777777\"> %5s/</span>%5s", s_m, s_m2);
+                s = g_markup_printf_escaped("<span color=\"#777777\"> %5s↑</span>%5s", s_m, s_m2);
                 g_free(s_m);
                 g_free(s_m2);
                 break;
 
             case UNIT_DBF:
             default:
-                s = g_markup_printf_escaped("<span color=\"#777777\"> %3.0f/</span>%3.0f dBf", tuner.max_signal, rssi[rssi_pos].value);
+                s = g_markup_printf_escaped("<span color=\"#777777\"> %3.0f↑</span>%3.0f dBf", tuner.max_signal, rssi[rssi_pos].value);
                 break;
             }
         }
         else
         {
-            s = g_markup_printf_escaped("<span color=\"#777777\">     %3.0f/</span>%3.0f", tuner.max_signal, rssi[rssi_pos].value);
+            s = g_markup_printf_escaped("<span color=\"#777777\">     %3.0f↑</span>%3.0f", tuner.max_signal, rssi[rssi_pos].value);
         }
         gtk_label_set_markup(GTK_LABEL(gui.l_sig), s);
         g_free(s);
@@ -381,8 +383,10 @@ gboolean gui_clear(gpointer freq)
     }
     else
     {
-        gtk_label_set_text(GTK_LABEL(gui.l_freq), (gchar*)freq);
-        g_free(freq);
+        gchar *freq_text = g_strdup_printf("%7.3f", GPOINTER_TO_INT(freq)/1000.0);
+        gtk_label_set_text(GTK_LABEL(gui.l_freq), freq_text);
+        g_free(freq_text);
+        stationlist_freq(GPOINTER_TO_INT(freq));
     }
     gui_clear_rds();
 

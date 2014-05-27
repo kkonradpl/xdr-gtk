@@ -5,6 +5,7 @@
 #include "graph.h"
 #include "menu.h"
 #include "rdsspy.h"
+#include "stationlist.h"
 
 void settings_read()
 {
@@ -57,6 +58,9 @@ void settings_read()
         conf.show_grid = TRUE;
         conf.utc = TRUE;
         conf.replace_spaces = TRUE;
+        conf.stationlist = FALSE;
+        conf.stationlist_client = 9030;
+        conf.stationlist_server = 9031;
 
         conf.rds_timeout = 2;
         conf.rds_discard = FALSE;
@@ -136,6 +140,9 @@ void settings_read()
     conf.show_grid = g_key_file_get_boolean(keyfile, "settings", "show_grid", NULL);
     conf.utc = g_key_file_get_boolean(keyfile, "settings", "utc", NULL);
     conf.replace_spaces = g_key_file_get_boolean(keyfile, "settings", "replace_spaces", NULL);
+    conf.stationlist = g_key_file_get_boolean(keyfile, "settings", "stationlist", NULL);
+    conf.stationlist_client = g_key_file_get_integer(keyfile, "settings", "stationlist_client", NULL);
+    conf.stationlist_server = g_key_file_get_integer(keyfile, "settings", "stationlist_server", NULL);
 
     conf.rds_timeout = g_key_file_get_integer(keyfile, "settings", "rds_timeout", NULL);
     conf.rds_discard = g_key_file_get_boolean(keyfile, "settings", "rds_discard", NULL);
@@ -231,6 +238,9 @@ void settings_write()
     g_key_file_set_boolean(keyfile, "settings", "show_grid", conf.show_grid);
     g_key_file_set_boolean(keyfile, "settings", "utc", conf.utc);
     g_key_file_set_boolean(keyfile, "settings", "replace_spaces", conf.replace_spaces);
+    g_key_file_set_boolean(keyfile, "settings", "stationlist", conf.stationlist);
+    g_key_file_set_integer(keyfile, "settings", "stationlist_client", conf.stationlist_client);
+    g_key_file_set_integer(keyfile, "settings", "stationlist_server", conf.stationlist_server);
 
     tmp = gdk_color_to_string(&conf.color_mono);
     g_key_file_set_string(keyfile, "settings", "color_mono", tmp);
@@ -328,7 +338,7 @@ void settings_dialog()
     GtkWidget *page_interface = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_interface), 4);
 
-    GtkWidget *table_signal = gtk_table_new(8, 2, TRUE);
+    GtkWidget *table_signal = gtk_table_new(12, 2, TRUE);
     gtk_table_set_homogeneous(GTK_TABLE(table_signal), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_signal), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_signal), 4);
@@ -408,6 +418,32 @@ void settings_dialog()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_replace), conf.replace_spaces);
     gtk_table_attach(GTK_TABLE(table_signal), x_replace, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
+    row++;
+    GtkWidget *hs_sl = gtk_hseparator_new();
+    gtk_table_attach(GTK_TABLE(table_signal), hs_sl, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_stationlist = gtk_check_button_new_with_label("StationList");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_stationlist), conf.stationlist);
+    gtk_table_attach(GTK_TABLE(table_signal), x_stationlist, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *l_stationlist_client = gtk_label_new("Client UDP Port:");
+    gtk_misc_set_alignment(GTK_MISC(l_stationlist_client), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_signal), l_stationlist_client, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkAdjustment *adj_sl_c = (GtkAdjustment*)gtk_adjustment_new(conf.stationlist_client, 1024.0, 65535.0, 1.0, 10.0, 0.0);
+    GtkWidget *s_stationlist_client = gtk_spin_button_new(adj_sl_c, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_signal), s_stationlist_client, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *l_stationlist_server = gtk_label_new("Server UDP Port:");
+    gtk_misc_set_alignment(GTK_MISC(l_stationlist_server), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_signal), l_stationlist_server, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkAdjustment *adj_sl_s = (GtkAdjustment*)gtk_adjustment_new(conf.stationlist_server, 1024.0, 65535.0, 1.0, 10.0, 0.0);
+    GtkWidget *s_stationlist_server = gtk_spin_button_new(adj_sl_s, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_signal), s_stationlist_server, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+
     GtkWidget *page_interface_label = gtk_label_new("Interface");
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_interface, page_interface_label);
 
@@ -416,7 +452,7 @@ void settings_dialog()
     GtkWidget *page_rds = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_rds), 4);
 
-    GtkWidget *table_rds = gtk_table_new(6, 2, TRUE);
+    GtkWidget *table_rds = gtk_table_new(13, 2, TRUE);
     gtk_table_set_homogeneous(GTK_TABLE(table_rds), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_rds), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_rds), 4);
@@ -503,11 +539,7 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_rds), hs_rdsspy, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *l_rdsspy = gtk_label_new("RDS Spy link:");
-    gtk_table_attach(GTK_TABLE(table_rds), l_rdsspy, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
-    GtkWidget *l_rdsspy_port = gtk_label_new("TCP/IP port:");
+    GtkWidget *l_rdsspy_port = gtk_label_new("RDS Spy TCP/IP port:");
     gtk_misc_set_alignment(GTK_MISC(l_rdsspy_port), 0.0, 0.5);
     gtk_table_attach(GTK_TABLE(table_rds), l_rdsspy_port, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     GtkAdjustment *adj4 = (GtkAdjustment*)gtk_adjustment_new(conf.rds_spy_port, 1024.0, 65535.0, 1.0, 10.0, 0.0);
@@ -527,7 +559,7 @@ void settings_dialog()
     GtkWidget *page_ant = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_ant), 4);
 
-    GtkWidget *table_ant = gtk_table_new(5, 5, FALSE);
+    GtkWidget *table_ant = gtk_table_new(5, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_ant), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_ant), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_ant), 4);
@@ -572,7 +604,7 @@ void settings_dialog()
     GtkWidget *page_key = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_key), 4);
 
-    GtkWidget *table_key = gtk_table_new(5, 5, FALSE);
+    GtkWidget *table_key = gtk_table_new(12, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_key), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_key), 1);
     gtk_table_set_col_spacings(GTK_TABLE(table_key), 0);
@@ -620,7 +652,7 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_key), b_tune_up_1000, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     row++;
 
-    GtkWidget *l_tune_down_1000 = gtk_label_new("Tune -1 kHz");
+    GtkWidget *l_tune_down_1000 = gtk_label_new("Tune -1 MHz");
     gtk_misc_set_alignment(GTK_MISC(l_tune_down_1000), 0.0, 0.5);
     gtk_table_attach(GTK_TABLE(table_key), l_tune_down_1000, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     GtkWidget *b_tune_down_1000 = gtk_button_new_with_label(gdk_keyval_name(conf.key_tune_down_1000));
@@ -733,6 +765,15 @@ void settings_dialog()
         conf.signal_avg = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_avg));
         conf.utc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_utc));
         conf.replace_spaces = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_replace));
+        conf.stationlist = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_stationlist));
+        conf.stationlist_client = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_stationlist_client));
+        conf.stationlist_server = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_stationlist_server));
+
+        stationlist_stop();
+        if(conf.stationlist)
+        {
+            stationlist_init();
+        }
 
         conf.rds_timeout = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_indicator));
         conf.rds_discard = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_discard));

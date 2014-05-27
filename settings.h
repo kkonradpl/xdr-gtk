@@ -38,6 +38,9 @@ typedef struct
     gboolean show_grid;
     gboolean utc;
     gboolean replace_spaces;
+    gboolean stationlist;
+    gint stationlist_server;
+    gint stationlist_client;
 
     gint rds_timeout;
     gboolean rds_discard;

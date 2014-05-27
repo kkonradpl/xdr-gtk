@@ -236,8 +236,7 @@ void read_parse(gchar c, gchar msg[])
         rdsspy_reset();
 
         tuner.max_signal = 0;
-        gchar *freq_text = g_strdup_printf("%7.3f", newfreq/1000.0);
-        g_idle_add(gui_clear, freq_text);
+        g_idle_add(gui_clear, GINT_TO_POINTER(newfreq));
     }
     else if(c == 'V') // alignment data
     {

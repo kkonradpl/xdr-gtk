@@ -52,11 +52,7 @@ gboolean rdsspy_is_connected()
 void rdsspy_stop()
 {
     shutdown(rdsspy_socket, 2);
-#ifdef G_OS_WIN32
     closesocket(rdsspy_socket);
-#else
-    close(rdsspy_socket);
-#endif
     if(rdsspy_client > 0)
     {
         shutdown(rdsspy_client, 2);
@@ -89,11 +85,7 @@ void rdsspy_init(int port)
     if(bind(rdsspy_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
         dialog_error("RDS Spy link:\nFailed to bind to a port.\nIt may be already in use by another application.");
-#ifdef G_OS_WIN32
         closesocket(rdsspy_socket);
-#else
-        close(rdsspy_socket);
-#endif
         rdsspy_socket = -1;
         g_signal_handlers_block_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(gui.menu_items.rdsspy), FALSE);
@@ -125,11 +117,7 @@ gpointer rdsspy_server(gpointer nothing)
                 break;
             }
         }
-#ifdef G_OS_WIN32
         closesocket(rdsspy_client);
-#else
-        close(rdsspy_client);
-#endif
         rdsspy_client = -1;
     }
     rdsspy_socket = -1;
