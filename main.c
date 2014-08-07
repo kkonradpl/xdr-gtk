@@ -1,5 +1,5 @@
 /*
- *  XDR-GTK v0.2.1
+ *  XDR-GTK v0.3 beta
  *  Copyright (C) 2012-2014  Konrad Kosmatka
  *  http://fmdx.pl/
 
@@ -17,26 +17,18 @@
 #include <gtk/gtk.h>
 #include "gui.h"
 #include "settings.h"
-#include "graph.h"
+#include "sig.h"
 #include "rdsspy.h"
 #include "stationlist.h"
-#ifdef G_OS_WIN32
-#define _WIN32_WINNT 0x0500
-#include <windows.h>
-#endif
+#include "win32.h"
 
 gint main(gint argc, gchar* argv[])
 {
     gtk_disable_setlocale();
     gtk_init(&argc, &argv);
-    #ifdef G_OS_WIN32
-    gint font = AddFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2,2), &wsaData))
-    {
-        dialog_error("Unable to initialize Winsock");
-    }
-    #endif
+#ifdef G_OS_WIN32
+    win32_init();
+#endif
     settings_read();
     gui_init();
     if(conf.rds_spy_auto)
@@ -48,13 +40,9 @@ gint main(gint argc, gchar* argv[])
         stationlist_init();
     }
     gtk_main();
-    g_free(rssi);
-    #ifdef G_OS_WIN32
-    if(font)
-    {
-        RemoveFontResourceEx(FONT_FILE, FR_PRIVATE, NULL);
-    }
-    WSACleanup();
-    #endif
+    g_free(s.data);
+#ifdef G_OS_WIN32
+    win32_cleanup();
+#endif
     return 0;
 }

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="xdr-gtk" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/xdr-gtk" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/xdr-gtk" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="`pkg-config gtk+-2.0 --cflags`" />
+		</Compiler>
+		<Linker>
+			<Add option="`pkg-config gtk+-2.0 --libs`" />
+		</Linker>
+		<Unit filename="clipboard.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="clipboard.h" />
+		<Unit filename="connection.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="connection.h" />
+		<Unit filename="graph.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="graph.h" />
+		<Unit filename="gui-audio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui-audio.h" />
+		<Unit filename="gui-tuner.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui-tuner.h" />
+		<Unit filename="gui-update.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui-update.h" />
+		<Unit filename="gui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui.h" />
+		<Unit filename="keyboard.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="keyboard.h" />
+		<Unit filename="main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="pattern.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="pattern.h" />
+		<Unit filename="rdsspy.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="rdsspy.h" />
+		<Unit filename="scan.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="scan.h" />
+		<Unit filename="settings.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="settings.h" />
+		<Unit filename="sig.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sig.h" />
+		<Unit filename="stationlist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="stationlist.h" />
+		<Unit filename="tuner.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="tuner.h" />
+		<Unit filename="version.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="version.h" />
+		<Unit filename="win32.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="win32.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

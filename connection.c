@@ -6,17 +6,21 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "gui.h"
+#include "gui-tuner.h"
+#include "gui-update.h"
 #include "connection.h"
+#include "tuner.h"
 #include "graph.h"
 #include "settings.h"
 #include "scan.h"
-#include "menu.h"
 #include "pattern.h"
-#include "sha1.h"
+#include "sig.h"
+#include "version.h"
 #ifdef G_OS_WIN32
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include "win32.h"
 #else
 #include <fcntl.h>
 #include <termios.h>
@@ -27,42 +31,39 @@
 #include <dirent.h>
 #endif
 
-volatile gboolean thread = FALSE;
-volatile gboolean ready = FALSE;
-
-short filters[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 29, 2, 28, 1, 26, 0, 24, 23, 22, 21, 20, 19, 18, 17, 16, 31, -1};
-short filters_n = sizeof(filters)/sizeof(short);
-
 void connection_dialog()
 {
     gint conn_mode;
 
-    gtk_widget_set_sensitive(gui.menu_items.connect, FALSE);
-    if(thread)
+    gtk_widget_set_sensitive(gui.b_connect, FALSE);
+    if(tuner.thread)
     {
-        xdr_write("X");
+        tuner_write("X");
         g_usleep(100000);
-        thread = FALSE;
+        tuner.thread = FALSE;
         return;
     }
 
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+
     if(!(conn_mode = connection()))
     {
-        gui_clear_power_off(NULL);
+        gui_clear_power_off();
         return;
     }
 
     gtk_window_set_title(GTK_WINDOW(gui.window), gui.window_title);
-    graph_clear();
+    signal_clear();
 
-    ready = FALSE;
-    thread = TRUE;
-    g_thread_new("thread", read_thread, NULL);
+    tuner.ready = FALSE;
+    tuner.thread = TRUE;
+    g_thread_new("tuner", tuner_read, NULL);
 
     GtkWidget *dialog = gtk_dialog_new_with_buttons("", GTK_WINDOW(gui.window), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL);
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 2);
 
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     GtkWidget *vbox = gtk_vbox_new(FALSE, 3);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
     gtk_container_add(GTK_CONTAINER(content), vbox);
@@ -77,9 +78,17 @@ void connection_dialog()
     g_signal_connect(button, "clicked", G_CALLBACK(connection_cancel), NULL);
     gtk_box_pack_start(GTK_BOX(vbox), button, TRUE, TRUE, 0);
 
+#ifdef G_OS_WIN32
+    // keep dialog over main window
+    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.b_ontop)))
+    {
+        gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
+    }
+#endif
+
     gtk_widget_show_all(dialog);
 
-    while(!ready && thread)
+    while(!tuner.ready && tuner.thread)
     {
         while(gtk_events_pending())
         {
@@ -90,31 +99,26 @@ void connection_dialog()
 
     gtk_widget_destroy(dialog);
 
-    if(!thread)
+    if(!tuner.thread)
     {
         return;
     }
 
-    if(conn_mode == 1)
+    if(conn_mode == CONN_SERIAL)
     {
-        tune(tuner.freq);
-        if(tuner.mode == MODE_FM)
-        {
-            xdr_write("M0");
-        }
-        if(tuner.mode == MODE_AM)
-        {
-            xdr_write("M1");
-        }
-        tty_change_agc();
-        tty_change_bandwidth();
-        tty_change_deemphasis();
-        tty_change_gain();
-        tty_change_ant();
+        tuner_set_volume();
+        tuner_set_squelch();
+        tuner_set_frequency(tuner.freq);
+        tuner_set_mode();
+        tuner_set_agc();
+        tuner_set_bandwidth();
+        tuner_set_deemphasis();
+        tuner_set_gain();
+        tuner_set_antenna();
     }
 
-    gtk_menu_item_set_label(GTK_MENU_ITEM(gui.menu_items.connect), "Disconnect");
-    gtk_widget_set_sensitive(gui.menu_items.connect, TRUE);
+    connect_button(TRUE);
+    gtk_widget_set_sensitive(gui.b_connect, TRUE);
 }
 
 gboolean connection()
@@ -178,9 +182,20 @@ gboolean connection()
 
     GtkWidget *host = gtk_label_new("Host:");
     gtk_box_pack_start(GTK_BOX(d_boxh2), host, TRUE, FALSE, 1);
-    GtkWidget *e_host = gtk_entry_new();
-    gtk_entry_set_width_chars(GTK_ENTRY(e_host), 15);
-    gtk_entry_set_text(GTK_ENTRY(e_host), conf.host);
+
+    GtkListStore *store = gtk_list_store_new(1, G_TYPE_STRING);
+    if(conf.host)
+    {
+        for(i=0; conf.host[i]; i++)
+        {
+            GtkTreeIter iter;
+            gtk_list_store_append(store, &iter);
+            gtk_list_store_set(store, &iter, 0, conf.host[i], -1);
+        }
+    }
+    GtkWidget *e_host = gtk_combo_box_new_with_model_and_entry(GTK_TREE_MODEL(store));
+    gtk_combo_box_set_entry_text_column(GTK_COMBO_BOX(e_host), 0);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(e_host), 0);
     gtk_box_pack_start(GTK_BOX(d_boxh2), e_host, TRUE, FALSE, 1);
 
     GtkWidget *port = gtk_label_new("Port:");
@@ -214,16 +229,7 @@ gboolean connection()
 
     gint d_result;
 #ifdef G_OS_WIN32
-    // workaround for windows to keep dialog over main window
-    if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(gui.menu_items.alwaysontop)))
-    {
-        gtk_window_set_keep_above(GTK_WINDOW(gui.window), FALSE);
-    }
-    d_result = gtk_dialog_run(GTK_DIALOG(dialog));
-    if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(gui.menu_items.alwaysontop)))
-    {
-        gtk_window_set_keep_above(GTK_WINDOW(gui.window), TRUE);
-    }
+    d_result = win32_dialog_workaround(GTK_DIALOG(dialog));
 #else
     d_result = gtk_dialog_run(GTK_DIALOG(dialog));
 #endif
@@ -240,13 +246,8 @@ gboolean connection()
         const gchar* serial = gtk_combo_box_get_active_text(GTK_COMBO_BOX(d_cb));
         if(serial)
         {
-            g_snprintf(gui.window_title, 100, "XDR-GTK / %s", serial);
-
-            if(conf.serial)
-            {
-                g_free(conf.serial);
-            }
-            conf.serial = g_strdup(serial);
+            g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, serial);
+            settings_update_string(&conf.serial, serial);
             conf.network = 0;
             settings_write();
 
@@ -255,35 +256,27 @@ gboolean connection()
     }
     else
     {
-        const gchar* destination = gtk_entry_get_text(GTK_ENTRY(e_host));
+        const gchar* host = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(e_host))));
         gint port = atoi(gtk_entry_get_text(GTK_ENTRY(e_port)));
         const gchar* password = gtk_entry_get_text(GTK_ENTRY(e_password));
-        g_snprintf(gui.window_title, 100, "XDR-GTK / %s", destination);
 
-        if(conf.host)
+        if(strlen(host))
         {
-            g_free(conf.host);
-        }
-        conf.host = g_strdup(destination);
-        conf.port = port;
-        conf.network = 1;
+            g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, host);
 
-        if(conf.password)
-        {
-            g_free(conf.password);
+            settings_add_host(host);
+            conf.port = port;
+            conf.network = 1;
+
+            if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(c_password)))
+            {
+                settings_update_string(&conf.password, password);
+            }
+            settings_write();
+
+            result = open_socket(host, port, password);
         }
 
-        if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(c_password)))
-        {
-            conf.password = g_strdup(password);
-        }
-        else
-        {
-            conf.password = g_strdup("");
-        }
-        settings_write();
-
-        result = open_socket(destination, port, password);
     }
 
     if(!result)
@@ -297,7 +290,7 @@ gboolean connection()
 
 void connection_cancel(GtkWidget *widget, gpointer data)
 {
-    thread = FALSE;
+    tuner.thread = FALSE;
 }
 
 gint open_serial(const gchar* serial_port)
@@ -311,7 +304,7 @@ gint open_serial(const gchar* serial_port)
     tuner.serial = CreateFile(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
     if(tuner.serial == INVALID_HANDLE_VALUE)
     {
-        dialog_error("Unable to open the serial port.");
+        dialog_error("Unable to open the serial port:\n%s", path);
         return 0;
     }
     if(!GetCommState(tuner.serial, &dcbSerialParams))
@@ -334,7 +327,7 @@ gint open_serial(const gchar* serial_port)
     g_snprintf(path, sizeof(path), "/dev/%s", serial_port);
     if((tuner.serial = open(path, O_RDWR | O_NOCTTY | O_NDELAY)) < 0)
     {
-        dialog_error("Unable to open the serial port.");
+        dialog_error("Unable to open the serial port:\n%s", path);
         return 0;
     }
     fcntl(tuner.serial, F_SETFL, 0);
@@ -363,19 +356,25 @@ gint open_serial(const gchar* serial_port)
         return 0;
     }
 #endif
-    return 1;
+    return CONN_SERIAL;
 }
 
 gint open_socket(const gchar* destination, guint port, const gchar* password)
 {
-    gint s = socket(AF_INET, SOCK_STREAM, 0);
+    gint s;
     struct hostent *server;
+    struct sockaddr_in serv_addr;
+    gchar salt[SOCKET_SALT+1];
+    GChecksum *sha1;
+    gchar* msg;
+
+    s = socket(AF_INET, SOCK_STREAM, 0);
     if(!(server = gethostbyname(destination)))
     {
-        dialog_error("Unable to resolve the hostname.");
+        dialog_error("Unable to resolve the hostname:\n%s", destination);
         return 0;
     }
-    struct sockaddr_in serv_addr;
+
     memset((gchar *)&serv_addr, 0, sizeof(serv_addr));
     memmove((gchar *)&serv_addr.sin_addr.s_addr, (gchar *)server->h_addr, server->h_length);
     serv_addr.sin_family = AF_INET;
@@ -383,38 +382,27 @@ gint open_socket(const gchar* destination, guint port, const gchar* password)
 
     if(connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        dialog_error("Unable to connect to server.");
+        dialog_error("Unable to connect the server:\n%s:%d", destination, port);
         return 0;
     }
 
-    gchar salt[17];
-    if(recv(s, salt, 17, 0) != 17)
+    if(recv(s, salt, SOCKET_SALT+1, 0) != SOCKET_SALT+1) // SOCKET_SALT + \n char
     {
-        dialog_error("auth error");
+        dialog_error("Auth error.");
         return 0;
     }
 
-    guchar sha[SHA1_DIGEST_SIZE];
-    gchar sha_string[SHA1_DIGEST_SIZE*2+2];
-    int i;
-
-    SHA1_CTX ctx;
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, (guchar*)salt, 16);
+    sha1 = g_checksum_new(G_CHECKSUM_SHA1);
+    g_checksum_update(sha1, (guchar*)salt, SOCKET_SALT);
     if(strlen(password))
     {
-        SHA1_Update(&ctx, (guchar*)password, strlen(password));
+        g_checksum_update(sha1, (guchar*)password, strlen(password));
     }
-    SHA1_Final(&ctx, sha);
+    msg = g_strdup_printf("%s\n", g_checksum_get_string(sha1));
+    g_checksum_free(sha1);
 
-    for(i=0; i<SHA1_DIGEST_SIZE; i++)
-    {
-        sprintf(sha_string+(i*2), "%02x", sha[i]);
-    }
-    sha_string[i*2] = '\n';
-    sha_string[i*2+1] = 0;
-
-    send(s, sha_string, strlen(sha_string), 0);
+    send(s, msg, strlen(msg), 0);
+    g_free(msg);
 
 #ifdef G_OS_WIN32
     tuner.socket = s;
@@ -422,77 +410,5 @@ gint open_socket(const gchar* destination, guint port, const gchar* password)
     tuner.serial = s;
 #endif
 
-    return 2;
-}
-
-void xdr_write(gchar* command)
-{
-    if(thread)
-    {
-        gchar *tmp = g_strdup(command);
-        gint len = strlen(command);
-        tmp[len++] = '\n';
-#if DEBUG_WRITE
-        g_print("write: %s\n", command);
-#endif
-#ifdef G_OS_WIN32
-        if(tuner.socket != INVALID_SOCKET)
-        {
-            // network connection
-            send(tuner.socket, tmp, len, 0);
-        }
-        else
-        {
-            // serial connection
-            OVERLAPPED osWrite = {0};
-            DWORD dwWritten;
-
-            osWrite.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-            if(osWrite.hEvent == NULL)
-            {
-                g_free(tmp);
-                return;
-            }
-
-            if (!WriteFile(tuner.serial, tmp, len, &dwWritten, &osWrite))
-            {
-                if (GetLastError() == ERROR_IO_PENDING)
-                {
-                    if(WaitForSingleObject(osWrite.hEvent, INFINITE) == WAIT_OBJECT_0)
-                    {
-                        GetOverlappedResult(tuner.serial, &osWrite, &dwWritten, FALSE);
-                    }
-                }
-            }
-            CloseHandle(osWrite.hEvent);
-        }
-#else
-        write(tuner.serial, tmp, len);
-#endif
-        g_free(tmp);
-    }
-}
-
-void tune(gint newfreq)
-{
-    gchar freq_text[10];
-    gint i;
-
-    if(conf.ant_switching)
-    {
-        for(i=0; i<ANTENNAS; i++)
-        {
-            if(newfreq >= conf.ant_start[i] && newfreq <= conf.ant_stop[i])
-            {
-                if(gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant)) == i)
-                {
-                    break;
-                }
-                gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_ant), i);
-                break;
-            }
-        }
-    }
-    g_snprintf(freq_text, sizeof(freq_text), "T%d", newfreq);
-    xdr_write(freq_text);
+    return CONN_SOCKET;
 }

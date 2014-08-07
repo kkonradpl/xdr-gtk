@@ -1,9 +1,10 @@
 #include <gtk/gtk.h>
 #include <string.h>
 #include "gui.h"
+#include "gui-update.h"
 #include "settings.h"
 #include "clipboard.h"
-#include "connection.h"
+#include "tuner.h"
 
 gboolean clipboard_full(GtkWidget *widget, GdkEvent *event, gpointer nothing)
 {
@@ -54,27 +55,27 @@ gboolean clipboard_ps(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
     gchar* str;
     if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click
-	{
-		conf.rds_ps_progressive = !conf.rds_ps_progressive;
-		settings_write();
-		if(tuner.ps_avail)
-		{
-			gui_update_ps(NULL);
-		}
-	}
-	else
-	{
-		if(conf.replace_spaces)
-		{
-		    str = replace_spaces((gchar*)data);
-		    gtk_clipboard_set_text(gui.clipboard, str, -1);
-		    g_free(str);
-		}
-		else
-		{
-		    gtk_clipboard_set_text(gui.clipboard, (gchar*)data, -1);
-		}
-	}
+    {
+        conf.rds_ps_progressive = !conf.rds_ps_progressive;
+        settings_write();
+        if(tuner.ps_avail)
+        {
+            gui_update_ps(NULL);
+        }
+    }
+    else
+    {
+        if(conf.replace_spaces)
+        {
+            str = replace_spaces((gchar*)data);
+            gtk_clipboard_set_text(gui.clipboard, str, -1);
+            g_free(str);
+        }
+        else
+        {
+            gtk_clipboard_set_text(gui.clipboard, (gchar*)data, -1);
+        }
+    }
     return FALSE;
 }
 

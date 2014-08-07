@@ -5,14 +5,15 @@
 #define PATTERN_ARCS 36
 #define DEG2RAD(DEG) ((DEG)*((M_PI)/(180.0)))
 
-typedef struct pattern_rssi
+typedef struct pattern_sig
 {
     gfloat sig;
-    struct pattern_rssi *next;
-} pattern_rssi;
+    struct pattern_sig *next;
+} pattern_sig_t;
 
-typedef struct
+typedef struct pattern
 {
+    gboolean window;
     volatile gboolean active;
 
     gint freq;
@@ -43,11 +44,11 @@ typedef struct
     GtkWidget* fill;
     GtkWidget* avg;
 
-    pattern_rssi *head;
-    pattern_rssi *tail;
-} pattern_struct;
+    pattern_sig_t *head;
+    pattern_sig_t *tail;
+} pattern_t;
 
-pattern_struct pattern;
+pattern_t pattern;
 
 void pattern_dialog();
 gboolean gui_pattern(gpointer);

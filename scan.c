@@ -2,93 +2,95 @@
 #include <stdlib.h>
 #include <gtk/gtk.h>
 #include "gui.h"
+#include "gui-tuner.h"
 #include "settings.h"
 #include "scan.h"
-#include "connection.h"
-#include "menu.h"
+#include "tuner.h"
 
 void scan_dialog()
 {
     if(scan.window)
     {
+        gtk_window_present(GTK_WINDOW(scan.dialog));
         return;
     }
     scan_init(&scan);
-    scan.dialog = gtk_dialog_new_with_buttons("Spectral scan", GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, NULL);
+    scan.dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(scan.dialog), "Spectral scan");
+    gtk_window_set_icon_name(GTK_WINDOW(scan.dialog), "xdr-gtk-scan");
+    gtk_window_set_destroy_with_parent(GTK_WINDOW(scan.dialog), TRUE);
+    gtk_container_set_border_width(GTK_CONTAINER(scan.dialog), 2);
     gtk_window_set_default_size(GTK_WINDOW(scan.dialog), conf.scan_width, conf.scan_height);
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(scan.dialog));
-    gtk_container_set_border_width(GTK_CONTAINER(scan.dialog), 5);
 
-    GtkWidget *d_box = gtk_vbox_new(FALSE, 4);
-    gtk_container_add(GTK_CONTAINER(content), d_box);
+    GtkWidget *content = gtk_vbox_new(FALSE, 2);
+    gtk_container_add(GTK_CONTAINER(scan.dialog), content);
 
-    GtkWidget *menu_box = gtk_hbox_new(FALSE, 4);
-    gtk_box_pack_start(GTK_BOX(d_box), menu_box, FALSE, FALSE, 0);
+    GtkWidget *menu_box = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(content), menu_box, FALSE, FALSE, 0);
 
     scan.b_start = gtk_button_new_with_label("Scan");
     gtk_button_set_image(GTK_BUTTON(scan.b_start), gtk_image_new_from_stock(GTK_STOCK_MEDIA_PLAY, GTK_ICON_SIZE_BUTTON));
+    gtk_widget_set_name(scan.b_start, "small-button");
     g_signal_connect(scan.b_start, "clicked", G_CALLBACK(scan_toggle), (gpointer)&scan);
     gtk_box_pack_start(GTK_BOX(menu_box), scan.b_start, TRUE, TRUE, 0);
 
-    scan.b_continuous = gtk_toggle_button_new_with_label("Continuous");
+    scan.b_continuous = gtk_toggle_button_new();
+    gtk_widget_set_tooltip_text(scan.b_continuous, "Continous scan");
     gtk_button_set_image(GTK_BUTTON(scan.b_continuous), gtk_image_new_from_stock(GTK_STOCK_REFRESH, GTK_ICON_SIZE_BUTTON));
+    gtk_widget_set_name(scan.b_continuous, "small-button");
     g_signal_connect(scan.b_continuous, "clicked", G_CALLBACK(scan_continuous), (gpointer)&scan);
     gtk_box_pack_start(GTK_BOX(menu_box), scan.b_continuous, TRUE, TRUE, 0);
 
-    scan.b_tune = gtk_toggle_button_new_with_label("Tune");
+    scan.b_tune = gtk_toggle_button_new();
+    gtk_widget_set_tooltip_text(scan.b_tune, "Tune");
     gtk_button_set_image(GTK_BUTTON(scan.b_tune), gtk_image_new_from_stock(GTK_STOCK_JUMP_TO, GTK_ICON_SIZE_BUTTON));
+    gtk_widget_set_name(scan.b_tune, "small-button");
     g_signal_connect(scan.b_tune, "clicked", G_CALLBACK(scan_tune), (gpointer)&scan);
     gtk_box_pack_start(GTK_BOX(menu_box), scan.b_tune, TRUE, TRUE, 0);
 
-    scan.b_relative = gtk_toggle_button_new_with_label("Relative scale");
+    scan.b_relative = gtk_toggle_button_new();
+    gtk_widget_set_tooltip_text(scan.b_relative, "Relative scale");
     gtk_button_set_image(GTK_BUTTON(scan.b_relative), gtk_image_new_from_stock(GTK_STOCK_ZOOM_FIT, GTK_ICON_SIZE_BUTTON));
+    gtk_widget_set_name(scan.b_relative, "small-button");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scan.b_relative), conf.scan_relative);
     g_signal_connect(scan.b_relative, "clicked", G_CALLBACK(scan_relative), NULL);
     gtk_box_pack_start(GTK_BOX(menu_box), scan.b_relative, TRUE, TRUE, 0);
 
-    scan.b_close = gtk_button_new_with_label("Close");
-    gtk_button_set_image(GTK_BUTTON(scan.b_close), gtk_image_new_from_stock(GTK_STOCK_CLOSE, GTK_ICON_SIZE_BUTTON));
-    g_signal_connect_swapped(scan.b_close, "clicked", G_CALLBACK(gtk_widget_destroy), scan.dialog);
-    gtk_box_pack_start(GTK_BOX(menu_box), scan.b_close, TRUE, TRUE, 0);
-
-    GtkWidget *desc_box = gtk_hbox_new(FALSE, 4);
-    gtk_box_pack_start(GTK_BOX(d_box), desc_box, FALSE, FALSE, 0);
-
-    scan.b_ccir = gtk_button_new_with_label("CCIR");
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.b_ccir, FALSE, FALSE, 0);
-    g_signal_connect(scan.b_ccir, "clicked", G_CALLBACK(scan_ccir), NULL);
-
-    scan.b_oirt = gtk_button_new_with_label("OIRT");
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.b_oirt, FALSE, FALSE, 0);
-    g_signal_connect(scan.b_oirt, "clicked", G_CALLBACK(scan_oirt), NULL);
-
     scan.l_frange = gtk_label_new("Range:");
     scan.e_fstart = gtk_entry_new_with_max_length(6);
     gtk_entry_set_width_chars(GTK_ENTRY(scan.e_fstart), 6);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.l_frange, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.e_fstart, FALSE, FALSE, 0);
-    scan.l_frange_ = gtk_label_new("~");
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.l_frange, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.e_fstart, TRUE, TRUE, 0);
+    scan.l_frange_ = gtk_label_new(" - ");
     scan.e_fstop = gtk_entry_new_with_max_length(6);
     gtk_entry_set_width_chars(GTK_ENTRY(scan.e_fstop), 6);
     scan.l_fstop_kHz = gtk_label_new("kHz");
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.l_frange_, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.e_fstop, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.l_fstop_kHz, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.l_frange_, FALSE, FALSE, 2);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.e_fstop, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.l_fstop_kHz, TRUE, TRUE, 2);
 
     scan.l_fstep = gtk_label_new("Step:");
     GtkAdjustment *adj_s = (GtkAdjustment*)gtk_adjustment_new(conf.scan_step, 5.0, 1000.0, 5.0, 5.0, 0.0);
     scan.s_fstep = gtk_spin_button_new(adj_s, 0, 0);
     scan.l_fstep_kHz = gtk_label_new("kHz");
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.l_fstep, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.s_fstep, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.l_fstep_kHz, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.l_fstep, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.s_fstep, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.l_fstep_kHz, TRUE, TRUE, 2);
 
-    scan.l_bw = gtk_label_new("Bandwidth:");
+    scan.b_ccir = gtk_button_new_with_label("CCIR");
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.b_ccir, TRUE, TRUE, 0);
+    g_signal_connect(scan.b_ccir, "clicked", G_CALLBACK(scan_ccir), NULL);
+
+    scan.b_oirt = gtk_button_new_with_label("OIRT");
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.b_oirt, TRUE, TRUE, 0);
+    g_signal_connect(scan.b_oirt, "clicked", G_CALLBACK(scan_oirt), NULL);
+
+    scan.l_bw = gtk_label_new("BW:");
     scan.d_bw = gtk_combo_box_new_text();
     gui_fill_bandwidths(scan.d_bw, FALSE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(scan.d_bw), 13);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.l_bw, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(desc_box), scan.d_bw, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.l_bw, TRUE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(menu_box), scan.d_bw, TRUE, TRUE, 0);
 
     gchar buff[20];
     if(conf.scan_start > 0)
@@ -109,10 +111,10 @@ void scan_dialog()
     scan.image = gtk_drawing_area_new();
     gtk_widget_add_events(scan.image, GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK);
     gtk_widget_set_size_request(scan.image, -1, 100);
-    gtk_box_pack_start(GTK_BOX(d_box), scan.image, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(content), scan.image, TRUE, TRUE, 0);
 
-    scan.label = gtk_label_new("");
-    gtk_box_pack_start(GTK_BOX(d_box), scan.label, FALSE, FALSE, 0);
+    scan.label = gtk_label_new(NULL);
+    gtk_box_pack_start(GTK_BOX(content), scan.label, FALSE, FALSE, 0);
 
     g_signal_connect(scan.image, "expose-event", G_CALLBACK(scan_redraw), (gpointer)&scan);
     g_signal_connect_swapped(scan.b_relative, "clicked", G_CALLBACK(gtk_widget_queue_draw), (gpointer)(scan.image));
@@ -124,10 +126,10 @@ void scan_dialog()
     gtk_widget_show_all(scan.dialog);
 }
 
-void scan_toggle(GtkWidget *widget, scan_struct* scan)
+void scan_toggle(GtkWidget *widget, scan_t* scan)
 {
     gchar buff[50];
-    if(!thread)
+    if(!tuner.thread)
     {
         return;
     }
@@ -139,7 +141,7 @@ void scan_toggle(GtkWidget *widget, scan_struct* scan)
         gint step = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(scan->s_fstep));
         gboolean continuous = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan->b_continuous));
         g_snprintf(buff, sizeof(buff), "Sa%d\nSb%d\nSc%d\nSf%d\nS%s", start, stop, step, filters[bw], continuous?"m":"");
-        xdr_write(buff);
+        tuner_write(buff);
 
         gtk_button_set_image(GTK_BUTTON(widget), gtk_image_new_from_stock(GTK_STOCK_MEDIA_STOP, GTK_ICON_SIZE_BUTTON));
         if(!continuous)
@@ -157,7 +159,7 @@ void scan_toggle(GtkWidget *widget, scan_struct* scan)
     }
     else
     {
-        xdr_write("");
+        tuner_write("");
         gtk_button_set_image(GTK_BUTTON(widget), gtk_image_new_from_stock(GTK_STOCK_MEDIA_PLAY, GTK_ICON_SIZE_BUTTON));
         gtk_widget_set_sensitive(scan->b_start, TRUE);
         gtk_widget_set_sensitive(scan->b_continuous, TRUE);
@@ -174,7 +176,7 @@ void scan_toggle(GtkWidget *widget, scan_struct* scan)
     scan->active = !scan->active;
 }
 
-void scan_continuous(GtkWidget *widget, scan_struct* scan)
+void scan_continuous(GtkWidget *widget, scan_t* scan)
 {
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
     {
@@ -182,7 +184,7 @@ void scan_continuous(GtkWidget *widget, scan_struct* scan)
     }
 }
 
-void scan_tune(GtkWidget *widget, scan_struct* scan)
+void scan_tune(GtkWidget *widget, scan_t* scan)
 {
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
     {
@@ -212,7 +214,7 @@ void scan_destroy(GtkWidget *widget, gpointer data)
     }
 }
 
-gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, scan_struct* scan)
+gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, scan_t* scan)
 {
     gint w = widget->allocation.width;
     gint h = widget->allocation.height;
@@ -277,7 +279,7 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, scan_struct* scan
     return FALSE;
 }
 
-void scan_init(scan_struct *scan)
+void scan_init(scan_t *scan)
 {
     scan->window = TRUE;
     scan->active = FALSE;
@@ -287,7 +289,7 @@ void scan_init(scan_struct *scan)
 
 gboolean scan_update(gpointer tmp)
 {
-    scan_data* data_new = tmp;
+    scan_data_t* data_new = tmp;
     if(!scan.active)
     {
         g_free(data_new->signals);
@@ -309,7 +311,7 @@ gboolean scan_update(gpointer tmp)
     return FALSE;
 }
 
-gboolean scan_click(GtkWidget *widget, GdkEventButton *event, scan_struct* scan)
+gboolean scan_click(GtkWidget *widget, GdkEventButton *event, scan_t* scan)
 {
     if(scan->data)
     {
@@ -321,14 +323,14 @@ gboolean scan_click(GtkWidget *widget, GdkEventButton *event, scan_struct* scan)
             }
             else
             {
-                tune(scan->data->signals[scan->focus].freq);
+                tuner_set_frequency(scan->data->signals[scan->focus].freq);
             }
         }
     }
     return TRUE;
 }
 
-gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_struct* scan)
+gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_t* scan)
 {
     gchar* text;
     if(scan->data)
@@ -337,14 +339,14 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_struct* scan
         if(scan->focus < scan->data->len)
         {
             gint f = scan->data->signals[scan->focus].freq;
-            text = g_markup_printf_escaped("<span size=\"20000\">%d kHz</span>", f);// scan->data->signals[scan->focus].signal);
+            text = g_markup_printf_escaped("<span size=\"20000\">%d kHz (%.0f)</span>", f, scan->data->signals[scan->focus].signal);
             gtk_label_set_markup(GTK_LABEL(scan->label), text);
             g_free(text);
             if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan->b_tune)))
             {
                 if(tuner.freq!=f)
                 {
-                    tune(f);
+                    tuner_set_frequency(f);
                 }
             }
         gtk_widget_queue_draw(scan->image);

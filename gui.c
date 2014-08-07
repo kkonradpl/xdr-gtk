@@ -3,28 +3,46 @@
 #include <glib/gprintf.h>
 #include <math.h>
 #include "gui.h"
+#include "gui-audio.h"
+#include "gui-tuner.h"
 #include "connection.h"
+#include "tuner.h"
 #include "graph.h"
-#include "menu.h"
 #include "settings.h"
 #include "clipboard.h"
 #include "keyboard.h"
+#include "scan.h"
+#include "pattern.h"
 #include "stationlist.h"
+#include "sig.h"
+#include "rdsspy.h"
+#include "version.h"
+#ifdef G_OS_WIN32
+#include "win32.h"
+#endif
 
 void gui_init()
 {
+    gtk_rc_parse_string("style \"small-button-style\"\n{\nGtkWidget::focus-padding = 0\nGtkWidget::focus-line-width = 0\n\n}\nwidget \"*.small-button\" style\n\"small-button-style\"");
     gdk_color_parse("#FFFFFF", &gui.colors.background);
     gdk_color_parse("#DDDDDD", &gui.colors.grey);
     gdk_color_parse("#000000", &gui.colors.black);
     gdk_color_parse("#EE4000", &gui.colors.stereo);
 
     gui.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_position(GTK_WINDOW(gui.window), GTK_WIN_POS_CENTER);
     gtk_container_set_border_width(GTK_CONTAINER(gui.window), 3);
     gtk_window_set_title(GTK_WINDOW(gui.window), "XDR-GTK");
     gtk_window_set_resizable(GTK_WINDOW(gui.window), FALSE);
     gtk_widget_modify_bg(gui.window, GTK_STATE_NORMAL, &gui.colors.background);
     gui.clipboard = gtk_widget_get_clipboard(gui.window, GDK_SELECTION_CLIPBOARD);
-    gtk_window_set_default_icon_name("network-wireless");
+    gtk_window_set_default_icon_name(APP_ICON);
+
+    PangoFontDescription *font_header = pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20");
+    PangoFontDescription *font_status = pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14");
+    PangoFontDescription *font_entry  = pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 10");
+    PangoFontDescription *font_af     = pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 11");
+    PangoFontDescription *font_rt     = pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 9");
 
     gui.box = gtk_vbox_new(FALSE, 2);
     gtk_container_add(GTK_CONTAINER(gui.window), gui.box);
@@ -34,51 +52,46 @@ void gui_init()
     gtk_container_add(GTK_CONTAINER(gui.box), gui.box_gui);
     gui.box_left = gtk_vbox_new(FALSE, 2);
     gtk_container_add(GTK_CONTAINER(gui.box_gui), gui.box_left);
-    gui.box_right = gtk_vbox_new(FALSE, 1);
+    gui.box_right = gtk_vbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box_gui), gui.box_right);
 
     // ----------------
 
-    gui.volume = gtk_volume_button_new();
-    gui.volume_adj = gtk_scale_button_get_adjustment(GTK_SCALE_BUTTON(gui.volume));
-    gtk_adjustment_configure(gui.volume_adj, 1, 0, 1, 0.1, 0.1, 0);
-    gtk_widget_set_can_focus(GTK_WIDGET(gui.volume), FALSE);
-    g_signal_connect(gui.volume, "value-changed", G_CALLBACK(tty_change_volume), NULL);
-    g_signal_connect(gui.volume, "button-press-event", G_CALLBACK(volume_click), NULL);
-#ifndef G_OS_WIN32
-    g_object_set(G_OBJECT(gui.volume), "size", GTK_ICON_SIZE_MENU, NULL);
-#endif
-    gtk_container_add(GTK_CONTAINER(gui.box_header), gui.volume);
+    gui.volume = volume_init();
+    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.volume, FALSE, FALSE, 0);
+
+    gui.squelch = squelch_init();
+    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.squelch, FALSE, FALSE, 0);
 
     gui.event_band = gtk_event_box_new();
     gui.l_band = gtk_label_new(NULL);
     gtk_container_add(GTK_CONTAINER(gui.event_band), gui.l_band);
-    gtk_widget_modify_font(gui.l_band, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
-    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_band, TRUE, FALSE, 5);
+    gtk_widget_modify_font(gui.l_band, font_header);
+    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_band, TRUE, FALSE, 4);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_band), FALSE);
-    g_signal_connect(gui.event_band, "button-press-event", G_CALLBACK(gui_mode_toggle), NULL);
+    g_signal_connect(gui.event_band, "button-press-event", G_CALLBACK(gui_toggle_band), NULL);
 
     gui.event_freq = gtk_event_box_new();
     gui.l_freq = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_freq, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
+    gtk_widget_modify_font(gui.l_freq, font_header);
     gtk_container_add(GTK_CONTAINER(gui.event_freq), gui.l_freq);
-    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_freq, TRUE, FALSE, 8);
+    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_freq, TRUE, FALSE, 6);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_freq), FALSE);
     g_signal_connect(gui.event_freq, "button-press-event", G_CALLBACK(clipboard_full), NULL);
 
     gui.event_pi = gtk_event_box_new();
     gui.l_pi = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_pi, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
+    gtk_widget_modify_font(gui.l_pi, font_header);
     gtk_container_add(GTK_CONTAINER(gui.event_pi), gui.l_pi);
-    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_pi, TRUE, FALSE, 12);
+    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_pi, TRUE, FALSE, 5);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_pi), FALSE);
     g_signal_connect(gui.event_pi, "button-press-event", G_CALLBACK(clipboard_pi), NULL);
 
     gui.event_ps = gtk_event_box_new();
     gui.l_ps = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_ps, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 20"));
+    gtk_widget_modify_font(gui.l_ps, font_header);
     gtk_container_add(GTK_CONTAINER(gui.event_ps), gui.l_ps);
-    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_ps, TRUE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_ps, TRUE, FALSE, 0);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_ps), FALSE);
     g_signal_connect(gui.event_ps, "button-press-event", G_CALLBACK(clipboard_ps), tuner.ps);
 
@@ -87,18 +100,28 @@ void gui_init()
     gui.box_left_tune = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box_left), gui.box_left_tune);
 
-    gui.b_tune_back = gtk_button_new_with_label(" B ");
+    gui.b_scan = gtk_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_scan), gtk_image_new_from_icon_name("xdr-gtk-scan", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_scan), FALSE);
+    gtk_widget_set_name(gui.b_scan, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_scan, "Spectral scan");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.b_scan, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_scan, "clicked", G_CALLBACK(scan_dialog), NULL);
+
+    gui.b_tune_back = gtk_button_new_with_label("↔");
+    gtk_widget_modify_font(gui.b_tune_back, font_header);
     gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.b_tune_back, TRUE, TRUE, 0);
     g_signal_connect(gui.b_tune_back, "button-press-event", G_CALLBACK(tune_gui_back), NULL);
     gtk_widget_set_tooltip_text(gui.b_tune_back, "Tune back to the previous frequency");
 
     gui.e_freq = gtk_entry_new_with_max_length(7);
-    gtk_entry_set_width_chars(GTK_ENTRY(gui.e_freq), 10);
-    gtk_widget_modify_font(gui.e_freq, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 10"));
+    gtk_entry_set_width_chars(GTK_ENTRY(gui.e_freq), 8);
+    gtk_widget_modify_font(gui.e_freq, font_entry);
     gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.e_freq, FALSE, FALSE, 0);
 
     gui.b_tune_reset = gtk_button_new_with_label("R");
-    gtk_widget_add_events(gui.b_tune_reset, GDK_SCROLL_MASK);
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_tune_reset), FALSE);
+    gtk_widget_set_name(gui.b_tune_reset, "small-button");
     gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.b_tune_reset, TRUE, TRUE, 0);
     g_signal_connect(gui.b_tune_reset, "button-press-event", G_CALLBACK(tune_gui_round), NULL);
     gtk_widget_set_tooltip_text(gui.b_tune_reset, "Round to the nearest 100kHz");
@@ -119,6 +142,15 @@ void gui_init()
 
     // ----------------
 
+    gui.adj_align = gtk_adjustment_new(0.0, 0.0, 127.0, 0.5, 1.0, 0);
+    gui.hs_align = gtk_hscale_new(GTK_ADJUSTMENT(gui.adj_align));
+    gtk_scale_set_digits(GTK_SCALE(gui.hs_align), 0);
+    gtk_scale_set_value_pos(GTK_SCALE(gui.hs_align), GTK_POS_RIGHT);
+    g_signal_connect(G_OBJECT(gui.adj_align), "value-changed", G_CALLBACK(tuner_set_alignment), NULL);
+    gtk_box_pack_start(GTK_BOX(gui.box_left), gui.hs_align, TRUE, TRUE, 0);
+
+    // ----------------
+
     gui.box_left_signal = gtk_vbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box_left), gui.box_left_signal);
 
@@ -134,42 +166,42 @@ void gui_init()
     gtk_container_add(GTK_CONTAINER(gui.box_left), gui.box_left_indicators);
 
     gui.l_st = gtk_label_new("ST");
-    gtk_widget_modify_font(gui.l_st, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
+    gtk_widget_modify_font(gui.l_st, font_status);
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
     gtk_misc_set_alignment(GTK_MISC(gui.l_st), 0, 0);
     gtk_widget_set_tooltip_text(gui.l_st, "19kHz stereo subcarrier indicator (>4kHz injection)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_st, TRUE, TRUE,  3);
 
     gui.l_rds = gtk_label_new("RDS");
-    gtk_widget_modify_font(gui.l_rds, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
+    gtk_widget_modify_font(gui.l_rds, font_status);
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
     gtk_misc_set_alignment(GTK_MISC(gui.l_rds), 0, 0);
     gtk_widget_set_tooltip_text(gui.l_rds, "RDS PI indicator (timeout configurable in settings)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_rds, TRUE, TRUE,  3);
 
     gui.l_tp = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_tp, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
+    gtk_widget_modify_font(gui.l_tp, font_status);
     gtk_widget_set_tooltip_text(gui.l_tp, "RDS Traffic Programme flag");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_tp, TRUE, TRUE, 3);
 
     gui.l_ta = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_ta, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
+    gtk_widget_modify_font(gui.l_ta, font_status);
     gtk_widget_set_tooltip_text(gui.l_ta, "RDS Traffic Announcement flag");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ta, TRUE, TRUE, 3);
 
     gui.l_ms = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_ms, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 16"));
+    gtk_widget_modify_font(gui.l_ms, font_status);
     gtk_widget_set_tooltip_text(gui.l_ms, "RDS Music/Speech flag");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_ms, TRUE, TRUE, 3);
 
     gui.l_pty = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_pty, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14"));
+    gtk_widget_modify_font(gui.l_pty, font_status);
     gtk_misc_set_alignment(GTK_MISC(gui.l_pty), 1, 0.5);
     gtk_widget_set_tooltip_text(gui.l_pty, "RDS Programme Type (PTY)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_pty, TRUE, TRUE, 3);
 
     gui.l_sig = gtk_label_new(NULL);
-    gtk_widget_modify_font(gui.l_sig, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 14"));
+    gtk_widget_modify_font(gui.l_sig, font_status);
     gtk_misc_set_alignment(GTK_MISC(gui.l_sig), 1, 0.5);
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_sig, TRUE, TRUE, 2);
     gtk_widget_set_tooltip_text(gui.l_sig, "max / current signal level");
@@ -179,19 +211,54 @@ void gui_init()
     gui.box_left_settings1 = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box_left), gui.box_left_settings1);
 
-    gui.menu = menu_create();
-    gui.b_menu = gtk_button_new_with_label("Menu");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_menu, TRUE, TRUE, 0);
-    g_signal_connect_swapped(gui.b_menu, "event", G_CALLBACK(menu_popup), gui.menu);
+    gui.b_connect = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_connect), gtk_image_new_from_stock(GTK_STOCK_DISCONNECT, GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_connect), FALSE);
+    gtk_widget_set_name(gui.b_connect, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_connect, "Connect");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_connect, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_connect, "toggled", G_CALLBACK(connection_dialog), NULL);
 
-    gui.c_ant = gtk_combo_box_new_text();
-    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant A");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant B");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant C");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant D");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_ant), 0);
-    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.c_ant, TRUE, TRUE, 2);
-    g_signal_connect(G_OBJECT(gui.c_ant), "changed", G_CALLBACK(tty_change_ant), NULL);
+    gui.b_pattern = gtk_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_pattern), gtk_image_new_from_icon_name("xdr-gtk-pattern", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_pattern), FALSE);
+    gtk_widget_set_name(gui.b_pattern, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_pattern, "Antenna pattern");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_pattern, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_pattern, "clicked", G_CALLBACK(pattern_dialog), NULL);
+
+    gui.b_settings = gtk_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_settings), gtk_image_new_from_icon_name("xdr-gtk-settings", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_settings), FALSE);
+    gtk_widget_set_name(gui.b_settings, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_settings, "Settings");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_settings, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_settings, "clicked", G_CALLBACK(settings_dialog), NULL);
+
+    gui.b_about = gtk_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_about), gtk_image_new_from_icon_name("xdr-gtk-about", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_about), FALSE);
+    gtk_widget_set_name(gui.b_about, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_about, "About...");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_about, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_about, "clicked", G_CALLBACK(version_dialog), NULL);
+
+    gui.b_rdsspy = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_rdsspy), gtk_image_new_from_icon_name("xdr-gtk-rdsspy", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_rdsspy), FALSE);
+    gtk_widget_set_name(gui.b_rdsspy, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_rdsspy, "RDS Spy Link");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_rdsspy, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_rdsspy, "toggled", G_CALLBACK(rdsspy_toggle), NULL);
+
+    gui.b_ontop = gtk_toggle_button_new();
+    gui.b_ontop_icon = gtk_image_new_from_icon_name("xdr-gtk-top-off", GTK_ICON_SIZE_BUTTON);
+    gtk_button_set_image(GTK_BUTTON(gui.b_ontop), gui.b_ontop_icon);
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_ontop), FALSE);
+    gtk_widget_set_name(gui.b_ontop, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_ontop, "Stay on top");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_ontop, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_ontop, "toggled", G_CALLBACK(window_on_top), NULL);
 
     gui.l_agc = gtk_label_new("AGC threshold:");
     gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.l_agc, TRUE, TRUE, 0);
@@ -203,10 +270,11 @@ void gui_init()
     gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_agc), "low");
     gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_agc), conf.agc);
     gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.c_agc, TRUE, TRUE, 0);
-    g_signal_connect(G_OBJECT(gui.c_agc), "changed", G_CALLBACK(tty_change_agc), NULL);
+    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(gui.c_agc), FALSE);
+    g_signal_connect(G_OBJECT(gui.c_agc), "changed", G_CALLBACK(tuner_set_agc), NULL);
 
-    gui.x_rf = gtk_check_button_new_with_label("RF +6dB");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.x_rf, TRUE, TRUE, 0);
+    gui.x_rf = gtk_check_button_new_with_label("RF+");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.x_rf, FALSE, FALSE, 0);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_rf), conf.rfgain);
     g_signal_connect(gui.x_rf, "button-press-event", G_CALLBACK(gui_toggle_gain), NULL);
 
@@ -215,44 +283,73 @@ void gui_init()
     gui.box_left_settings2 = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(gui.box_left), gui.box_left_settings2);
 
-    gui.l_deemph = gtk_label_new("De-emphasis:");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.l_deemph, TRUE, TRUE, 0);
-
     gui.c_deemph = gtk_combo_box_new_text();
     gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_deemph), "50 us");
     gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_deemph), "75 us");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_deemph), "off");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_deemph), "0 us");
     gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.c_deemph, TRUE, TRUE, 0);
     gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_deemph), conf.deemphasis);
-    g_signal_connect(G_OBJECT(gui.c_deemph), "changed", G_CALLBACK(tty_change_deemphasis), NULL);
+    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(gui.c_deemph), FALSE);
+    g_signal_connect(G_OBJECT(gui.c_deemph), "changed", G_CALLBACK(tuner_set_deemphasis), NULL);
 
-    gui.l_bw = gtk_label_new("Bandwidth:");
+    gui.c_ant = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant A");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant B");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant C");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(gui.c_ant), "Ant D");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_ant), 0);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.c_ant, FALSE, FALSE, 4);
+    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(gui.c_ant), FALSE);
+    g_signal_connect(G_OBJECT(gui.c_ant), "changed", G_CALLBACK(tuner_set_antenna), NULL);
+
+    gui.b_cw = gtk_toggle_button_new();
+    gui.b_cw_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(gui.b_cw_label), " <b>↻</b> ");
+    gtk_container_add(GTK_CONTAINER(gui.b_cw), gui.b_cw_label);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.b_cw, TRUE, TRUE, 0);
+    gtk_widget_set_tooltip_text(gui.b_cw, "Rotate antenna clockwise");
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_cw), FALSE);
+    g_signal_connect_swapped(gui.b_cw, "toggled", G_CALLBACK(tuner_set_rotator), GINT_TO_POINTER(1));
+
+    gui.b_ccw = gtk_toggle_button_new();
+    gui.b_ccw_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(gui.b_ccw_label), " <b>↺</b> ");
+    gtk_container_add(GTK_CONTAINER(gui.b_ccw), gui.b_ccw_label);
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.b_ccw, TRUE, TRUE, 0);
+    gtk_widget_set_tooltip_text(gui.b_ccw, "Rotate antenna counterclockwise");
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_ccw), FALSE);
+    g_signal_connect_swapped(gui.b_ccw, "toggled", G_CALLBACK(tuner_set_rotator), GINT_TO_POINTER(2));
+
+    gui.l_bw = gtk_label_new("BW:");
     gtk_widget_set_tooltip_text(gui.l_bw, "FIR digital filter -3dB bandwidth");
     gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.l_bw, TRUE, TRUE, 0);
 
     gui.c_bw = gtk_combo_box_new_text();
     gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.c_bw, TRUE, TRUE, 0);
-    g_signal_connect(G_OBJECT(gui.c_bw), "changed", G_CALLBACK(tty_change_bandwidth), NULL);
+    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(gui.c_bw), FALSE);
+    g_signal_connect(G_OBJECT(gui.c_bw), "changed", G_CALLBACK(tuner_set_bandwidth), NULL);
 
-    gui.x_if = gtk_check_button_new_with_label("IF +6dB");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.x_if, TRUE, TRUE, 0);
+    gui.x_if = gtk_check_button_new_with_label("IF+");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings2), gui.x_if, FALSE, FALSE, 0);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_if), conf.ifgain);
     g_signal_connect(gui.x_if, "button-press-event", G_CALLBACK(gui_toggle_gain), NULL);
 
     // ----------------
 
     gui.l_af = gtk_label_new("  AF:  ");
-    gtk_widget_modify_font(gui.l_af, pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 11"));
+    gtk_widget_modify_font(gui.l_af, font_af);
     gtk_box_pack_start(GTK_BOX(gui.box_right), gui.l_af, FALSE, FALSE, 3);
 
-    gui.af = gtk_list_store_new(1, G_TYPE_STRING);
+    gui.af = gtk_list_store_new(2, G_TYPE_INT, G_TYPE_STRING);
     GtkWidget *view = gtk_tree_view_new();
-    GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
-    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, "AF", renderer, "text", 0, NULL);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, "ID", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, "FREQ", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
+    gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(view), AF_LIST_STORE_ID), FALSE);
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(view), FALSE);
     gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(gui.af));
     g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)), "changed", G_CALLBACK(tune_gui_af), NULL);
     gtk_widget_set_can_focus(GTK_WIDGET(view), FALSE);
+    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(gui.af), AF_LIST_STORE_ID, GTK_SORT_ASCENDING);
     g_object_unref(gui.af);
 
     gui.af_box = gtk_scrolled_window_new(NULL, NULL);
@@ -266,7 +363,7 @@ void gui_init()
     {
         gui.event_rt[i] = gtk_event_box_new();
         gui.l_rt[i] = gtk_label_new(NULL);
-        gtk_widget_modify_font(gui.l_rt[i], pango_font_description_from_string("Bitstream Vera Sans Mono, monospace 9"));
+        gtk_widget_modify_font(gui.l_rt[i], font_rt);
         gtk_misc_set_alignment(GTK_MISC(gui.l_rt[i]), 0.0, 0.5);
         gtk_label_set_width_chars(GTK_LABEL(gui.l_rt[i]), 66);
         gtk_container_add(GTK_CONTAINER(gui.event_rt[i]), gui.l_rt[i]);
@@ -280,129 +377,64 @@ void gui_init()
     gui.l_status = gtk_label_new(NULL);
     gtk_box_pack_start(GTK_BOX(gui.box), gui.l_status, TRUE, TRUE, 0);
 
+    pango_font_description_free(font_status);
+    pango_font_description_free(font_header);
+    pango_font_description_free(font_entry);
+    pango_font_description_free(font_af);
+    pango_font_description_free(font_rt);
+
     gui_mode_FM();
     tuner.online = 0;
     tuner.freq = 87500;
+    tuner.thread = FALSE;
+    tuner.ready = FALSE;
+    tuner.filter = -1;
+
+    pattern.window = FALSE;
+    scan.window = FALSE;
 
     gui_clear(NULL);
     gtk_widget_show_all(gui.window);
+    if(!conf.alignment)
+    {
+        gtk_widget_hide(gui.hs_align);
+    }
     g_signal_connect(gui.window, "destroy", G_CALLBACK(gui_quit), NULL);
-    g_signal_connect(gui.window, "key-press-event", G_CALLBACK(keyboard), NULL);
+    g_signal_connect(gui.window, "key-press-event", G_CALLBACK(keyboard_press), NULL);
+    g_signal_connect(gui.window, "key-release-event", G_CALLBACK(keyboard_release), NULL);
     gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
     graph_init();
 }
 
 void gui_quit()
 {
-    if(thread)
+    if(tuner.thread)
     {
-        xdr_write("X");
+        tuner_poweroff();
         g_usleep(25000);
-        thread = 0;
+        tuner.thread = 0;
         g_usleep(25000);
     }
     gtk_main_quit();
 }
 
-void dialog_error(gchar* msg)
+void gui_clear()
 {
-    GtkWidget* dialog;
-    dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, msg);
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-}
-
-gboolean gui_update_status(gpointer nothing)
-{
-    if(tuner.stereo != rssi[rssi_pos].stereo)
-    {
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, rssi[rssi_pos].stereo?&gui.colors.stereo:&gui.colors.grey);
-        tuner.stereo = !tuner.stereo;
-    }
-
-    if(tuner.rds != rssi[rssi_pos].rds)
-    {
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, rssi[rssi_pos].rds?&conf.color_rds:&gui.colors.grey);
-        tuner.rds = !tuner.rds;
-    }
-
-    if((rssi_pos % 3) == 0) // slower signal level label refresh
-    {
-        gchar *s, *s_m, *s_m2;
-        if(tuner.mode == MODE_FM)
-        {
-            switch(conf.signal_unit)
-            {
-            case UNIT_DBM:
-                s = g_markup_printf_escaped("<span color=\"#777777\">%4.0f↑</span>%4.0fdBm", tuner.max_signal-120, rssi[rssi_pos].value-120);
-                break;
-
-            case UNIT_DBUV:
-                s = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span>%3.0f dBuV", tuner.max_signal-11.25, rssi[rssi_pos].value-11.25);
-                break;
-
-            case UNIT_S:
-                s_m = s_meter(tuner.max_signal);
-                s_m2 = s_meter(rssi[rssi_pos].value);
-                s = g_markup_printf_escaped("<span color=\"#777777\"> %5s↑</span>%5s", s_m, s_m2);
-                g_free(s_m);
-                g_free(s_m2);
-                break;
-
-            case UNIT_DBF:
-            default:
-                s = g_markup_printf_escaped("<span color=\"#777777\"> %3.0f↑</span>%3.0f dBf", tuner.max_signal, rssi[rssi_pos].value);
-                break;
-            }
-        }
-        else
-        {
-            s = g_markup_printf_escaped("<span color=\"#777777\">     %3.0f↑</span>%3.0f", tuner.max_signal, rssi[rssi_pos].value);
-        }
-        gtk_label_set_markup(GTK_LABEL(gui.l_sig), s);
-        g_free(s);
-    }
-    if(conf.signal_display == SIGNAL_GRAPH)
-    {
-        gtk_widget_queue_draw(gui.graph);
-    }
-    else if(conf.signal_display == SIGNAL_BAR)
-    {
-        gfloat sig = (rssi[rssi_pos].value>75?75:rssi[rssi_pos].value);
-        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(gui.p_signal), (sig/75.0));
-    }
-    return FALSE;
-}
-
-gboolean gui_clear(gpointer freq)
-{
-    if(freq == NULL)
-    {
-        gtk_label_set_text(GTK_LABEL(gui.l_freq), "       ");
-        gtk_label_set_text(GTK_LABEL(gui.l_sig), "            ");
-    }
-    else
-    {
-        gchar *freq_text = g_strdup_printf("%7.3f", GPOINTER_TO_INT(freq)/1000.0);
-        gtk_label_set_text(GTK_LABEL(gui.l_freq), freq_text);
-        g_free(freq_text);
-        stationlist_freq(GPOINTER_TO_INT(freq));
-    }
+    gtk_label_set_text(GTK_LABEL(gui.l_freq), "       ");
+    gtk_label_set_text(GTK_LABEL(gui.l_sig),  "            ");
     gui_clear_rds();
-
-    return FALSE;
 }
 
 void gui_clear_rds()
 {
-    int i;
+    gint i;
 
-    gtk_label_set_text(GTK_LABEL(gui.l_pi), "     ");
-    gtk_label_set_text(GTK_LABEL(gui.l_ps), "          ");
+    gtk_label_set_text(GTK_LABEL(gui.l_pi),  "     ");
+    gtk_label_set_text(GTK_LABEL(gui.l_ps),  "          ");
     gtk_label_set_text(GTK_LABEL(gui.l_pty), "        ");
-    gtk_label_set_text(GTK_LABEL(gui.l_tp), "  ");
-    gtk_label_set_text(GTK_LABEL(gui.l_ta), "  ");
-    gtk_label_set_text(GTK_LABEL(gui.l_ms), "  ");
+    gtk_label_set_text(GTK_LABEL(gui.l_tp),  "  ");
+    gtk_label_set_text(GTK_LABEL(gui.l_ta),  "  ");
+    gtk_label_set_text(GTK_LABEL(gui.l_ms),  "  ");
 
     gtk_label_set_text(GTK_LABEL(gui.l_rt[0]), " ");
     gtk_label_set_text(GTK_LABEL(gui.l_rt[1]), " ");
@@ -419,211 +451,24 @@ void gui_clear_rds()
     gtk_list_store_clear(GTK_LIST_STORE(gui.af));
 
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
-    tuner.stereo = FALSE;
-
     gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
-    tuner.rds = FALSE;
+    s.stereo = FALSE;
+    s.rds = FALSE;
+    s.rds_timer = 0;
+    s.rds_reset_timer = -1;
 
-    tuner.rds_timer = 0;
-    tuner.pi = tuner.prevpi = tuner.prevpty = tuner.prevtp = tuner.prevta = tuner.prevms = tuner.rds_reset_timer = -1;
+    tuner.pi = tuner.pi_checked = tuner.pty = tuner.tp = tuner.ta = tuner.ms = tuner.ecc = -1;
     tuner.ps_avail = FALSE;
-}
-
-gboolean gui_update_ps(gpointer nothing)
-{
-    unsigned char c[8];
-    int i;
-    gchar *markup;
-
-    if(conf.rds_ps_color)
-    {
-
-        for(i=0; i<8; i++)
-        {
-            c[i] = (tuner.ps_err[i] ? 110+(tuner.ps_err[i] * 12) : 0);
-        }
-        markup = g_markup_printf_escaped(
-                     "<span color=\"#C8C8C8\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#%02X%02X%02X\">%c</span><span color=\"#C8C8C8\">%c</span>",
-                     (conf.rds_ps_progressive?'(':'['),
-                     c[0], c[0], c[0], tuner.ps[0],
-                     c[1], c[1], c[1], tuner.ps[1],
-                     c[2], c[2], c[2], tuner.ps[2],
-                     c[3], c[3], c[3], tuner.ps[3],
-                     c[4], c[4], c[4], tuner.ps[4],
-                     c[5], c[5], c[5], tuner.ps[5],
-                     c[6], c[6], c[6], tuner.ps[6],
-                     c[7], c[7], c[7], tuner.ps[7],
-                     (conf.rds_ps_progressive?')':']')
-                 );
-    }
-    else
-    {
-        markup = g_markup_printf_escaped(
-                     "<span color=\"#C8C8C8\">%c</span>%s<span color=\"#C8C8C8\">%c</span>",
-                     (conf.rds_ps_progressive?'(':'['),
-                     tuner.ps,
-                     (conf.rds_ps_progressive?')':']')
-                 );
-    }
-
-    gtk_label_set_markup(GTK_LABEL(gui.l_ps), markup);
-    g_free(markup);
-    return FALSE;
-}
-
-gboolean gui_update_rt(gpointer flag)
-{
-    gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", tuner.rt[GPOINTER_TO_INT(flag)]);
-    gtk_label_set_markup(GTK_LABEL(gui.l_rt[GPOINTER_TO_INT(flag)]), markup);
-    g_free(markup);
-    return FALSE;
-}
-
-gboolean gui_update_pi(gpointer isOK)
-{
-    gchar pi_text[6];
-    if(GPOINTER_TO_INT(isOK))
-        g_snprintf(pi_text, 6, "%04X ", tuner.pi);
-    else
-        g_snprintf(pi_text, 6, "%04X?", tuner.pi);
-    if(tuner.pi != -1)
-    {
-        gtk_label_set_text(GTK_LABEL(gui.l_pi), pi_text);
-    }
-    return FALSE;
-}
-
-gboolean gui_update_ptytp(gpointer nothing)
-{
-    static gchar* ptys_eu[] = {"None", "News", "Affairs", "Info", "Sport", "Educate", "Drama", "Culture", "Science", "Varied", "Pop M", "Rock M", "Easy M", "Light M", "Classics", "Other M", "Weather", "Finance", "Children", "Social", "Religion", "Phone In", "Travel", "Leisure", "Jazz", "Country", "Nation M", "Oldies", "Folk M", "Document", "TEST", "Alarm !"};
-    static gchar* ptys_usa[] = {"None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!"};
-
-    if(tuner.prevpty != -1)
-    {
-        gchar tmp[15];
-        g_sprintf(tmp, "%-8s", (conf.rds_pty ? ptys_usa[tuner.prevpty] : ptys_eu[tuner.prevpty]));
-        gtk_label_set_text(GTK_LABEL(gui.l_pty), tmp);
-    }
-
-    if(tuner.prevtp == 1)
-    {
-        gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, &gui.colors.black);
-    }
-    else if(tuner.prevtp == 0)
-    {
-        gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
-        gtk_label_set_text(GTK_LABEL(gui.l_ta), "  ");
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, &gui.colors.grey);
-    }
-
-    return FALSE;
-}
-
-gboolean gui_update_tams(gpointer nothing)
-{
-    if(tuner.prevtp == 1 && tuner.prevta == 1)
-    {
-        gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.black);
-    }
-    else if(tuner.prevtp == 1)
-    {
-        gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.grey);
-    }
-
-    gchar *markup;
-    if(tuner.prevms == 1)
-    {
-        markup = g_markup_printf_escaped("M<span color=\"#DDDDDD\">S</span>");
-        gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
-        g_free(markup);
-    }
-    else if(tuner.prevms == 0)
-    {
-        markup = g_markup_printf_escaped("<span color=\"#DDDDDD\">M</span>S");
-        gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
-        g_free(markup);
-    }
-
-    return FALSE;
-}
-
-gboolean gui_update_af(gpointer af_new_freq)
-{
-    GtkTreeIter iter;
-
-    // if new frequency is found on the AF list, gui_af_check() will free it and set the pointer to NULL
-    gtk_tree_model_foreach(GTK_TREE_MODEL(gui.af), (GtkTreeModelForeachFunc)gui_af_check, &af_new_freq);
-
-    if(af_new_freq)
-    {
-        gtk_list_store_append(gui.af, &iter);
-        gtk_list_store_set(gui.af, &iter, 0, (gchar*)af_new_freq, -1);
-        g_free(af_new_freq);
-    }
-
-    return FALSE;
-}
-
-gboolean gui_clear_power_off(gpointer nothing)
-{
-    gui_clear(NULL);
-    graph_clear();
-    if(conf.signal_display == SIGNAL_GRAPH)
-    {
-        gtk_widget_queue_draw(gui.graph);
-    }
-    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(gui.p_signal), 0);
-
-    gtk_widget_set_sensitive(gui.menu_items.connect, TRUE);
-    gtk_menu_item_set_label(GTK_MENU_ITEM(gui.menu_items.connect), "Connect");
-    gtk_window_set_title(GTK_WINDOW(gui.window), "XDR-GTK");
-    return FALSE;
-}
-
-gboolean gui_af_check(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer* newfreq)
-{
-    gchar *cfreq;
-    gtk_tree_model_get(model, iter, 0, &cfreq, -1);
-    if(!strcmp(cfreq,*newfreq))
-    {
-        g_free(*newfreq);
-        *newfreq = NULL;
-        g_free(cfreq);
-        // frequency is already on the list, stop searching.
-        return TRUE;
-    }
-    g_free(cfreq);
-    return FALSE;
-}
-
-void gui_mode_toggle(GtkWidget *widget, GdkEventButton *event, gpointer step)
-{
-    if(event->type == GDK_BUTTON_PRESS && event->button == 1)
-    {
-        if(tuner.mode != MODE_FM)
-        {
-            xdr_write("M0");
-            gui_mode_FM();
-        }
-        else
-        {
-            xdr_write("M1");
-            gui_mode_AM();
-        }
-    }
 }
 
 gboolean gui_mode_FM()
 {
     tuner.mode = MODE_FM;
     gtk_label_set_text(GTK_LABEL(gui.l_band), "FM");
-    g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
+    g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, TRUE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), 29);
-    g_signal_handlers_unblock_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
+    g_signal_handlers_unblock_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
     gtk_widget_set_sensitive(gui.c_deemph, TRUE);
     return FALSE;
 }
@@ -631,12 +476,12 @@ gboolean gui_mode_FM()
 gboolean gui_mode_AM()
 {
     tuner.mode = MODE_AM;
-    tuner.rds_timer = 0;
+    s.rds_timer = 0;
     gtk_label_set_text(GTK_LABEL(gui.l_band), "AM");
-    g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
+    g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, FALSE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), 16);
-    g_signal_handlers_unblock_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tty_change_bandwidth), NULL);
+    g_signal_handlers_unblock_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
     gtk_widget_set_sensitive(gui.c_deemph, FALSE);
     return FALSE;
 }
@@ -719,97 +564,11 @@ void gui_fill_bandwidths(GtkWidget* combo, gboolean auto_mode)
     }
 }
 
-void tty_change_bandwidth()
-{
-    gchar buffer[10];
-    g_snprintf(buffer, sizeof(buffer), "F%d", filters[gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw))]);
-    xdr_write(buffer);
-}
-
-void tty_change_deemphasis()
-{
-    conf.deemphasis = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_deemph));
-    switch(conf.deemphasis)
-    {
-    case 0:
-        xdr_write("D0");
-        break;
-    case 1:
-        xdr_write("D1");
-        break;
-    case 2:
-        xdr_write("D2");
-        break;
-    }
-    settings_write();
-}
-
-void tty_change_volume(GtkScaleButton *widget, gdouble volume, gpointer data)
-{
-    gchar tmp[10];
-    gint val = (exp(volume)-1)/(M_E-1) * 2047;
-    g_snprintf(tmp, sizeof(tmp), "Y%d", val);
-    xdr_write(tmp);
-}
-
-void tty_change_ant()
-{
-    switch(gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant)))
-    {
-    case 0:
-        xdr_write("Z0");
-        break;
-    case 1:
-        xdr_write("Z1");
-        break;
-    case 2:
-        xdr_write("Z2");
-        break;
-    case 3:
-        xdr_write("Z3");
-        break;
-    }
-}
-
-void tty_change_agc()
-{
-    conf.agc = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_agc));
-    switch(conf.agc)
-    {
-    case 0:
-        xdr_write("A0");
-        break;
-    case 1:
-        xdr_write("A1");
-        break;
-    case 2:
-        xdr_write("A2");
-        break;
-    case 3:
-        xdr_write("A3");
-        break;
-    }
-
-    settings_write();
-}
-
-void tty_change_gain()
-{
-    conf.rfgain = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.x_rf));
-    conf.ifgain = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.x_if));
-
-    gchar cmd[4];
-    g_snprintf(cmd, sizeof(cmd), "G%d%d", conf.rfgain, conf.ifgain);
-    xdr_write(cmd);
-
-    settings_write();
-}
-
 void tune_gui_back(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
 {
     if(event->type == GDK_BUTTON_PRESS)
     {
-        tune(tuner.prevfreq);
+        tuner_set_frequency(tuner.prevfreq);
     }
 }
 
@@ -817,7 +576,7 @@ void tune_gui_round(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
 {
     if(event->type == GDK_BUTTON_PRESS)
     {
-        tune_r(tuner.freq);
+        tuner_reset_frequency(tuner.freq);
     }
 }
 
@@ -825,11 +584,11 @@ void tune_gui_step_click(GtkWidget *widget, GdkEventButton *event, gpointer step
 {
     if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click, tune down
     {
-        tune(tuner.freq-(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner.freq-(GPOINTER_TO_INT(step)));
     }
     else if(event->type == GDK_BUTTON_PRESS && event->button == 1) // left click, tune up
     {
-        tune(tuner.freq+(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner.freq+(GPOINTER_TO_INT(step)));
     }
 }
 
@@ -837,11 +596,11 @@ void tune_gui_step_scroll(GtkWidget *widget, GdkEventScroll *event, gpointer ste
 {
     if(event->direction)
     {
-        tune(tuner.freq-(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner.freq-(GPOINTER_TO_INT(step)));
     }
     else
     {
-        tune(tuner.freq+(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner.freq+(GPOINTER_TO_INT(step)));
     }
 }
 
@@ -851,13 +610,13 @@ gboolean gui_toggle_gain(GtkWidget *widget, GdkEventButton *event, gpointer noth
     {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_rf), !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.x_rf)));
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_if), !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.x_if)));
-        tty_change_gain();
+        tuner_set_gain();
         return TRUE;
     }
     else if(event->type == GDK_BUTTON_PRESS && event->button == 1) // left click, toggle
     {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
-        tty_change_gain();
+        tuner_set_gain();
         return TRUE;
     }
     return FALSE;
@@ -883,9 +642,9 @@ gboolean gui_update_clock(gpointer label)
     gtk_label_set_text(GTK_LABEL(label), buff2);
 
     // reset RDS data after timeout
-    if(conf.rds_reset && tuner.rds_reset_timer != -1)
+    if(conf.rds_reset && s.rds_reset_timer != -1)
     {
-        if((g_get_real_time() - tuner.rds_reset_timer) > (conf.rds_reset_timeout*1000000))
+        if((g_get_real_time() - s.rds_reset_timer) > (conf.rds_reset_timeout*1000000))
         {
             gui_clear_rds();
         }
@@ -895,51 +654,39 @@ gboolean gui_update_clock(gpointer label)
 
 void tune_gui_af(GtkTreeSelection *ts, gpointer nothing)
 {
-    GtkTreeModel *list_store;
+    GtkTreeModel *model;
     GtkTreeIter iter;
+    gint n;
 
-    if(!gtk_tree_selection_get_selected(ts, &list_store, &iter))
+    if(!gtk_tree_selection_get_selected(ts, &model, &iter))
     {
         return;
     }
+    gtk_tree_model_get(model, &iter, 0, &n, -1);
 
-    GValue value = {0,};
-    gtk_tree_model_get_value(list_store, &iter, 0, &value);
-    gchar *v = (gchar*)g_strdup_value_contents(&value);
-    g_value_unset(&value);
-
-    if(v)
+    if(n)
     {
-        size_t i;
-        for(i=0; i<strlen(v); i++)
-        {
-            if(v[i] == '.')
-            {
-                v[i] = v[i+1];
-                v[i+1] = 0x00;
-                break;
-            }
-        }
-        tune(g_ascii_strtoll(v+1, NULL, 10)*100);
+        tuner_set_frequency(87500+n*100);
     }
-    g_free(v);
 }
 
-gboolean volume_click(GtkWidget *widget, GdkEventButton *event)
+void dialog_error(gchar* format, ...)
 {
-    if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click
-    {
-        if(gtk_scale_button_get_value(GTK_SCALE_BUTTON(widget)) > 0)
-        {
-            gtk_scale_button_set_value(GTK_SCALE_BUTTON(widget), 0.0);
-        }
-        else
-        {
-            gtk_scale_button_set_value(GTK_SCALE_BUTTON(widget), 1.0);
-        }
-        return TRUE;
-    }
-    return FALSE;
+    GtkWidget* dialog;
+    va_list args;
+    gchar *msg;
+
+    va_start(args, format);
+    msg = g_strdup_vprintf(format, args);
+    va_end(args);
+    dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, msg);
+#ifdef G_OS_WIN32
+    win32_dialog_workaround(GTK_DIALOG(dialog));
+#else
+    gtk_dialog_run(GTK_DIALOG(dialog));
+#endif
+    gtk_widget_destroy(dialog);
+    g_free(msg);
 }
 
 gchar* s_meter(gfloat val)
@@ -1015,4 +762,74 @@ gchar* s_meter(gfloat val)
     {
         return g_strdup_printf("S%d", s);
     }
+}
+
+void window_on_top(GtkToggleButton *item)
+{
+    gboolean state = gtk_toggle_button_get_active(item);
+    gtk_window_set_keep_above(GTK_WINDOW(gui.window), state);
+    gtk_image_set_from_icon_name(GTK_IMAGE(gui.b_ontop_icon), (state ? "xdr-gtk-top-on" : "xdr-gtk-top-off"), GTK_ICON_SIZE_BUTTON);
+}
+
+void connect_button(gboolean is_active)
+{
+    g_signal_handlers_block_by_func(G_OBJECT(gui.b_connect), GINT_TO_POINTER(connection_dialog), NULL);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_connect), is_active);
+    g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_connect), GINT_TO_POINTER(connection_dialog), NULL);
+    gtk_widget_set_tooltip_text(gui.b_connect, (is_active ? "Disconnect" : "Connect"));
+}
+
+void gui_antenna_switch(gint newfreq)
+{
+    gint i;
+    if(conf.ant_switching)
+    {
+        for(i=0; i<ANTENNAS; i++)
+        {
+            if(newfreq >= conf.ant_start[i] && newfreq <= conf.ant_stop[i])
+            {
+                if(gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant)) == i)
+                {
+                    break;
+                }
+                gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_ant), i);
+                break;
+            }
+        }
+    }
+}
+
+void gui_toggle_band(GtkWidget *widget, GdkEventButton *event, gpointer step)
+{
+    if(event->type == GDK_BUTTON_PRESS && event->button == 1)
+    {
+        if(tuner.mode != MODE_FM)
+        {
+            gui_mode_FM();
+            tuner_set_mode();
+        }
+        else
+        {
+            gui_mode_AM();
+            tuner_set_mode();
+        }
+    }
+}
+
+gboolean gui_auth(gpointer data)
+{
+    switch(GPOINTER_TO_INT(data))
+    {
+        case 0:
+            dialog_error("Wrong password!");
+            break;
+
+        case 1:
+            g_source_remove(gui.status_timeout);
+            gtk_label_set_text(GTK_LABEL(gui.l_status), "Logged in as a guest!");
+            gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
+            break;
+    }
+
+    return FALSE;
 }

@@ -5,10 +5,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "gui.h"
-#include "connection.h"
+#include "gui-tuner.h"
+#include "tuner.h"
 #include "settings.h"
 
-gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
+gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
 
@@ -18,16 +19,16 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         if(tuner.freq > 65750 && tuner.freq <= 74000)
         {
             if(((tuner.freq-65750) % 30) == 0)
-                tune(tuner.freq-30);
+                tuner_set_frequency(tuner.freq-30);
             else
-                tune(65750+((tuner.freq-65750)/30*30));
+                tuner_set_frequency(65750+((tuner.freq-65750)/30*30));
         }
         else
         {
             if(tuner.freq%100<50 && tuner.freq%100!=0)
-                tune_r(tuner.freq);
+                tuner_reset_frequency(tuner.freq);
             else
-                tune_r(tuner.freq-100);
+                tuner_reset_frequency(tuner.freq-100);
         }
         return TRUE;
     }
@@ -37,60 +38,63 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         if(tuner.freq >= 65750 && tuner.freq < 74000)
         {
             if(((tuner.freq-65750) % 30) == 0)
-                tune(tuner.freq+30);
+                tuner_set_frequency(tuner.freq+30);
             else
-                tune(65750+((tuner.freq-65750)/30*30)+30);
+                tuner_set_frequency(65750+((tuner.freq-65750)/30*30)+30);
         }
         else
         {
             if(tuner.freq%100>=50)
-                tune_r(tuner.freq);
+                tuner_reset_frequency(tuner.freq);
             else
-                tune_r(tuner.freq+100);
+                tuner_reset_frequency(tuner.freq+100);
         }
         return TRUE;
     }
 
     if(current == conf.key_tune_up_5)
     {
-        tune(tuner.freq+5);
+        tuner_set_frequency(tuner.freq+5);
         return TRUE;
     }
 
     if(current == conf.key_tune_down_5)
     {
-        tune(tuner.freq-5);
+        tuner_set_frequency(tuner.freq-5);
         return TRUE;
     }
 
     if(current == conf.key_tune_down_1000)
     {
-        tune_r(tuner.freq-1000);
+        tuner_reset_frequency(tuner.freq-1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_up_1000)
     {
-        tune_r(tuner.freq+1000);
+        tuner_reset_frequency(tuner.freq+1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_back)
     {
-        tune(tuner.prevfreq);
+        tuner_set_frequency(tuner.prevfreq);
         return TRUE;
     }
 
     if(current == conf.key_reset)
     {
-        tune_r(tuner.freq);
+        tuner_reset_frequency(tuner.freq);
         return TRUE;
     }
 
     if(current == conf.key_screen)
     {
         gchar t[20], filename[50];
+        GdkPixmap *pixmap;
+        GdkPixbuf *pixbuf;
         time_t tt = time(NULL);
+
         if(conf.utc)
         {
             strftime(t, sizeof(t), "%Y%m%d-%H%M%S", gmtime(&tt));
@@ -107,8 +111,16 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         {
             g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d.png", t, tuner.freq);
         }
-        GdkPixmap *pixmap = gtk_widget_get_snapshot(gui.window, NULL);
-        GdkPixbuf *pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 0, 0, 0, 0, -1, -1);
+
+        /* HACK: refresh window to avoid icons disappearing */
+        gtk_widget_queue_draw(gui.window);
+        while(gtk_events_pending())
+        {
+            gtk_main_iteration();
+        }
+
+        pixmap = gtk_widget_get_snapshot(gui.window, NULL);
+        pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 0, 0, 0, 0, -1, -1);
         g_mkdir("./screenshots/", 0755);
         if(!gdk_pixbuf_save(pixbuf, filename, "png", NULL, NULL))
         {
@@ -116,6 +128,18 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         }
         g_object_unref(G_OBJECT(pixmap));
         g_object_unref(G_OBJECT(pixbuf));
+        return TRUE;
+    }
+
+    if(current == conf.key_rotate_cw)
+    {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), TRUE);
+        return TRUE;
+    }
+
+    if(current == conf.key_rotate_ccw)
+    {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), TRUE);
         return TRUE;
     }
 
@@ -135,7 +159,7 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         }
         else
         {
-            tune(conf.presets[id]);
+            tuner_set_frequency(conf.presets[id]);
         }
         return TRUE;
     }
@@ -205,7 +229,7 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 
         gint i = atoi(buff2);
         if(i>=100)
-            tune(atoi(buff2));
+            tuner_set_frequency(atoi(buff2));
 
         gtk_entry_set_text(GTK_ENTRY(gui.e_freq), "");
         gtk_editable_set_position(GTK_EDITABLE(gui.e_freq), 2);
@@ -277,5 +301,24 @@ gboolean keyboard(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
             }
         }
     }
+    return FALSE;
+}
+
+
+gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
+{
+    guint current = gdk_keyval_to_upper(event->keyval);
+
+    if(current == conf.key_rotate_cw)
+    {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+        return TRUE;
+    }
+    else if(current == conf.key_rotate_ccw)
+    {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+        return TRUE;
+    }
+
     return FALSE;
 }

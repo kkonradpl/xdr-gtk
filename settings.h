@@ -10,15 +10,16 @@
 
 #define PRESETS 12
 #define ANTENNAS 4
+#define HOST_HISTORY_LEN 5
 
 enum Signal {SIGNAL_NONE, SIGNAL_GRAPH, SIGNAL_BAR};
 enum Unit {UNIT_DBF, UNIT_DBM, UNIT_DBUV, UNIT_S};
 
-typedef struct
+typedef struct settings
 {
     gint network; // 0=serial, 1=net
     gchar* serial;
-    gchar* host;
+    gchar** host;
     unsigned short port;
     gchar* password;
 
@@ -38,6 +39,7 @@ typedef struct
     gboolean show_grid;
     gboolean utc;
     gboolean replace_spaces;
+    gboolean alignment;
     gboolean stationlist;
     gint stationlist_server;
     gint stationlist_client;
@@ -50,13 +52,14 @@ typedef struct
     gint rds_info_error;
     gint rds_data_error;
     gboolean rds_ps_progressive;
-    gboolean rds_ps_color;
 
     // 0=no errors
     // 1=max 2 bit err. corr.
     // 2=max 5 bit err. corr.
     gint rds_spy_port;
     gboolean rds_spy_auto;
+    gboolean rds_spy_run;
+    gchar* rds_spy_command;
 
     gint scan_width;
     gint scan_height;
@@ -86,14 +89,18 @@ typedef struct
     guint key_bw_up;
     guint key_bw_down;
     guint key_bw_auto;
+    guint key_rotate_cw;
+    guint key_rotate_ccw;
+} settings_t;
 
-} settings;
-
-settings conf;
+settings_t conf;
 
 void settings_read();
 void settings_write();
 void settings_dialog();
 void settings_key(GtkWidget*, GdkEventButton*, gpointer);
 gboolean settings_key_press(GtkWidget*, GdkEventKey*, gpointer);
+void settings_update_string(gchar**, const gchar*);
+gchar* settings_read_string(gchar*);
+void settings_add_host(const gchar* host);
 #endif

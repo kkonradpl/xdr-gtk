@@ -10,62 +10,63 @@
 #endif
 #include "rdsspy.h"
 #include "gui.h"
-#include "menu.h"
 #include "settings.h"
 #include "pattern.h"
 #include "connection.h"
-#include "graph.h"
+#include "sig.h"
 
 gint rdsspy_socket = -1;
 gint rdsspy_client = -1;
 
 void rdsspy_toggle()
 {
-    if(rdsspy_socket < 0)
+    GError* error = NULL;
+    gchar* command[] = { conf.rds_spy_command, NULL };
+
+    if(rdsspy_is_up())
     {
-        rdsspy_init(conf.rds_spy_port);
+        rdsspy_stop();
     }
     else
     {
-        rdsspy_stop();
+        if(rdsspy_init(conf.rds_spy_port) && conf.rds_spy_run && strlen(conf.rds_spy_command))
+        {
+            if(!g_spawn_async(NULL, command, NULL, 0, 0, NULL, NULL, &error))
+            {
+                dialog_error("Unable to start RDS Spy:\n%s", error->message);
+                g_error_free(error);
+            }
+        }
     }
 }
 
 gboolean rdsspy_is_up()
 {
-    if(rdsspy_socket > 0)
-    {
-        return TRUE;
-    }
-    return FALSE;
+    return (rdsspy_socket >= 0);
 }
 
 gboolean rdsspy_is_connected()
 {
-    if(rdsspy_socket > 0 && rdsspy_client > 0)
-    {
-        return TRUE;
-    }
-    return FALSE;
+    return (rdsspy_socket >= 0 && rdsspy_client >= 0);
 }
 
 void rdsspy_stop()
 {
     shutdown(rdsspy_socket, 2);
     closesocket(rdsspy_socket);
-    if(rdsspy_client > 0)
+    if(rdsspy_client >= 0)
     {
         shutdown(rdsspy_client, 2);
     }
 }
 
-void rdsspy_init(int port)
+gboolean rdsspy_init(gint port)
 {
     rdsspy_socket = socket(AF_INET, SOCK_STREAM, 0);
     if(rdsspy_socket < 0)
     {
         dialog_error("rdsspy_init: socket");
-        return;
+        return FALSE;
     }
 
 #ifndef G_OS_WIN32
@@ -73,6 +74,7 @@ void rdsspy_init(int port)
     if(setsockopt(rdsspy_socket, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on)) < 0)
     {
         dialog_error("rdsspy_init: SO_REUSEADDR");
+        return FALSE;
     }
 #endif
 
@@ -84,27 +86,22 @@ void rdsspy_init(int port)
 
     if(bind(rdsspy_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
-        dialog_error("RDS Spy link:\nFailed to bind to a port.\nIt may be already in use by another application.");
+        dialog_error("RDS Spy link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", port);
         closesocket(rdsspy_socket);
         rdsspy_socket = -1;
-        g_signal_handlers_block_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
-        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(gui.menu_items.rdsspy), FALSE);
-        g_signal_handlers_unblock_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
-        return;
+        rdsspy_toggle_button(GINT_TO_POINTER(FALSE));
+        return FALSE;
     }
     listen(rdsspy_socket, 4);
 
-    g_signal_handlers_block_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
-    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(gui.menu_items.rdsspy), TRUE);
-    g_signal_handlers_unblock_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
-
-    g_thread_new("thread_rdsspy", rdsspy_server, NULL);
+    rdsspy_toggle_button(GINT_TO_POINTER(TRUE));
+    g_thread_new("rdsspy", rdsspy_server, NULL);
+    return TRUE;
 }
 
 gpointer rdsspy_server(gpointer nothing)
 {
     char c;
-
     while((rdsspy_client = accept(rdsspy_socket, (struct sockaddr*)NULL, NULL)) >= 0)
     {
         fd_set input;
@@ -121,15 +118,15 @@ gpointer rdsspy_server(gpointer nothing)
         rdsspy_client = -1;
     }
     rdsspy_socket = -1;
-    g_idle_add_full(G_PRIORITY_DEFAULT, rdsspy_checkbox_disable, NULL, NULL);
+    g_idle_add(rdsspy_toggle_button, GINT_TO_POINTER(FALSE));
     return NULL;
 }
 
-gboolean rdsspy_checkbox_disable(gpointer nothing)
+gboolean rdsspy_toggle_button(gpointer is_active)
 {
-    g_signal_handlers_block_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
-    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(gui.menu_items.rdsspy), FALSE);
-    g_signal_handlers_unblock_by_func(G_OBJECT(gui.menu_items.rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
+    g_signal_handlers_block_by_func(G_OBJECT(gui.b_rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_rdsspy), GPOINTER_TO_INT(is_active));
+    g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_rdsspy), GINT_TO_POINTER(rdsspy_toggle), NULL);
     return FALSE;
 }
 
@@ -153,9 +150,10 @@ void rdsspy_send(gint pi, gchar *msg, guint errors)
     }
 
     gchar groups[4][5];
+    gchar out[25];
 
     // 1st block (PI code)
-    if(rssi[rssi_pos].rds)
+    if(s.data[s.pos].rds)
     {
         g_snprintf(groups[0], 5, "%04X", pi);
     }
@@ -197,7 +195,6 @@ void rdsspy_send(gint pi, gchar *msg, guint errors)
         g_snprintf(groups[3], 5, "----");
     }
 
-    gchar out[25];
     g_snprintf(out, sizeof(out), "G:\r\n%s%s%s%s\r\n\r\n", groups[0], groups[1], groups[2], groups[3]);
     send(rdsspy_client, out, strlen(out), 0);
 }

@@ -1,11 +1,14 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <string.h>
 #include "gui.h"
 #include "settings.h"
 #include "graph.h"
-#include "menu.h"
 #include "rdsspy.h"
 #include "stationlist.h"
+#ifdef G_OS_WIN32
+#include "win32.h"
+#endif
 
 void settings_read()
 {
@@ -21,12 +24,16 @@ void settings_read()
         g_key_file_free(keyfile);
 
         conf.network = 0;
+        conf.serial = NULL;
 #ifdef G_OS_WIN32
         conf.serial = g_strdup("COM3");
 #else
         conf.serial = g_strdup("ttyUSB0");
 #endif
-        conf.host = g_strdup("localhost");
+        conf.host = g_new(char*, 2);
+        conf.host[0] = g_strdup("localhost");
+        conf.host[1] = NULL;
+
         conf.port = 7373;
         conf.password = g_strdup("");
 
@@ -58,6 +65,7 @@ void settings_read()
         conf.show_grid = TRUE;
         conf.utc = TRUE;
         conf.replace_spaces = TRUE;
+        conf.alignment = FALSE;
         conf.stationlist = FALSE;
         conf.stationlist_client = 9030;
         conf.stationlist_server = 9031;
@@ -70,9 +78,10 @@ void settings_read()
         conf.rds_info_error = 2;
         conf.rds_data_error = 1;
         conf.rds_ps_progressive = FALSE;
-        conf.rds_ps_color = TRUE;
         conf.rds_spy_port = 7376;
         conf.rds_spy_auto = FALSE;
+        conf.rds_spy_run = FALSE;
+        conf.rds_spy_command = g_strdup("");
 
         conf.scan_width = 950;
         conf.scan_height = 250;
@@ -100,16 +109,18 @@ void settings_read()
         conf.key_bw_up = GDK_KEY_bracketright;
         conf.key_bw_down = GDK_KEY_bracketleft;
         conf.key_bw_auto = GDK_KEY_backslash;
+        conf.key_rotate_cw = GDK_KEY_Home;
+        conf.key_rotate_ccw = GDK_KEY_End;
 
         settings_write();
         return;
     }
 
     conf.network = g_key_file_get_integer(keyfile, "connection", "network", NULL);
-    conf.serial = g_key_file_get_string(keyfile, "connection", "serial", NULL);
-    conf.host = g_key_file_get_string(keyfile, "connection", "host", NULL);
+    conf.serial = settings_read_string(g_key_file_get_string(keyfile, "connection", "serial", NULL));
+    conf.host = g_key_file_get_string_list(keyfile, "connection", "host", NULL, NULL);
     conf.port = g_key_file_get_integer(keyfile, "connection", "port", NULL);
-    conf.password = g_key_file_get_string(keyfile, "connection", "password", NULL);
+    conf.password = settings_read_string(g_key_file_get_string(keyfile, "connection", "password", NULL));
 
     conf.rfgain = g_key_file_get_boolean(keyfile, "tuner", "rfgain", NULL);
     conf.ifgain = g_key_file_get_boolean(keyfile, "tuner", "ifgain", NULL);
@@ -140,6 +151,7 @@ void settings_read()
     conf.show_grid = g_key_file_get_boolean(keyfile, "settings", "show_grid", NULL);
     conf.utc = g_key_file_get_boolean(keyfile, "settings", "utc", NULL);
     conf.replace_spaces = g_key_file_get_boolean(keyfile, "settings", "replace_spaces", NULL);
+    conf.alignment = g_key_file_get_boolean(keyfile, "settings", "alignment", NULL);
     conf.stationlist = g_key_file_get_boolean(keyfile, "settings", "stationlist", NULL);
     conf.stationlist_client = g_key_file_get_integer(keyfile, "settings", "stationlist_client", NULL);
     conf.stationlist_server = g_key_file_get_integer(keyfile, "settings", "stationlist_server", NULL);
@@ -152,9 +164,10 @@ void settings_read()
     conf.rds_info_error = g_key_file_get_integer(keyfile, "settings", "rds_info_error", NULL);
     conf.rds_data_error = g_key_file_get_integer(keyfile, "settings", "rds_data_error", NULL);
     conf.rds_ps_progressive = g_key_file_get_boolean(keyfile, "settings", "rds_ps_progressive", NULL);
-    conf.rds_ps_color = g_key_file_get_boolean(keyfile, "settings", "rds_ps_color", NULL);
     conf.rds_spy_port = g_key_file_get_integer(keyfile, "settings", "rds_spy_port", NULL);
     conf.rds_spy_auto = g_key_file_get_boolean(keyfile, "settings", "rds_spy_auto", NULL);
+    conf.rds_spy_run = g_key_file_get_boolean(keyfile, "settings", "rds_spy_run", NULL);
+    conf.rds_spy_command = settings_read_string(g_key_file_get_string(keyfile, "settings", "rds_spy_command", NULL));
 
     conf.scan_width = g_key_file_get_integer(keyfile, "scan", "scan_width", NULL);
     conf.scan_height = g_key_file_get_integer(keyfile, "scan", "scan_height", NULL);
@@ -208,6 +221,8 @@ void settings_read()
     conf.key_bw_up = g_key_file_get_integer(keyfile, "keyboard", "key_bw_up", NULL);
     conf.key_bw_down = g_key_file_get_integer(keyfile, "keyboard", "key_bw_down", NULL);
     conf.key_bw_auto = g_key_file_get_integer(keyfile, "keyboard", "key_bw_auto", NULL);
+    conf.key_rotate_cw = g_key_file_get_integer(keyfile, "keyboard", "key_rotate_cw", NULL);
+    conf.key_rotate_ccw = g_key_file_get_integer(keyfile, "keyboard", "key_rotate_ccw", NULL);
 
     g_key_file_free(keyfile);
 }
@@ -221,7 +236,7 @@ void settings_write()
 
     g_key_file_set_integer(keyfile, "connection", "network", conf.network);
     g_key_file_set_string(keyfile, "connection", "serial", conf.serial);
-    g_key_file_set_string(keyfile, "connection", "host", conf.host);
+    g_key_file_set_string_list(keyfile, "connection", "host", (const gchar* const*)conf.host, g_strv_length(conf.host));
     g_key_file_set_integer(keyfile, "connection", "port", conf.port);
     g_key_file_set_string(keyfile, "connection", "password", conf.password);
 
@@ -238,6 +253,7 @@ void settings_write()
     g_key_file_set_boolean(keyfile, "settings", "show_grid", conf.show_grid);
     g_key_file_set_boolean(keyfile, "settings", "utc", conf.utc);
     g_key_file_set_boolean(keyfile, "settings", "replace_spaces", conf.replace_spaces);
+    g_key_file_set_boolean(keyfile, "settings", "alignment", conf.alignment);
     g_key_file_set_boolean(keyfile, "settings", "stationlist", conf.stationlist);
     g_key_file_set_integer(keyfile, "settings", "stationlist_client", conf.stationlist_client);
     g_key_file_set_integer(keyfile, "settings", "stationlist_server", conf.stationlist_server);
@@ -262,9 +278,10 @@ void settings_write()
     g_key_file_set_integer(keyfile, "settings", "rds_info_error", conf.rds_info_error);
     g_key_file_set_integer(keyfile, "settings", "rds_data_error", conf.rds_data_error);
     g_key_file_set_boolean(keyfile, "settings", "rds_ps_progressive", conf.rds_ps_progressive);
-    g_key_file_set_boolean(keyfile, "settings", "rds_ps_color", conf.rds_ps_color);
     g_key_file_set_integer(keyfile, "settings", "rds_spy_port", conf.rds_spy_port);
     g_key_file_set_boolean(keyfile, "settings", "rds_spy_auto", conf.rds_spy_auto);
+    g_key_file_set_boolean(keyfile, "settings", "rds_spy_run", conf.rds_spy_run);
+    g_key_file_set_string(keyfile, "settings", "rds_spy_command", conf.rds_spy_command);
 
     g_key_file_set_integer(keyfile, "scan", "scan_width", conf.scan_width);
     g_key_file_set_integer(keyfile, "scan", "scan_height", conf.scan_height);
@@ -294,6 +311,8 @@ void settings_write()
     g_key_file_set_integer(keyfile, "keyboard", "key_bw_up", conf.key_bw_up);
     g_key_file_set_integer(keyfile, "keyboard", "key_bw_down", conf.key_bw_down);
     g_key_file_set_integer(keyfile, "keyboard", "key_bw_auto", conf.key_bw_auto);
+    g_key_file_set_integer(keyfile, "keyboard", "key_rotate_cw", conf.key_rotate_cw);
+    g_key_file_set_integer(keyfile, "keyboard", "key_rotate_ccw", conf.key_rotate_ccw);
 
     if(!(tmp = g_key_file_to_data(keyfile, &length, &error)))
     {
@@ -322,6 +341,7 @@ void settings_dialog()
     gint row;
 
     GtkWidget *dialog = gtk_dialog_new_with_buttons("Settings", GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT, NULL);
+    gtk_window_set_icon_name(GTK_WINDOW(dialog), "xdr-gtk-settings");
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 
     GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
@@ -338,7 +358,7 @@ void settings_dialog()
     GtkWidget *page_interface = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_interface), 4);
 
-    GtkWidget *table_signal = gtk_table_new(12, 2, TRUE);
+    GtkWidget *table_signal = gtk_table_new(13, 2, TRUE);
     gtk_table_set_homogeneous(GTK_TABLE(table_signal), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_signal), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_signal), 4);
@@ -417,6 +437,11 @@ void settings_dialog()
     GtkWidget *x_replace = gtk_check_button_new_with_label("Replace spaces with _ (clipboard)");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_replace), conf.replace_spaces);
     gtk_table_attach(GTK_TABLE(table_signal), x_replace, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_alignment = gtk_check_button_new_with_label("Show alignment");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_alignment), conf.alignment);
+    gtk_table_attach(GTK_TABLE(table_signal), x_alignment, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     GtkWidget *hs_sl = gtk_hseparator_new();
@@ -528,18 +553,11 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_rds), x_psprog, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *x_pscolor = gtk_check_button_new_with_label("Dim PS depending on the correction");
-    gtk_widget_set_tooltip_text(x_pscolor, "Display RDS PS characters in a grayscale depending on the error correction level.");
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_pscolor), conf.rds_ps_color);
-    gtk_table_attach(GTK_TABLE(table_rds), x_pscolor, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
     GtkWidget *hs_rdsspy = gtk_hseparator_new();
     gtk_table_attach(GTK_TABLE(table_rds), hs_rdsspy, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *l_rdsspy_port = gtk_label_new("RDS Spy TCP/IP port:");
+    GtkWidget *l_rdsspy_port = gtk_label_new("RDS Spy Link TCP/IP port:");
     gtk_misc_set_alignment(GTK_MISC(l_rdsspy_port), 0.0, 0.5);
     gtk_table_attach(GTK_TABLE(table_rds), l_rdsspy_port, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     GtkAdjustment *adj4 = (GtkAdjustment*)gtk_adjustment_new(conf.rds_spy_port, 1024.0, 65535.0, 1.0, 10.0, 0.0);
@@ -547,9 +565,28 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_rds), s_rdsspy_port, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *x_rdsspy_auto = gtk_check_button_new_with_label("Run on start-up");
+    GtkWidget *x_rdsspy_auto = gtk_check_button_new_with_label("RDS Spy Link auto-start");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_rdsspy_auto), conf.rds_spy_auto);
     gtk_table_attach(GTK_TABLE(table_rds), x_rdsspy_auto, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_rdsspy_run = gtk_check_button_new_with_label("RDS Spy auto-start:");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_rdsspy_run), conf.rds_spy_run);
+    gtk_table_attach(GTK_TABLE(table_rds), x_rdsspy_run, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *c_rdsspy_command = gtk_file_chooser_button_new("RDS Spy Executable File", GTK_FILE_CHOOSER_ACTION_OPEN);
+    GtkFileFilter* filter = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter, "RDS Spy Executable File (rdsspy.exe)");
+    gtk_file_filter_add_pattern(filter, "rdsspy.exe");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(c_rdsspy_command), filter);
+    GtkFileFilter* filter2 = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter2, "All files");
+    gtk_file_filter_add_pattern(filter2, "*");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(c_rdsspy_command), filter2);
+    if(strlen(conf.rds_spy_command))
+    {
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(c_rdsspy_command), conf.rds_spy_command);
+    }
+    gtk_table_attach(GTK_TABLE(table_rds), c_rdsspy_command, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     GtkWidget *page_rds_label = gtk_label_new("RDS");
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_rds, page_rds_label);
@@ -604,7 +641,7 @@ void settings_dialog()
     GtkWidget *page_key = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_key), 4);
 
-    GtkWidget *table_key = gtk_table_new(12, 2, FALSE);
+    GtkWidget *table_key = gtk_table_new(14, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_key), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_key), 1);
     gtk_table_set_col_spacings(GTK_TABLE(table_key), 0);
@@ -708,6 +745,22 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_key), b_bw_auto, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     row++;
 
+    GtkWidget *l_rotate_cw = gtk_label_new("Rotate CW");
+    gtk_misc_set_alignment(GTK_MISC(l_rotate_cw), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_rotate_cw, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *b_rotate_cw = gtk_button_new_with_label(gdk_keyval_name(conf.key_rotate_cw));
+    g_signal_connect(b_rotate_cw, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_rotate_cw, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    row++;
+
+    GtkWidget *l_rotate_ccw = gtk_label_new("Rotate CCW");
+    gtk_misc_set_alignment(GTK_MISC(l_rotate_ccw), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_rotate_ccw, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *b_rotate_ccw = gtk_button_new_with_label(gdk_keyval_name(conf.key_rotate_ccw));
+    g_signal_connect(b_rotate_ccw, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_rotate_ccw, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    row++;
+
     GtkWidget *page_key_label = gtk_label_new("Keyboard");
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_key, page_key_label);
 
@@ -739,16 +792,7 @@ void settings_dialog()
     gtk_widget_show_all(dialog);
     gint result;
 #ifdef G_OS_WIN32
-    // workaround for windows to keep dialog over main window
-    if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(gui.menu_items.alwaysontop)))
-    {
-        gtk_window_set_keep_above(GTK_WINDOW(gui.window), FALSE);
-    }
-    result = gtk_dialog_run(GTK_DIALOG(dialog));
-    if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(gui.menu_items.alwaysontop)))
-    {
-        gtk_window_set_keep_above(GTK_WINDOW(gui.window), TRUE);
-    }
+    result = win32_dialog_workaround(GTK_DIALOG(dialog));
 #else
     result = gtk_dialog_run(GTK_DIALOG(dialog));
 #endif
@@ -765,6 +809,17 @@ void settings_dialog()
         conf.signal_avg = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_avg));
         conf.utc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_utc));
         conf.replace_spaces = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_replace));
+        conf.alignment = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_alignment));
+
+        if(conf.alignment)
+        {
+            gtk_widget_show(gui.hs_align);
+        }
+        else
+        {
+            gtk_widget_hide(gui.hs_align);
+        }
+
         conf.stationlist = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_stationlist));
         conf.stationlist_client = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_stationlist_client));
         conf.stationlist_server = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_stationlist_server));
@@ -783,17 +838,21 @@ void settings_dialog()
         conf.rds_info_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rds_info_error));
         conf.rds_data_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rds_data_error));
         conf.rds_ps_progressive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_psprog));
-        conf.rds_ps_color = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_pscolor));
 
-        // restart RDS Spy server if the port has been changed
+        // stop RDS Spy server if the port has been changed
         gint tmp_port = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_rdsspy_port));
         if(rdsspy_is_up() && conf.rds_spy_port != tmp_port)
         {
             rdsspy_stop();
-            rdsspy_init(tmp_port);
         }
         conf.rds_spy_port = tmp_port;
         conf.rds_spy_auto = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rdsspy_auto));
+        conf.rds_spy_run = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rdsspy_run));
+        if(conf.rds_spy_command)
+        {
+            g_free(conf.rds_spy_command);
+        }
+        conf.rds_spy_command = settings_read_string(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(c_rdsspy_command)));
 
         conf.ant_switching = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ant));
         for(i=0; i<ANTENNAS; i++)
@@ -819,6 +878,8 @@ void settings_dialog()
         conf.key_bw_up = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_bw_up)));
         conf.key_bw_down = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_bw_down)));
         conf.key_bw_auto = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_bw_auto)));
+        conf.key_rotate_cw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_cw)));
+        conf.key_rotate_ccw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_ccw)));
 
         settings_write();
         graph_resize();
@@ -853,4 +914,41 @@ gboolean settings_key_press(GtkWidget* widget, GdkEventKey* event, gpointer butt
     gtk_button_set_label(GTK_BUTTON(button), gdk_keyval_name(current));
     gtk_widget_destroy(widget);
     return TRUE;
+}
+
+void settings_update_string(gchar** ptr, const gchar* str)
+{
+    if(*ptr != NULL)
+    {
+        g_free(*ptr);
+    }
+
+    *ptr = g_strdup((str ? str : ""));
+}
+
+gchar* settings_read_string(gchar* str)
+{
+    return str ? str : g_strdup("");
+}
+
+void settings_add_host(const gchar* host)
+{
+    gchar** hosts;
+    gint i, j;
+
+    if(host == NULL)
+        return;
+
+    hosts = g_new0(char*, HOST_HISTORY_LEN+1);
+    hosts[0] = g_strdup(host);
+
+    for(i=0, j=1; (j<HOST_HISTORY_LEN && conf.host[i]); i++)
+    {
+        if(g_ascii_strcasecmp(host, conf.host[i]))
+        {
+            hosts[j++] = g_strdup(conf.host[i]);
+        }
+    }
+    g_strfreev(conf.host);
+    conf.host = hosts;
 }

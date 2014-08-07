@@ -5,22 +5,27 @@
 #include "gui.h"
 #include "settings.h"
 #include "pattern.h"
-#include "connection.h"
-#include "menu.h"
+#include "tuner.h"
 
 void pattern_dialog()
 {
+    if(pattern.window)
+    {
+        gtk_window_present(GTK_WINDOW(pattern.dialog));
+        return;
+    }
     pattern_init(0);
-    pattern.dialog = gtk_dialog_new_with_buttons("Antenna pattern", GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, NULL);
+    pattern.dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(pattern.dialog), "Antenna pattern");
+    gtk_window_set_icon_name(GTK_WINDOW(pattern.dialog), "xdr-gtk-pattern");
     gtk_window_set_resizable(GTK_WINDOW(pattern.dialog), FALSE);
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(pattern.dialog));
     gtk_container_set_border_width(GTK_CONTAINER(pattern.dialog), 5);
 
-    GtkWidget *d_box = gtk_vbox_new(FALSE, 4);
-    gtk_container_add(GTK_CONTAINER(content), d_box);
+    GtkWidget *content = gtk_vbox_new(FALSE, 4);
+    gtk_container_add(GTK_CONTAINER(pattern.dialog), content);
 
     GtkWidget *menu_box = gtk_hbox_new(FALSE, 4);
-    gtk_container_add(GTK_CONTAINER(d_box), menu_box);
+    gtk_container_add(GTK_CONTAINER(content), menu_box);
 
     pattern.b_start = gtk_button_new_with_label("Start");
     gtk_button_set_image(GTK_BUTTON(pattern.b_start), gtk_image_new_from_stock(GTK_STOCK_MEDIA_RECORD, GTK_ICON_SIZE_BUTTON));
@@ -48,7 +53,7 @@ void pattern_dialog()
     gtk_box_pack_start(GTK_BOX(menu_box), pattern.b_close, TRUE, TRUE, 0);
 
     GtkWidget *settings_box = gtk_hbox_new(FALSE, 4);
-    gtk_container_add(GTK_CONTAINER(d_box), settings_box);
+    gtk_container_add(GTK_CONTAINER(content), settings_box);
 
     pattern.l_size = gtk_label_new("Size:");
     gtk_box_pack_start(GTK_BOX(settings_box), pattern.l_size, FALSE, FALSE, 0);
@@ -65,10 +70,10 @@ void pattern_dialog()
     pattern.image = gtk_drawing_area_new();
     gtk_widget_add_events(pattern.image, GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK);
     pattern_resize();
-    gtk_box_pack_start(GTK_BOX(d_box), pattern.image, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(content), pattern.image, TRUE, TRUE, 0);
 
     GtkWidget *plot_settings_box = gtk_hbox_new(FALSE, 4);
-    gtk_container_add(GTK_CONTAINER(d_box), plot_settings_box);
+    gtk_container_add(GTK_CONTAINER(content), plot_settings_box);
 
     pattern.b_rotate_ll = gtk_button_new_with_label("");
     gtk_button_set_image(GTK_BUTTON(pattern.b_rotate_ll), gtk_image_new_from_stock(GTK_STOCK_MEDIA_REWIND, GTK_ICON_SIZE_MENU));
@@ -108,23 +113,10 @@ void pattern_dialog()
     g_signal_connect_swapped(pattern.avg, "toggled", G_CALLBACK(gtk_widget_queue_draw), pattern.image);
 
     g_signal_connect(pattern.image, "expose-event", G_CALLBACK(draw_pattern), NULL);
-    g_signal_connect(pattern.dialog, "response", G_CALLBACK(gui_pattern_destroy), NULL);
+    g_signal_connect(pattern.dialog, "destroy", G_CALLBACK(gui_pattern_destroy), NULL);
 
     gtk_widget_show_all(pattern.dialog);
-#ifdef G_OS_WIN32
-    // workaround for windows to keep dialog over main window
-    if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(gui.menu_items.alwaysontop)))
-    {
-        gtk_window_set_keep_above(GTK_WINDOW(gui.window), FALSE);
-    }
-    gtk_dialog_run(GTK_DIALOG(pattern.dialog));
-    if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(gui.menu_items.alwaysontop)))
-    {
-        gtk_window_set_keep_above(GTK_WINDOW(gui.window), TRUE);
-    }
-#else
-    gtk_dialog_run(GTK_DIALOG(pattern.dialog));
-#endif
+    pattern.window = TRUE;
 }
 
 gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
@@ -135,7 +127,7 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
     const gchar *title;
     cairo_t *cr;
     cairo_text_extents_t extents;
-    pattern_rssi *node;
+    pattern_sig_t *node;
 
     static const double dash_full[] = {1.0, 2.0};
     static gint dash_len = sizeof(dash_full)/sizeof(dash_full[0]);
@@ -295,6 +287,7 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
 void gui_pattern_destroy(gpointer dialog)
 {
+    pattern.window = FALSE;
     pattern_clear();
     conf.pattern_size = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(pattern.s_size));
     conf.pattern_fill = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.fill));
@@ -317,7 +310,7 @@ void pattern_init(gint freq)
 
 void pattern_push(gfloat sig)
 {
-    pattern_rssi *node = g_new(pattern_rssi, 1);
+    pattern_sig_t *node = g_new(pattern_sig_t, 1);
     node->sig = sig;
     node->next = NULL;
     if(sig > pattern.peak)
@@ -336,6 +329,7 @@ void pattern_push(gfloat sig)
         pattern.tail = node;
     }
     pattern.count++;
+    pattern_update();
 }
 
 void pattern_start(GtkWidget *widget, gpointer data)
@@ -392,6 +386,7 @@ void pattern_load(GtkWidget *widget, gpointer data)
         }
         else
         {
+                printf("freq: %d\n", freq);
             pattern_clear();
             pattern_init(freq);
 
@@ -401,6 +396,7 @@ void pattern_load(GtkWidget *widget, gpointer data)
                 // remove new line char
                 buff[strlen(buff)-1] = 0;
             }
+                printf("tytul: %s\n", buff);
             gtk_entry_set_text(GTK_ENTRY(pattern.e_title), buff);
             while(fscanf(f, "%f", &sample) && !feof(f))
             {
@@ -423,7 +419,7 @@ void pattern_save(GtkWidget *widget, gpointer data)
     FILE *f;
     gchar buffer[100];
     const gchar *title;
-    pattern_rssi *node;
+    pattern_sig_t *node;
 
     GtkWidget *dialog = gtk_file_chooser_dialog_new("Save signal samples", GTK_WINDOW(gui.window), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
     gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
@@ -520,7 +516,7 @@ gboolean pattern_update()
 void pattern_clear()
 {
     pattern.active = FALSE;
-    pattern_rssi *tmp, *node = pattern.head;
+    pattern_sig_t *tmp, *node = pattern.head;
     while(node)
     {
         tmp = node;

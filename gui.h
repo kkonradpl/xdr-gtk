@@ -1,23 +1,22 @@
 #ifndef XDR_GUI_H_
 #define XDR_GUI_H_
-#include "gui_net.h"
-#include "menu.h"
 
-#define FONT_FILE "VeraMono.ttf"
+#define AF_LIST_STORE_ID   0
+#define AF_LIST_STORE_FREQ 1
 
-typedef struct
+typedef struct gui_colors
 {
     GdkColor background;
     GdkColor grey;
     GdkColor black;
     GdkColor stereo;
-} gui_colors;
+} gui_colors_t;
 
-typedef struct
+typedef struct gui
 {
     GtkWidget *window;
     gchar window_title[100];
-    gui_colors colors;
+    gui_colors_t colors;
     GtkClipboard *clipboard;
 
     GtkWidget *box;
@@ -32,15 +31,19 @@ typedef struct
     GtkWidget *box_right;
 
     GtkWidget *volume;
-    GtkAdjustment *volume_adj;
+    GtkWidget *squelch;
     GtkWidget *event_band, *l_band;
     GtkWidget *event_freq, *l_freq;
     GtkWidget *event_pi, *l_pi;
     GtkWidget *event_ps, *l_ps;
 
+    GtkWidget *b_scan;
     GtkWidget *b_tune_back;
     GtkWidget *e_freq;
     GtkWidget *b_tune_reset;
+
+    GtkObject *adj_align;
+    GtkWidget *hs_align;
 
     GtkWidget *graph, *p_signal;
 
@@ -52,9 +55,16 @@ typedef struct
     GtkWidget *l_pty;
     GtkWidget *l_sig;
 
-    GtkWidget *menu, *b_menu;
-    menu_struct menu_items;
+    GtkWidget *b_connect;
+    GtkWidget *b_pattern;
+    GtkWidget *b_settings;
+    GtkWidget *b_about;
+    GtkWidget *b_rdsspy;
+    GtkWidget *b_ontop, *b_ontop_icon;
+
     GtkWidget *c_ant;
+    GtkWidget *b_cw, *b_cw_label;
+    GtkWidget *b_ccw, *b_ccw_label;
     GtkWidget *l_agc, *c_agc;
     GtkWidget *x_rf;
 
@@ -70,25 +80,16 @@ typedef struct
     GtkWidget *l_af;
     GtkListStore *af;
     GtkWidget *af_box;
-} gui_struct;
+} gui_t;
 
-gui_struct gui;
+gui_t gui;
 
 void gui_init();
 void gui_quit();
-void dialog_error(gchar* msg);
+void dialog_error(gchar* format, ...);
 gboolean gui_update_status(gpointer);
-gboolean gui_clear(gpointer);
+void gui_clear();
 void gui_clear_rds();
-gboolean gui_update_ps(gpointer);
-gboolean gui_update_rt(gpointer);
-gboolean gui_update_pi(gpointer);
-gboolean gui_update_ptytp(gpointer);
-gboolean gui_update_tams(gpointer);
-gboolean gui_update_af(gpointer);
-gboolean gui_af_check(GtkTreeModel*, GtkTreePath*, GtkTreeIter*, gpointer*);
-gboolean gui_clear_power_off(gpointer);
-void gui_mode_toggle(GtkWidget*, GdkEventButton*, gpointer);
 gboolean gui_mode_FM();
 gboolean gui_mode_AM();
 void gui_fill_bandwidths(GtkWidget*, gboolean);
@@ -97,14 +98,13 @@ void tune_gui_round(GtkWidget*, GdkEventButton*, gpointer);
 void tune_gui_step_click(GtkWidget*, GdkEventButton*, gpointer);
 void tune_gui_step_scroll(GtkWidget*, GdkEventScroll*, gpointer);
 void tune_gui_af(GtkTreeSelection*, gpointer);
-void tty_change_bandwidth();
-void tty_change_deemphasis();
-void tty_change_volume(GtkScaleButton*, gdouble, gpointer);
-void tty_change_ant();
-void tty_change_agc();
-void tty_change_gain();
 gboolean gui_toggle_gain(GtkWidget*, GdkEventButton*, gpointer);
 gboolean gui_update_clock(gpointer);
-gboolean volume_click(GtkWidget*, GdkEventButton*);
 gchar* s_meter(gfloat);
+void window_on_top(GtkToggleButton*);
+void connect_button(gboolean);
+void gui_antenna_switch(gint);
+void gui_toggle_band(GtkWidget *widget, GdkEventButton *event, gpointer step);
+gboolean gui_auth(gpointer data);
+
 #endif
