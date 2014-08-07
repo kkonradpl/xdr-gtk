@@ -1,5 +1,5 @@
 /*
- *  XDR-GTK v0.3 beta
+ *  XDR-GTK v0.3
  *  Copyright (C) 2012-2014  Konrad Kosmatka
  *  http://fmdx.pl/
 
