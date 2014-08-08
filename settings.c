@@ -19,7 +19,10 @@ void settings_read()
 
     if(!g_key_file_load_from_file(keyfile, CONF_FILE, G_KEY_FILE_KEEP_COMMENTS, &error))
     {
-        dialog_error("Configuration file not found.\nUsing default settings.");
+        GtkWidget *dialog;
+        dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Configuration file not found.\nUsing default settings");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
         g_error_free(error);
         g_key_file_free(keyfile);
 

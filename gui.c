@@ -820,15 +820,15 @@ gboolean gui_auth(gpointer data)
 {
     switch(GPOINTER_TO_INT(data))
     {
-        case 0:
-            dialog_error("Wrong password!");
-            break;
+    case 0:
+        dialog_error("Wrong password!");
+        break;
 
-        case 1:
-            g_source_remove(gui.status_timeout);
-            gtk_label_set_text(GTK_LABEL(gui.l_status), "Logged in as a guest!");
-            gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
-            break;
+    case 1:
+        g_source_remove(gui.status_timeout);
+        gtk_label_set_text(GTK_LABEL(gui.l_status), "Logged in as a guest!");
+        gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
+        break;
     }
 
     return FALSE;

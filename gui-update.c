@@ -307,20 +307,20 @@ gboolean gui_update_rotator(gpointer data)
     g_signal_handlers_block_by_func(G_OBJECT(gui.b_ccw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(2));
     switch(GPOINTER_TO_INT(data))
     {
-        case 1:
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), TRUE);
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
-            break;
+    case 1:
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+        break;
 
-        case 2:
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), TRUE);
-            break;
+    case 2:
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), TRUE);
+        break;
 
-        default:
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
-            break;
+    default:
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+        break;
     }
     g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_cw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(1));
     g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_ccw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(2));

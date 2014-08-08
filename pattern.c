@@ -386,7 +386,7 @@ void pattern_load(GtkWidget *widget, gpointer data)
         }
         else
         {
-                printf("freq: %d\n", freq);
+            printf("freq: %d\n", freq);
             pattern_clear();
             pattern_init(freq);
 
@@ -396,7 +396,7 @@ void pattern_load(GtkWidget *widget, gpointer data)
                 // remove new line char
                 buff[strlen(buff)-1] = 0;
             }
-                printf("tytul: %s\n", buff);
+            printf("tytul: %s\n", buff);
             gtk_entry_set_text(GTK_ENTRY(pattern.e_title), buff);
             while(fscanf(f, "%f", &sample) && !feof(f))
             {

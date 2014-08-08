@@ -264,7 +264,7 @@ void stationlist_af(gint af)
                                         stationlist_af_buffer[22],
                                         stationlist_af_buffer[23],
                                         stationlist_af_buffer[24])
-                        );
+                       );
     }
 }
 

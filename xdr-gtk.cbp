@@ -7,6 +7,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="Debug">
+				<Option platforms="Unix;Mac;" />
 				<Option output="bin/Debug/xdr-gtk" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
@@ -16,6 +17,7 @@
 				</Compiler>
 			</Target>
 			<Target title="Release">
+				<Option platforms="Unix;Mac;" />
 				<Option output="bin/Release/xdr-gtk" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Release/" />
 				<Option type="0" />
@@ -23,6 +25,36 @@
 				<Compiler>
 					<Add option="-O2" />
 				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+			<Target title="Debug-win">
+				<Option platforms="Windows;" />
+				<Option output="bin/Debug-win/xdr-gtk" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug-win/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+				<Linker>
+					<Add option="-lws2_32" />
+				</Linker>
+			</Target>
+			<Target title="Release-win">
+				<Option platforms="Windows;" />
+				<Option output="bin/Release-win/xdr-gtk" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release-win/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O3" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="-lws2_32" />
+				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
@@ -60,6 +92,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="gui.h" />
+		<Unit filename="icon.rc">
+			<Option target="Debug-win" />
+			<Option target="Release-win" />
+		</Unit>
 		<Unit filename="keyboard.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -101,8 +137,13 @@
 		<Unit filename="version.h" />
 		<Unit filename="win32.c">
 			<Option compilerVar="CC" />
+			<Option target="Debug-win" />
+			<Option target="Release-win" />
 		</Unit>
-		<Unit filename="win32.h" />
+		<Unit filename="win32.h">
+			<Option target="Debug-win" />
+			<Option target="Release-win" />
+		</Unit>
 		<Extensions>
 			<code_completion />
 			<envvars />

@@ -20,7 +20,9 @@
 #include "sig.h"
 #include "rdsspy.h"
 #include "stationlist.h"
+#ifdef G_OS_WIN32
 #include "win32.h"
+#endif
 
 gint main(gint argc, gchar* argv[])
 {

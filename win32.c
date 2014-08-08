@@ -1,5 +1,4 @@
 #include <gtk/gtk.h>
-#ifdef G_OS_WIN32
 #define _WIN32_WINNT 0x0500
 #include <stdlib.h>
 #include <string.h>
@@ -54,4 +53,3 @@ gint win32_dialog_workaround(GtkDialog *dialog)
     }
     return gtk_dialog_run(dialog);
 }
-#endif

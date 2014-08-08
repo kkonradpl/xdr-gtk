@@ -349,7 +349,7 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_t* scan)
                     tuner_set_frequency(f);
                 }
             }
-        gtk_widget_queue_draw(scan->image);
+            gtk_widget_queue_draw(scan->image);
         }
     }
     return TRUE;
