@@ -30,5 +30,6 @@ s_data_t* signal_get();
 s_data_t* signal_get_i(gint);
 s_data_t* signal_get_next_i(gint);
 void signal_push(gfloat level, gboolean stereo, gboolean rds);
+gfloat signal_level(gfloat value);
 
 #endif

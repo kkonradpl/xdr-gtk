@@ -183,7 +183,6 @@ void graph_click(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
     }
 }
 
-
 void signal_display()
 {
     switch(conf.signal_display)
@@ -203,24 +202,4 @@ void signal_display()
         gtk_widget_hide(gui.graph);
         break;
     }
-}
-
-gfloat signal_level(gfloat value)
-{
-    if(tuner.mode == MODE_FM)
-    {
-        switch(conf.signal_unit)
-        {
-        case UNIT_DBM:
-            return value - 120;
-
-        case UNIT_DBUV:
-            return value - 11.25;
-
-        default:
-        case UNIT_DBF:
-            return value;
-        }
-    }
-    return value;
 }

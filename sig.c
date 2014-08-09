@@ -1,6 +1,7 @@
 #include <gtk/gtk.h>
 #include "sig.h"
 #include "tuner.h"
+#include "settings.h"
 
 void signal_push(gfloat level, gboolean stereo, gboolean rds)
 {
@@ -45,5 +46,25 @@ s_data_t* signal_get_i(gint i)
 s_data_t* signal_get_next_i(gint i)
 {
     return &s.data[((i==(s.len-1)) ? 0 : i+1)];
+}
+
+gfloat signal_level(gfloat value)
+{
+    if(tuner.mode == MODE_FM)
+    {
+        switch(conf.signal_unit)
+        {
+        case UNIT_DBM:
+            return value - 120;
+
+        case UNIT_DBUV:
+            return value - 11.25;
+
+        default:
+        case UNIT_DBF:
+            return value;
+        }
+    }
+    return value;
 }
 

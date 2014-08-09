@@ -10,6 +10,5 @@ gboolean graph_draw(GtkWidget*, GdkEventExpose*, gpointer);
 void graph_resize();
 void graph_click(GtkWidget*, GdkEventButton*, gpointer);
 void signal_display();
-gfloat signal_level(gfloat);
 #endif
 

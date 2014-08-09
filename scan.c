@@ -5,6 +5,7 @@
 #include "gui-tuner.h"
 #include "settings.h"
 #include "scan.h"
+#include "sig.h"
 #include "tuner.h"
 
 void scan_dialog()
@@ -339,7 +340,7 @@ gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, scan_t* scan)
         if(scan->focus < scan->data->len)
         {
             gint f = scan->data->signals[scan->focus].freq;
-            text = g_markup_printf_escaped("<span size=\"20000\">%d kHz (%.0f)</span>", f, scan->data->signals[scan->focus].signal);
+            text = g_markup_printf_escaped("<span size=\"20000\">%d kHz (%.0f)</span>", f, signal_level(scan->data->signals[scan->focus].signal));
             gtk_label_set_markup(GTK_LABEL(scan->label), text);
             g_free(text);
             if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan->b_tune)))
