@@ -14,7 +14,6 @@
 #include "gui.h"
 #include "rdsspy.h"
 #include "sig.h"
-#include "stationlist.h"
 #include "version.h"
 #ifdef G_OS_WIN32
 #include <windows.h>
@@ -247,7 +246,6 @@ void tuner_parse(gchar c, gchar msg[])
         {
             tuner.pi = pi;
             tuner.pi_checked = checked;
-            stationlist_pi(pi);
 
             pi_t* p = g_new(pi_t, 1);
             p->pi = pi;
@@ -288,7 +286,6 @@ void tuner_parse(gchar c, gchar msg[])
                 {
                     tuner.pty = pty;
                     g_idle_add(gui_update_pty, GINT_TO_POINTER(pty));
-                    stationlist_pty(pty);
                 }
 
                 if(tuner.tp != tp)
@@ -335,7 +332,7 @@ void tuner_parse(gchar c, gchar msg[])
                         if(tuner.ecc != ecc)
                         {
                             tuner.ecc = ecc;
-                            stationlist_ecc(ecc);
+                            g_idle_add(gui_update_ecc, GINT_TO_POINTER(ecc));
                         }
                     }
                 }
@@ -373,7 +370,6 @@ void tuner_parse(gchar c, gchar msg[])
                     {
                         tuner.ps_avail = TRUE;
                         g_idle_add(gui_update_ps, NULL);
-                        stationlist_ps(tuner.ps);
                     }
                 }
             }
@@ -390,6 +386,9 @@ void tuner_parse(gchar c, gchar msg[])
 
                     for(i=0; i<4; i++)
                     {
+                        if(tuner.rt[flag][pos*4+i] == rt[i])
+                            continue;
+
                         if(rt[i] == 0x0D) // end of the RadioText message
                         {
                             if ((i <= 1 && (errors&15) == 0) || (i >= 2 && (errors&51) == 0))
@@ -399,7 +398,7 @@ void tuner_parse(gchar c, gchar msg[])
                             }
                         }
                         // only ASCII printable characters
-                        else if(rt[i] >= 32 && rt[i] < 127 && tuner.rt[flag][pos*4+i] != rt[i])
+                        else if(rt[i] >= 32 && rt[i] < 127)
                         {
                             if( (i <= 1 && ((errors&12)>>2) <= conf.rds_data_error) || (i >= 2 && ((errors&48)>>4) <= conf.rds_data_error) )
                             {
@@ -412,7 +411,6 @@ void tuner_parse(gchar c, gchar msg[])
                     if(changed)
                     {
                         g_idle_add(gui_update_rt, GINT_TO_POINTER(flag));
-                        stationlist_rt(flag, tuner.rt[flag]);
                     }
                 }
             }
@@ -454,6 +452,10 @@ void tuner_parse(gchar c, gchar msg[])
                 tmp[j++] = msg[i];
         }
         g_idle_add(scan_update, (gpointer)data);
+    }
+    else if(c == 'N') // stereo pilot level test
+    {
+        g_idle_add(gui_update_pilot, GINT_TO_POINTER(atoi(msg)));
     }
     else if(c == 'Y')  // Sound volume control (network)
     {
@@ -499,34 +501,28 @@ void tuner_parse(gchar c, gchar msg[])
 
 void tuner_write(gchar* command)
 {
+    gchar *msg;
+    gint len;
+
     if(tuner.thread)
     {
-        gchar *tmp = g_strdup(command);
-        gint len = strlen(command);
-        tmp[len++] = '\n';
-#if DEBUG_WRITE
-        g_print("write: %s\n", command);
-#endif
+        msg = g_strdup(command);
+        len = strlen(command);
+        msg[len++] = '\n';
+
 #ifdef G_OS_WIN32
-        if(tuner.socket != INVALID_SOCKET)
-        {
-            // network connection
-            send(tuner.socket, tmp, len, 0);
-        }
-        else
+        if(tuner.socket == INVALID_SOCKET)
         {
             // serial connection
             OVERLAPPED osWrite = {0};
             DWORD dwWritten;
-
             osWrite.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
             if(osWrite.hEvent == NULL)
             {
-                g_free(tmp);
+                g_free(msg);
                 return;
             }
-
-            if (!WriteFile(tuner.serial, tmp, len, &dwWritten, &osWrite))
+            if (!WriteFile(tuner.serial, msg, len, &dwWritten, &osWrite))
             {
                 if (GetLastError() == ERROR_IO_PENDING)
                 {
@@ -538,15 +534,45 @@ void tuner_write(gchar* command)
             }
             CloseHandle(osWrite.hEvent);
         }
+        else
+        {
+            tuner_write_socket(tuner.socket, msg, len);
+        }
 #else
-        write(tuner.serial, tmp, len);
+        tuner_write_socket(tuner.serial, msg, len);
 #endif
-        g_free(tmp);
+        g_free(msg);
+#if DEBUG_WRITE
+        g_print("write: %s\n", command);
+#endif
     }
+}
+
+gboolean tuner_write_socket(int fd, gchar* msg, int len)
+{
+    // writes to a socket on WIN32
+    // or socket/serial on *UNIX
+    gint sent, n;
+    sent = 0;
+    do
+    {
+#ifdef G_OS_WIN32
+        n = send(fd, msg+sent, len-sent, 0);
+#else
+        n = write(fd, msg+sent, len-sent);
+#endif
+        if(n < 0)
+        {
+            closesocket(fd);
+            return FALSE;
+        }
+        sent += n;
+    }
+    while(sent<len);
+    return TRUE;
 }
 
 void tuner_poweroff()
 {
     tuner_write("X");
 }
-

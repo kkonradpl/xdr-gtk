@@ -4,6 +4,7 @@
 #include <glib/gstdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "keyboard.h"
 #include "gui.h"
 #include "gui-tuner.h"
 #include "tuner.h"
@@ -90,44 +91,7 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 
     if(current == conf.key_screen)
     {
-        gchar t[20], filename[50];
-        GdkPixmap *pixmap;
-        GdkPixbuf *pixbuf;
-        time_t tt = time(NULL);
-
-        if(conf.utc)
-        {
-            strftime(t, sizeof(t), "%Y%m%d-%H%M%S", gmtime(&tt));
-        }
-        else
-        {
-            strftime(t, sizeof(t), "%Y%m%d-%H%M%S", localtime(&tt));
-        }
-        if(tuner.pi!=-1)
-        {
-            g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d-%04X.png", t, tuner.freq, tuner.pi);
-        }
-        else
-        {
-            g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d.png", t, tuner.freq);
-        }
-
-        /* HACK: refresh window to avoid icons disappearing */
-        gtk_widget_queue_draw(gui.window);
-        while(gtk_events_pending())
-        {
-            gtk_main_iteration();
-        }
-
-        pixmap = gtk_widget_get_snapshot(gui.window, NULL);
-        pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 0, 0, 0, 0, -1, -1);
-        g_mkdir("./screenshots/", 0755);
-        if(!gdk_pixbuf_save(pixbuf, filename, "png", NULL, NULL))
-        {
-            dialog_error("Unable to save a screenshot...");
-        }
-        g_object_unref(G_OBJECT(pixmap));
-        g_object_unref(G_OBJECT(pixbuf));
+        save_screenshot();
         return TRUE;
     }
 
@@ -140,6 +104,13 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
     if(current == conf.key_rotate_ccw)
     {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), TRUE);
+        return TRUE;
+    }
+
+    if(current == conf.key_switch_ant)
+    {
+        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant));
+        gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_ant), ((current < conf.ant_count-1) ? current+1 : 0));
         return TRUE;
     }
 
@@ -304,7 +275,6 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
     return FALSE;
 }
 
-
 gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
@@ -321,4 +291,46 @@ gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothin
     }
 
     return FALSE;
+}
+
+void save_screenshot()
+{
+    gchar t[20], filename[50];
+    GdkPixmap *pixmap;
+    GdkPixbuf *pixbuf;
+    time_t tt = time(NULL);
+
+    if(conf.utc)
+    {
+        strftime(t, sizeof(t), "%Y%m%d-%H%M%S", gmtime(&tt));
+    }
+    else
+    {
+        strftime(t, sizeof(t), "%Y%m%d-%H%M%S", localtime(&tt));
+    }
+    if(tuner.pi!=-1)
+    {
+        g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d-%04X.png", t, tuner.freq, tuner.pi);
+    }
+    else
+    {
+        g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d.png", t, tuner.freq);
+    }
+
+    /* HACK: refresh window to avoid icons disappearing */
+    gtk_widget_queue_draw(gui.window);
+    while(gtk_events_pending())
+    {
+        gtk_main_iteration();
+    }
+
+    pixmap = gtk_widget_get_snapshot(gui.window, NULL);
+    pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 0, 0, 0, 0, -1, -1);
+    g_mkdir("./screenshots/", 0755);
+    if(!gdk_pixbuf_save(pixbuf, filename, "png", NULL, NULL))
+    {
+        dialog_error("Unable to save a screenshot...");
+    }
+    g_object_unref(G_OBJECT(pixmap));
+    g_object_unref(G_OBJECT(pixbuf));
 }

@@ -1,5 +1,6 @@
 #ifndef XDR_GUI_H_
 #define XDR_GUI_H_
+#include <gtk/gtk.h>
 
 #define AF_LIST_STORE_ID   0
 #define AF_LIST_STORE_FREQ 1
@@ -18,6 +19,7 @@ typedef struct gui
     gchar window_title[100];
     gui_colors_t colors;
     GtkClipboard *clipboard;
+    GdkCursor *click_cursor;
 
     GtkWidget *box;
     GtkWidget *box_header;
@@ -47,7 +49,7 @@ typedef struct gui
 
     GtkWidget *graph, *p_signal;
 
-    GtkWidget *l_st;
+    GtkWidget *event_st, *l_st;
     GtkWidget *l_rds;
     GtkWidget *l_tp;
     GtkWidget *l_ta;
@@ -63,6 +65,8 @@ typedef struct gui
     GtkWidget *b_ontop, *b_ontop_icon;
 
     GtkWidget *c_ant;
+    GtkListStore *ant;
+
     GtkWidget *b_cw, *b_cw_label;
     GtkWidget *b_ccw, *b_ccw_label;
     GtkWidget *l_agc, *c_agc;
@@ -89,7 +93,7 @@ void gui_quit();
 void dialog_error(gchar* format, ...);
 gboolean gui_update_status(gpointer);
 void gui_clear();
-void gui_clear_rds();
+gboolean gui_clear_rds();
 gboolean gui_mode_FM();
 gboolean gui_mode_AM();
 void gui_fill_bandwidths(GtkWidget*, gboolean);
@@ -105,6 +109,9 @@ void window_on_top(GtkToggleButton*);
 void connect_button(gboolean);
 void gui_antenna_switch(gint);
 void gui_toggle_band(GtkWidget *widget, GdkEventButton *event, gpointer step);
+void gui_st_click(GtkWidget *widget, GdkEventButton *event, gpointer step);
 gboolean gui_auth(gpointer data);
+gboolean gui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor);
+void gui_antenna_showhide();
 
 #endif

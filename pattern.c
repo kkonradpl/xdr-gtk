@@ -451,7 +451,7 @@ void pattern_save(GtkWidget *widget, gpointer data)
 
         for(node=pattern.head; node; node=node->next)
         {
-            g_snprintf(buffer, sizeof(buffer), "%f\n", node->sig);
+            g_snprintf(buffer, sizeof(buffer), "%.2f\n", node->sig);
             fwrite(buffer, 1, strlen(buffer), f);
         }
         fclose(f);

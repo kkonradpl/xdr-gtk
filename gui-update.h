@@ -18,6 +18,7 @@ gboolean gui_update_tp(gpointer data);
 gboolean gui_update_ta(gpointer data);
 gboolean gui_update_ms(gpointer data);
 gboolean gui_update_pty(gpointer data);
+gboolean gui_update_ecc(gpointer data);
 gboolean gui_update_volume(gpointer data);
 gboolean gui_update_squelch(gpointer data);
 gboolean gui_update_agc(gpointer data);
@@ -28,5 +29,6 @@ gboolean gui_update_filter(gpointer data);
 gboolean gui_update_rotator(gpointer data);
 gboolean gui_update_alignment(gpointer data);
 gboolean gui_clear_power_off();
+gboolean gui_update_pilot(gpointer data);
 
 #endif

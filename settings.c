@@ -69,6 +69,7 @@ void settings_read()
         conf.utc = TRUE;
         conf.replace_spaces = TRUE;
         conf.alignment = FALSE;
+        conf.autoconnect = FALSE;
         conf.stationlist = FALSE;
         conf.stationlist_client = 9030;
         conf.stationlist_server = 9031;
@@ -94,6 +95,8 @@ void settings_read()
         conf.scan_bw = 12;
         conf.scan_relative = FALSE;
 
+        conf.ant_count = ANT_COUNT;
+        conf.ant_clear_rds = TRUE;
         conf.ant_switching = FALSE;
 
         conf.pattern_size = 600;
@@ -114,6 +117,7 @@ void settings_read()
         conf.key_bw_auto = GDK_KEY_backslash;
         conf.key_rotate_cw = GDK_KEY_Home;
         conf.key_rotate_ccw = GDK_KEY_End;
+        conf.key_switch_ant = GDK_KEY_Delete;
 
         settings_write();
         return;
@@ -155,6 +159,7 @@ void settings_read()
     conf.utc = g_key_file_get_boolean(keyfile, "settings", "utc", NULL);
     conf.replace_spaces = g_key_file_get_boolean(keyfile, "settings", "replace_spaces", NULL);
     conf.alignment = g_key_file_get_boolean(keyfile, "settings", "alignment", NULL);
+    conf.autoconnect = g_key_file_get_boolean(keyfile, "settings", "autoconnect", NULL);
     conf.stationlist = g_key_file_get_boolean(keyfile, "settings", "stationlist", NULL);
     conf.stationlist_client = g_key_file_get_integer(keyfile, "settings", "stationlist_client", NULL);
     conf.stationlist_server = g_key_file_get_integer(keyfile, "settings", "stationlist_server", NULL);
@@ -180,9 +185,11 @@ void settings_read()
     conf.scan_bw = g_key_file_get_integer(keyfile, "scan", "scan_bw", NULL);
     conf.scan_relative = g_key_file_get_boolean(keyfile, "scan", "scan_relative", NULL);
 
+    conf.ant_count = g_key_file_get_integer(keyfile, "ant", "ant_count", NULL);
+    conf.ant_clear_rds = g_key_file_get_boolean(keyfile, "ant", "ant_clear_rds", NULL);
     conf.ant_switching = g_key_file_get_boolean(keyfile, "ant", "ant_switching", NULL);
     p = g_key_file_get_integer_list(keyfile, "ant", "ant_start", &length, NULL);
-    for(i=0; i<ANTENNAS; i++)
+    for(i=0; i<ANT_COUNT; i++)
     {
         if(i<length)
         {
@@ -195,7 +202,7 @@ void settings_read()
     }
     g_free(p);
     p = g_key_file_get_integer_list(keyfile, "ant", "ant_stop", &length, NULL);
-    for(i=0; i<ANTENNAS; i++)
+    for(i=0; i<ANT_COUNT; i++)
     {
         if(i<length)
         {
@@ -226,6 +233,7 @@ void settings_read()
     conf.key_bw_auto = g_key_file_get_integer(keyfile, "keyboard", "key_bw_auto", NULL);
     conf.key_rotate_cw = g_key_file_get_integer(keyfile, "keyboard", "key_rotate_cw", NULL);
     conf.key_rotate_ccw = g_key_file_get_integer(keyfile, "keyboard", "key_rotate_ccw", NULL);
+    conf.key_switch_ant = g_key_file_get_integer(keyfile, "keyboard", "key_switch_ant", NULL);
 
     g_key_file_free(keyfile);
 }
@@ -257,6 +265,7 @@ void settings_write()
     g_key_file_set_boolean(keyfile, "settings", "utc", conf.utc);
     g_key_file_set_boolean(keyfile, "settings", "replace_spaces", conf.replace_spaces);
     g_key_file_set_boolean(keyfile, "settings", "alignment", conf.alignment);
+    g_key_file_set_boolean(keyfile, "settings", "autoconnect", conf.autoconnect);
     g_key_file_set_boolean(keyfile, "settings", "stationlist", conf.stationlist);
     g_key_file_set_integer(keyfile, "settings", "stationlist_client", conf.stationlist_client);
     g_key_file_set_integer(keyfile, "settings", "stationlist_server", conf.stationlist_server);
@@ -294,9 +303,11 @@ void settings_write()
     g_key_file_set_integer(keyfile, "scan", "scan_bw", conf.scan_bw);
     g_key_file_set_boolean(keyfile, "scan", "scan_relative", conf.scan_relative);
 
+    g_key_file_set_integer(keyfile, "ant", "ant_count", conf.ant_count);
+    g_key_file_set_boolean(keyfile, "ant", "ant_clear_rds", conf.ant_clear_rds);
     g_key_file_set_boolean(keyfile, "ant", "ant_switching", conf.ant_switching);
-    g_key_file_set_integer_list(keyfile, "ant", "ant_start", conf.ant_start, ANTENNAS);
-    g_key_file_set_integer_list(keyfile, "ant", "ant_stop", conf.ant_stop, ANTENNAS);
+    g_key_file_set_integer_list(keyfile, "ant", "ant_start", conf.ant_start, ANT_COUNT);
+    g_key_file_set_integer_list(keyfile, "ant", "ant_stop", conf.ant_stop, ANT_COUNT);
 
     g_key_file_set_integer(keyfile, "pattern", "pattern_size", conf.pattern_size);
     g_key_file_set_boolean(keyfile, "pattern", "pattern_fill", conf.pattern_fill);
@@ -316,6 +327,7 @@ void settings_write()
     g_key_file_set_integer(keyfile, "keyboard", "key_bw_auto", conf.key_bw_auto);
     g_key_file_set_integer(keyfile, "keyboard", "key_rotate_cw", conf.key_rotate_cw);
     g_key_file_set_integer(keyfile, "keyboard", "key_rotate_ccw", conf.key_rotate_ccw);
+    g_key_file_set_integer(keyfile, "keyboard", "key_switch_ant", conf.key_switch_ant);
 
     if(!(tmp = g_key_file_to_data(keyfile, &length, &error)))
     {
@@ -442,16 +454,21 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_signal), x_replace, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *x_alignment = gtk_check_button_new_with_label("Show alignment");
+    GtkWidget *x_alignment = gtk_check_button_new_with_label("Show antenna input alignment");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_alignment), conf.alignment);
     gtk_table_attach(GTK_TABLE(table_signal), x_alignment, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_autoconnect = gtk_check_button_new_with_label("Automatic connect on startup");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_autoconnect), conf.autoconnect);
+    gtk_table_attach(GTK_TABLE(table_signal), x_autoconnect, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     GtkWidget *hs_sl = gtk_hseparator_new();
     gtk_table_attach(GTK_TABLE(table_signal), hs_sl, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *x_stationlist = gtk_check_button_new_with_label("StationList");
+    GtkWidget *x_stationlist = gtk_check_button_new_with_label("Enable SRCP (StationList)");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_stationlist), conf.stationlist);
     gtk_table_attach(GTK_TABLE(table_signal), x_stationlist, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
@@ -599,7 +616,7 @@ void settings_dialog()
     GtkWidget *page_ant = gtk_vbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(page_ant), 4);
 
-    GtkWidget *table_ant = gtk_table_new(5, 2, FALSE);
+    GtkWidget *table_ant = gtk_table_new(7, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_ant), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_ant), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_ant), 4);
@@ -607,20 +624,41 @@ void settings_dialog()
     GtkAdjustment *tmp_adj;
 
     row = 0;
+    GtkWidget *l_count = gtk_label_new("Antenna count:");
+    gtk_misc_set_alignment(GTK_MISC(l_count), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_ant), l_count, 0, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *c_ant_count = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "1 (hide)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "2");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "3");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "4");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(c_ant_count), conf.ant_count-1);
+    gtk_table_attach(GTK_TABLE(table_ant), c_ant_count, 3, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *x_ant_clear_rds = gtk_check_button_new_with_label("Reset RDS data");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_ant_clear_rds), conf.ant_clear_rds);
+    gtk_table_attach(GTK_TABLE(table_ant), x_ant_clear_rds, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *hs_ant = gtk_hseparator_new();
+    gtk_table_attach(GTK_TABLE(table_ant), hs_ant, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
     GtkWidget *x_ant = gtk_check_button_new_with_label("Automatic antenna switching");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_ant), conf.ant_switching);
     gtk_table_attach(GTK_TABLE(table_ant), x_ant, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
-    GtkWidget *l_ant_label[ANTENNAS];
+    GtkWidget *l_ant_label[ANT_COUNT];
     l_ant_label[0] = gtk_label_new("Ant A:");
     l_ant_label[1] = gtk_label_new("Ant B:");
     l_ant_label[2] = gtk_label_new("Ant C:");
     l_ant_label[3] = gtk_label_new("Ant D:");
 
-    GtkWidget *s_ant_start[ANTENNAS];
-    GtkWidget *s_ant_stop[ANTENNAS];
+    GtkWidget *s_ant_start[ANT_COUNT];
+    GtkWidget *s_ant_stop[ANT_COUNT];
     gint i;
-    for(i=0; i<ANTENNAS; i++)
+    for(i=0; i<ANT_COUNT; i++)
     {
         row++;
         gtk_table_attach(GTK_TABLE(table_ant), l_ant_label[i], 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
@@ -764,6 +802,15 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_key), b_rotate_ccw, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     row++;
 
+    GtkWidget *l_switch_ant = gtk_label_new("Switch antenna");
+    gtk_misc_set_alignment(GTK_MISC(l_switch_ant), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_switch_ant, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *b_switch_ant = gtk_button_new_with_label(gdk_keyval_name(conf.key_switch_ant));
+    g_signal_connect(b_switch_ant, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_switch_ant, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    row++;
+
+
     GtkWidget *page_key_label = gtk_label_new("Keyboard");
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_key, page_key_label);
 
@@ -823,6 +870,8 @@ void settings_dialog()
             gtk_widget_hide(gui.hs_align);
         }
 
+        conf.autoconnect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_autoconnect));
+
         conf.stationlist = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_stationlist));
         conf.stationlist_client = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_stationlist_client));
         conf.stationlist_server = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_stationlist_server));
@@ -857,8 +906,10 @@ void settings_dialog()
         }
         conf.rds_spy_command = settings_read_string(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(c_rdsspy_command)));
 
+        conf.ant_count = gtk_combo_box_get_active(GTK_COMBO_BOX(c_ant_count))+1;
+        conf.ant_clear_rds = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ant_clear_rds));
         conf.ant_switching = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ant));
-        for(i=0; i<ANTENNAS; i++)
+        for(i=0; i<ANT_COUNT; i++)
         {
             conf.ant_start[i] = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_ant_start[i]));
             conf.ant_stop[i] = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_ant_stop[i]));
@@ -883,10 +934,12 @@ void settings_dialog()
         conf.key_bw_auto = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_bw_auto)));
         conf.key_rotate_cw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_cw)));
         conf.key_rotate_ccw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_ccw)));
+        conf.key_switch_ant = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_switch_ant)));
 
         settings_write();
         graph_resize();
         signal_display();
+        gui_antenna_showhide();
     }
     gtk_widget_destroy(dialog);
 }

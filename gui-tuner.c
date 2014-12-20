@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <math.h>
 #include "gui.h"
 #include "gui-tuner.h"
 #include "settings.h"
@@ -41,14 +42,14 @@ void tuner_set_deemphasis()
 void tuner_set_volume()
 {
     gchar buffer[5];
-    g_snprintf(buffer, sizeof(buffer), "Y%d", (gint)gtk_scale_button_get_value(GTK_SCALE_BUTTON(gui.volume)));
+    g_snprintf(buffer, sizeof(buffer), "Y%d", (gint)round(gtk_scale_button_get_value(GTK_SCALE_BUTTON(gui.volume))));
     tuner_write(buffer);
 }
 
 void tuner_set_squelch()
 {
     gchar buffer[5];
-    g_snprintf(buffer, sizeof(buffer), "Q%d", (gint)gtk_scale_button_get_value(GTK_SCALE_BUTTON(gui.squelch)));
+    g_snprintf(buffer, sizeof(buffer), "Q%d", (gint)round(gtk_scale_button_get_value(GTK_SCALE_BUTTON(gui.squelch))));
     tuner_write(buffer);
 }
 
@@ -57,6 +58,10 @@ void tuner_set_antenna()
     gchar buffer[3];
     g_snprintf(buffer, sizeof(buffer), "Z%d", gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant)));
     tuner_write(buffer);
+    if(conf.ant_clear_rds)
+    {
+        g_timeout_add(50, (GSourceFunc)gui_clear_rds, NULL);
+    }
 }
 
 void tuner_set_agc()
@@ -110,4 +115,9 @@ void tuner_set_rotator(gpointer n)
 
     g_snprintf(buffer, sizeof(buffer), "C%d", GPOINTER_TO_INT(n));
     tuner_write(buffer);
+}
+
+void tuner_st_test()
+{
+    tuner_write("N");
 }

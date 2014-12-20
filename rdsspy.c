@@ -4,9 +4,11 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include "win32.h"
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <signal.h>
 #endif
 #include "rdsspy.h"
 #include "gui.h"
@@ -17,6 +19,8 @@
 
 gint rdsspy_socket = -1;
 gint rdsspy_client = -1;
+gboolean rdsspy_child = 0;
+GPid rdsspy_pid;
 
 void rdsspy_toggle()
 {
@@ -25,16 +29,32 @@ void rdsspy_toggle()
 
     if(rdsspy_is_up())
     {
-        rdsspy_stop();
+        if(rdsspy_child)
+        {
+#ifdef G_OS_WIN32
+            TerminateProcess(rdsspy_pid, 0);
+#else
+            kill(rdsspy_pid, SIGTERM);
+#endif
+        }
+        else
+        {
+            rdsspy_stop();
+        }
     }
     else
     {
         if(rdsspy_init(conf.rds_spy_port) && conf.rds_spy_run && strlen(conf.rds_spy_command))
         {
-            if(!g_spawn_async(NULL, command, NULL, 0, 0, NULL, NULL, &error))
+            if(!g_spawn_async(NULL, command, NULL, G_SPAWN_DO_NOT_REAP_CHILD, 0, NULL, &rdsspy_pid, &error))
             {
                 dialog_error("Unable to start RDS Spy:\n%s", error->message);
                 g_error_free(error);
+            }
+            else
+            {
+                rdsspy_child = TRUE;
+                g_child_watch_add(rdsspy_pid, (GChildWatchFunc)rdsspy_child_watch, NULL);
             }
         }
     }
@@ -197,4 +217,14 @@ void rdsspy_send(gint pi, gchar *msg, guint errors)
 
     g_snprintf(out, sizeof(out), "G:\r\n%s%s%s%s\r\n\r\n", groups[0], groups[1], groups[2], groups[3]);
     send(rdsspy_client, out, strlen(out), 0);
+}
+
+void rdsspy_child_watch(GPid pid, gint status, gpointer data)
+{
+    rdsspy_child = FALSE;
+    g_spawn_close_pid(pid);
+    if(conf.rds_spy_run && rdsspy_is_up())
+    {
+        rdsspy_stop();
+    }
 }

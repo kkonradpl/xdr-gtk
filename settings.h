@@ -9,7 +9,7 @@
 #endif
 
 #define PRESETS 12
-#define ANTENNAS 4
+#define ANT_COUNT 4
 #define HOST_HISTORY_LEN 5
 
 enum Signal {SIGNAL_NONE, SIGNAL_GRAPH, SIGNAL_BAR};
@@ -40,6 +40,7 @@ typedef struct settings
     gboolean utc;
     gboolean replace_spaces;
     gboolean alignment;
+    gboolean autoconnect;
     gboolean stationlist;
     gint stationlist_server;
     gint stationlist_client;
@@ -69,9 +70,11 @@ typedef struct settings
     gint scan_bw;
     gboolean scan_relative;
 
+    gint ant_count;
     gboolean ant_switching;
-    gint ant_start[ANTENNAS];
-    gint ant_stop[ANTENNAS];
+    gint ant_start[ANT_COUNT];
+    gint ant_stop[ANT_COUNT];
+    gboolean ant_clear_rds;
 
     gint pattern_size;
     gboolean pattern_fill;
@@ -91,6 +94,7 @@ typedef struct settings
     guint key_bw_auto;
     guint key_rotate_cw;
     guint key_rotate_ccw;
+    guint key_switch_ant;
 } settings_t;
 
 settings_t conf;

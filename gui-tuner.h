@@ -14,5 +14,6 @@ void tuner_set_agc();
 void tuner_set_gain();
 void tuner_set_alignment();
 void tuner_set_rotator(gpointer n);
+void tuner_st_test();
 
 #endif

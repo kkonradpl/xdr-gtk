@@ -10,6 +10,9 @@
 #include "sig.h"
 #include "stationlist.h"
 #include "version.h"
+#ifdef G_OS_WIN32
+#include "win32.h"
+#endif
 
 static const gchar* const pty_list[][32] =
 {
@@ -115,6 +118,7 @@ gboolean gui_update_pi(gpointer data)
     gchar buffer[6];
     g_snprintf(buffer, sizeof(buffer), "%04X%c", pi->pi, (pi->checked?' ':'?'));
     gtk_label_set_text(GTK_LABEL(gui.l_pi), buffer);
+    stationlist_pi(pi->pi);
     g_free(data);
     return FALSE;
 }
@@ -170,6 +174,7 @@ gboolean gui_update_ps(gpointer nothing)
                  (conf.rds_ps_progressive?')':']')
              );
     gtk_label_set_markup(GTK_LABEL(gui.l_ps), markup);
+    stationlist_ps(tuner.ps);
     g_free(markup);
     return FALSE;
 }
@@ -179,50 +184,34 @@ gboolean gui_update_rt(gpointer flag)
     gchar *markup = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>%s<span color=\"#C8C8C8\">]</span>", tuner.rt[GPOINTER_TO_INT(flag)]);
     gtk_label_set_markup(GTK_LABEL(gui.l_rt[GPOINTER_TO_INT(flag)]), markup);
     g_free(markup);
+    stationlist_rt(GPOINTER_TO_INT(flag), tuner.rt[GPOINTER_TO_INT(flag)]);
     return FALSE;
 }
 
 gboolean gui_update_tp(gpointer data)
 {
     gtk_label_set_text(GTK_LABEL(gui.l_tp), "TP");
-    if(GPOINTER_TO_INT(data))
-    {
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, &gui.colors.black);
-    }
-    else
-    {
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, &gui.colors.grey);
-    }
+    gtk_widget_modify_fg(GTK_WIDGET(gui.l_tp), GTK_STATE_NORMAL, (GPOINTER_TO_INT(data)?&gui.colors.black:&gui.colors.grey));
     return FALSE;
 }
 
 gboolean gui_update_ta(gpointer data)
 {
     gtk_label_set_text(GTK_LABEL(gui.l_ta), "TA");
-    if(GPOINTER_TO_INT(data))
-    {
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.black);
-    }
-    else
-    {
-        gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, &gui.colors.grey);
-    }
+    gtk_widget_modify_fg(GTK_WIDGET(gui.l_ta), GTK_STATE_NORMAL, (GPOINTER_TO_INT(data)?&gui.colors.black:&gui.colors.grey));
     return FALSE;
 }
 
 gboolean gui_update_ms(gpointer data)
 {
-    gchar *markup;
     if(GPOINTER_TO_INT(data))
     {
-        markup = g_markup_printf_escaped("M<span color=\"#DDDDDD\">S</span>");
+        gtk_label_set_markup(GTK_LABEL(gui.l_ms), "M<span color=\"#DDDDDD\">S</span>");
     }
     else
     {
-        markup = g_markup_printf_escaped("<span color=\"#DDDDDD\">M</span>S");
+        gtk_label_set_markup(GTK_LABEL(gui.l_ms), "<span color=\"#DDDDDD\">M</span>S");
     }
-    gtk_label_set_markup(GTK_LABEL(gui.l_ms), markup);
-    g_free(markup);
     return FALSE;
 }
 
@@ -231,6 +220,14 @@ gboolean gui_update_pty(gpointer data)
     gchar buffer[9];
     g_snprintf(buffer, sizeof(buffer), "%-8s", pty_list[conf.rds_pty][GPOINTER_TO_INT(data)]);
     gtk_label_set_text(GTK_LABEL(gui.l_pty), buffer);
+    stationlist_pty(GPOINTER_TO_INT(data));
+    return FALSE;
+}
+
+gboolean gui_update_ecc(gpointer data)
+{
+    /* ECC is currently displayed only in StationList */
+    stationlist_ecc(GPOINTER_TO_INT(data));
     return FALSE;
 }
 
@@ -277,14 +274,13 @@ gboolean gui_update_ant(gpointer data)
 gboolean gui_update_gain(gpointer data)
 {
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_rf), (GPOINTER_TO_INT(data) == 10 || GPOINTER_TO_INT(data) == 11));
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_if), (GPOINTER_TO_INT(data) == 01 || GPOINTER_TO_INT(data) == 11));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.x_if), (GPOINTER_TO_INT(data) ==  1 || GPOINTER_TO_INT(data) == 11));
     return FALSE;
 }
 
 gboolean gui_update_filter(gpointer data)
 {
     gint i;
-
     for(i=0; i<FILTERS_N; i++)
     {
         if(filters[i] == GPOINTER_TO_INT(data))
@@ -297,7 +293,6 @@ gboolean gui_update_filter(gpointer data)
             break;
         }
     }
-
     return FALSE;
 }
 
@@ -348,5 +343,33 @@ gboolean gui_clear_power_off()
     gtk_widget_set_sensitive(gui.b_connect, TRUE);
     connect_button(FALSE);
     gtk_window_set_title(GTK_WINDOW(gui.window), APP_NAME);
+    return FALSE;
+}
+
+gboolean gui_update_pilot(gpointer data)
+{
+    GtkWidget* dialog;
+    gchar *msg;
+    gint value = GPOINTER_TO_INT(data);
+
+    if(value)
+    {
+        msg = g_markup_printf_escaped("Estimated injection level:\n<b>%.1f kHz (%0.1f%%)</b>", value/10.0, value/10.0/75.0*100);
+    }
+    else
+    {
+        msg = g_markup_printf_escaped("The stereo subcarrier is not present or the injection level is too low.");
+    }
+    dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE, NULL);
+    gtk_window_set_title(GTK_WINDOW(dialog), "19kHz stereo pilot");
+    gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dialog), msg);
+    g_free(msg);
+
+#ifdef G_OS_WIN32
+    win32_dialog_workaround(GTK_DIALOG(dialog));
+#else
+    gtk_dialog_run(GTK_DIALOG(dialog));
+#endif
+    gtk_widget_destroy(dialog);
     return FALSE;
 }

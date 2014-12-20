@@ -1,7 +1,6 @@
 #ifndef XDR_WIN32_H_
 #define XDR_WIN32_H_
 #include <gtk/gtk.h>
-
 #define WIN32_FONT_FILE "VeraMono.ttf"
 
 void win32_init();

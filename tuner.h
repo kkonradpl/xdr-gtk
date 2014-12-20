@@ -53,5 +53,6 @@ extern gint filters_bw[][FILTERS_N];
 gpointer tuner_read(gpointer);
 void tuner_parse(gchar, gchar[]);
 void tuner_write(gchar*);
+gboolean tuner_write_socket(int, gchar*, int);
 void tuner_poweroff();
 #endif

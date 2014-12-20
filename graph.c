@@ -138,7 +138,7 @@ gboolean graph_draw(GtkWidget *widget, GdkEventExpose *event, gpointer nothing)
 
             if(conf.signal_avg)
             {
-                if(j==1 || signal_get_i(((i==0)?s.len-1:i-1))->value == -1)
+                if(j==1 || signal_get_prev_i(i)->value == -1)
                 {
                     value = (signal_get_i(i)->value + signal_get_next_i(i)->value) / 2.0;
                 }

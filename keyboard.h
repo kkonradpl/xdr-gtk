@@ -3,5 +3,5 @@
 
 gboolean keyboard_press(GtkWidget*, GdkEventKey*, gpointer);
 gboolean keyboard_release(GtkWidget*, GdkEventKey*, gpointer);
-gboolean screenshot(gpointer);
+void save_screenshot();
 #endif
