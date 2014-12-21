@@ -75,7 +75,7 @@ void stationlist_init()
     stationlist_client_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     stationlist_client_addr.sin_port = htons(conf.stationlist_client);
 
-    g_thread_new("thread_stationlist", stationlist_server, NULL);
+    g_thread_unref(g_thread_new("thread_stationlist", stationlist_server, NULL));
     g_mutex_init(&stationlist_mutex);
     stationlist_af_clear();
     stationlist_sender = g_timeout_add(200, (GSourceFunc)stationlist_send, NULL);
@@ -322,8 +322,8 @@ void stationlist_clear_rds()
         l = g_slist_next(l);
         if(!strcmp("pi", d->param) || !strcmp("pty", d->param) || !strcmp("ecc", d->param) || !strcmp("ps", d->param) || !strcmp("rt", d->param) || !strcmp("af", d->param))
         {
-            stationlist_free(d);
             stationlist_buffer = g_slist_remove(stationlist_buffer, d);
+            stationlist_free(d);
         }
     }
 
@@ -368,6 +368,7 @@ void stationlist_free(gpointer data)
     sl_data_t *d = data;
     g_free(d->param);
     g_free(d->value);
+    g_free(data);
 }
 
 void stationlist_stop()
