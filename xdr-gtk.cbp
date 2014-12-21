@@ -80,6 +80,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="gui-audio.h" />
+		<Unit filename="gui-connect.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui-connect.h" />
 		<Unit filename="gui-tuner.c">
 			<Option compilerVar="CC" />
 		</Unit>
