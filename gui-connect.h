@@ -15,5 +15,8 @@ void connection_serial_state(gint);
 gboolean connection_dialog_socket_state(gpointer);
 void connection_dialog_connected(gint);
 gboolean connection_socket_callback(gpointer);
+gboolean connection_socket_callback_info(gpointer);
+gboolean connection_socket_auth_fail(gpointer);
+
 #endif
 

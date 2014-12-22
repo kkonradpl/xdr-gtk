@@ -110,7 +110,6 @@ void connect_button(gboolean);
 void gui_antenna_switch(gint);
 void gui_toggle_band(GtkWidget *widget, GdkEventButton *event, gpointer step);
 void gui_st_click(GtkWidget *widget, GdkEventButton *event, gpointer step);
-gboolean gui_auth(gpointer data);
 gboolean gui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor);
 void gui_antenna_showhide();
 

@@ -235,7 +235,7 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, scan_t* scan)
     cairo_set_source_rgb(cr, 0, 0, 0);
     gdouble j = 0.0, sig;
 
-    for(i = 0; i <= scan->data->len; i++)
+    for(i = 0; i < scan->data->len; i++)
     {
         if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan->b_relative)))
         {

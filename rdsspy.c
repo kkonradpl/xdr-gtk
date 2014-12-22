@@ -115,7 +115,7 @@ gboolean rdsspy_init(gint port)
     listen(rdsspy_socket, 4);
 
     rdsspy_toggle_button(GINT_TO_POINTER(TRUE));
-    g_thread_new("rdsspy", rdsspy_server, NULL);
+    g_thread_unref(g_thread_new("rdsspy", rdsspy_server, NULL));
     return TRUE;
 }
 

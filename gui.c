@@ -129,7 +129,7 @@ void gui_init()
     gtk_widget_set_tooltip_text(gui.b_tune_reset, "Round to the nearest 100kHz");
 
     gchar label[5];
-    gint i;
+    size_t i;
     const gint steps[] = {5, 9, 10, 30, 50, 100, 200, 300};
     const size_t steps_n = sizeof(steps)/sizeof(gint);
     GtkWidget *b_tune[steps_n];
@@ -405,6 +405,7 @@ void gui_init()
 
     gui_mode_FM();
     tuner.online = 0;
+    tuner.guest = FALSE;
     tuner.freq = 87500;
     tuner.thread = FALSE;
     tuner.ready = FALSE;
@@ -655,21 +656,28 @@ gboolean gui_toggle_gain(GtkWidget *widget, GdkEventButton *event, gpointer noth
 
 gboolean gui_update_clock(gpointer label)
 {
-    gchar buff[20], buff2[50];
+    gchar buff[20], buff2[100];
     time_t tt = time(NULL);
     strftime(buff, sizeof(buff), "%d-%m-%Y %H:%M:%S", (conf.utc ? gmtime(&tt) : localtime(&tt)));
 
     // network connection
     if(tuner.online)
     {
-        g_snprintf(buff2, sizeof(buff2), "Online: %d  |  %s %s", tuner.online, buff, (conf.utc ? "UTC" : "LT"));
+        if(tuner.guest)
+        {
+            g_snprintf(buff2, sizeof(buff2), "Online: %d  |  %s %s  <i>(guest)</i>", tuner.online, buff, (conf.utc ? "UTC" : "LT"));
+        }
+        else
+        {
+            g_snprintf(buff2, sizeof(buff2), "Online: %d  |  %s %s", tuner.online, buff, (conf.utc ? "UTC" : "LT"));
+        }
     }
     else
     {
         g_snprintf(buff2, sizeof(buff2), "%s %s", buff, (conf.utc ? "UTC" : "LT"));
     }
 
-    gtk_label_set_text(GTK_LABEL(label), buff2);
+    gtk_label_set_markup(GTK_LABEL(label), buff2);
 
     // reset RDS data after timeout
     if(conf.rds_reset && s.rds_reset_timer != -1)
@@ -855,24 +863,6 @@ void gui_st_click(GtkWidget *widget, GdkEventButton *event, gpointer step)
             tuner_st_test();
         }
     }
-}
-
-gboolean gui_auth(gpointer data)
-{
-    switch(GPOINTER_TO_INT(data))
-    {
-    case 0:
-        dialog_error("Wrong password!");
-        break;
-
-    case 1:
-        g_source_remove(gui.status_timeout);
-        gtk_label_set_markup(GTK_LABEL(gui.l_status), "<b>Logged in as a guest.</b>");
-        gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
-        break;
-    }
-
-    return FALSE;
 }
 
 gboolean gui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor)

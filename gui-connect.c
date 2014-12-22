@@ -23,16 +23,16 @@ GtkWidget *box_button, *b_connect, *b_cancel;
 GtkListStore *ls_host;
 
 conn_t* connecting;
+gboolean wait_for_tuner;
 
 void connection_toggle()
 {
-    /* Lock the connection button */
-    gtk_widget_set_sensitive(gui.b_connect, FALSE);
-
     if(tuner.thread)
     {
         /* The tuner is connected, shutdown it */
         tuner_write("X");
+        /* Lock the connection button until the thread ends */
+        gtk_widget_set_sensitive(gui.b_connect, FALSE);
         g_usleep(100000);
         tuner.thread = FALSE;
         return;
@@ -49,6 +49,8 @@ void connection_toggle()
 void connection_dialog(gboolean autoconnect)
 {
     gint i;
+    connecting = NULL;
+    wait_for_tuner = FALSE;
 
     dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(dialog), "Connect");
@@ -64,13 +66,13 @@ void connection_dialog(gboolean autoconnect)
 
     r_serial = gtk_radio_button_new_with_label(NULL, "Serial port");
     gtk_box_pack_start(GTK_BOX(content), r_serial, TRUE, TRUE, 2);
-    c_serial = gtk_combo_box_new_text();
+    c_serial = gtk_combo_box_text_new();
 #ifdef G_OS_WIN32
     gchar tmp[10];
     for(i=1; i<=20; i++)
     {
         g_snprintf(tmp, sizeof(tmp), "COM%d", i);
-        gtk_combo_box_append_text(GTK_COMBO_BOX(c_serial), tmp);
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_serial), tmp);
         if(g_ascii_strcasecmp(tmp, conf.serial) == 0)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(c_serial), i-1);
@@ -90,7 +92,7 @@ void connection_dialog(gboolean autoconnect)
             if(!strncmp(dir->d_name, "ttyUSB", 6) || !strncmp(dir->d_name, "ttyACM", 6) || !strncmp(dir->d_name, "ttyS", 4))
 #endif
             {
-                gtk_combo_box_append_text(GTK_COMBO_BOX(c_serial), dir->d_name);
+                gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_serial), dir->d_name);
                 if(g_ascii_strcasecmp(dir->d_name, conf.serial) == 0)
                 {
                     gtk_combo_box_set_active(GTK_COMBO_BOX(c_serial), i);
@@ -182,25 +184,23 @@ void connection_dialog(gboolean autoconnect)
     {
         gtk_button_clicked(GTK_BUTTON(b_connect));
     }
-
-    connecting = NULL;
 }
 
 void connection_dialog_destroy(GtkWidget *widget, gpointer data)
 {
     if(connecting)
     {
+        /* Waiting for socket connection, force its thread to end */
         connecting->canceled = TRUE;
         connecting = NULL;
     }
     if(!tuner.ready && tuner.thread)
     {
+        /* Waiting for tuner, force its thread to end */
         tuner.thread = FALSE;
     }
-    else if(!tuner.thread)
-    {
-        gui_clear_power_off(NULL);
-    }
+
+    wait_for_tuner = FALSE;
 }
 
 void connection_dialog_select(GtkWidget *widget, gpointer data)
@@ -210,16 +210,15 @@ void connection_dialog_select(GtkWidget *widget, gpointer data)
 
 void connection_dialog_connect(GtkWidget *widget, gpointer data)
 {
-    const gchar* serial = gtk_combo_box_get_active_text(GTK_COMBO_BOX(c_serial));
     const gchar* hostname = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(e_host))));
     const gchar* port = gtk_entry_get_text(GTK_ENTRY(e_port));
     const gchar* password = gtk_entry_get_text(GTK_ENTRY(e_password));
-    GThread* thread_connect;
 
     connection_dialog_unlock(FALSE);
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(r_serial)))
     {
         /* Serial port */
+        gchar* serial = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(c_serial));
         if(serial)
         {
             g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, serial);
@@ -228,6 +227,7 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
             settings_write();
 
             connection_serial_state(open_serial(serial));
+            g_free(serial);
         }
     }
     else if(strlen(hostname) && atoi(port) > 0)
@@ -245,8 +245,7 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
         }
         settings_write();
 
-        thread_connect = g_thread_new("open_socket", open_socket, connecting);
-        g_thread_unref(thread_connect);
+        g_thread_unref(g_thread_new("open_socket", open_socket, connecting));
     }
 }
 
@@ -316,15 +315,15 @@ void connection_serial_state(gint result)
 
 void connection_dialog_connected(gint mode)
 {
-    GThread *read_thread;
     gtk_window_set_title(GTK_WINDOW(gui.window), gui.window_title);
     signal_clear();
     connection_dialog_status("Waiting for tuner...");
+    gtk_widget_set_sensitive(gui.b_connect, FALSE);
 
     tuner.ready = FALSE;
     tuner.thread = TRUE;
-    read_thread = g_thread_new("tuner", tuner_read, NULL);
-    g_thread_unref(read_thread);
+    wait_for_tuner = TRUE;
+    g_thread_unref(g_thread_new("tuner", tuner_read, NULL));
 
     while(!tuner.ready && tuner.thread)
     {
@@ -361,86 +360,78 @@ void connection_dialog_connected(gint mode)
 
 gboolean connection_socket_callback(gpointer ptr)
 {
+    /* Gets final state of conn_t ptr and frees up the memory */
     conn_t* data = (conn_t*)ptr;
-    switch(data->state)
+    if(data->canceled && data->state == CONN_SUCCESS)
     {
-    case CONN_SUCCESS:
-        if(!data->canceled)
+        closesocket(data->socketfd);
+    }
+    else if(!data->canceled)
+    {
+        connecting = NULL;
+        switch(data->state)
         {
+        case CONN_SUCCESS:
 #ifdef G_OS_WIN32
             tuner.socket = data->socketfd;
 #else
             tuner.serial = data->socketfd;
 #endif
-            connecting = NULL;
             connection_dialog_connected(MODE_SOCKET);
-        }
-        else
-        {
-            closesocket(data->socketfd);
-        }
-        break;
+            break;
 
-    case CONN_SOCKET_STATE_RESOLV:
-        if(!data->canceled)
-        {
-            connection_dialog_status("Resolving hostname...");
-        }
-        return FALSE;
-
-    case CONN_SOCKET_STATE_CONN:
-        if(!data->canceled)
-        {
-            connection_dialog_status("Connecting...");
-        }
-        return FALSE;
-
-    case CONN_SOCKET_FAIL_RESOLV:
-        if(!data->canceled)
-        {
+        case CONN_SOCKET_FAIL_RESOLV:
             connection_dialog_status("Unable to resolve the hostname.");
             connection_dialog_unlock(TRUE);
-            connecting = NULL;
-        }
-        break;
+            break;
 
-    case CONN_SOCKET_FAIL_CONN:
-        if(!data->canceled)
-        {
+        case CONN_SOCKET_FAIL_CONN:
             connection_dialog_status("Unable to connect to a server.");
             connection_dialog_unlock(TRUE);
-            connecting = NULL;
-        }
-        break;
+            break;
 
-    case CONN_SOCKET_FAIL_TIMEOUT:
-        if(!data->canceled)
-        {
-            connection_dialog_status("Auth timeout.");
+        case CONN_SOCKET_FAIL_AUTH:
+            connection_dialog_status("Authentication error.");
             connection_dialog_unlock(TRUE);
-            connecting = NULL;
-        }
-        break;
+            break;
 
-    case CONN_SOCKET_FAIL_AUTH:
-        if(!data->canceled)
-        {
-            connection_dialog_status("Auth error.");
-            connection_dialog_unlock(TRUE);
-            connecting = NULL;
-        }
-        break;
-
-    case CONN_SOCKET_FAIL_WRITE:
-        if(!data->canceled)
-        {
+        case CONN_SOCKET_FAIL_WRITE:
             connection_dialog_status("Socket write error.");
             connection_dialog_unlock(TRUE);
-            connecting = NULL;
+            break;
         }
-        break;
     }
 
     conn_free(data);
+    return FALSE;
+}
+
+gboolean connection_socket_callback_info(gpointer ptr)
+{
+    /* Like connection_socket_callback but does not free up the conn_t pointer */
+    conn_t* data = (conn_t*)ptr;
+    if(!data->canceled)
+    {
+        switch(data->state)
+        {
+        case CONN_SOCKET_STATE_RESOLV:
+            connection_dialog_status("Resolving hostname...");
+            break;
+
+        case CONN_SOCKET_STATE_CONN:
+            connection_dialog_status("Connecting...");
+            break;
+        }
+    }
+    return FALSE;
+}
+
+gboolean connection_socket_auth_fail(gpointer ptr)
+{
+    if(wait_for_tuner)
+    {
+        connection_dialog_status("Incorrect password.");
+        connection_dialog_unlock(TRUE);
+    }
     return FALSE;
 }

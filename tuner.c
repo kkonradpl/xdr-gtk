@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-#include "gui.h"
+#include "gui-connect.h"
 #include "gui-update.h"
 #include "connection.h"
 #include "tuner.h"
@@ -157,10 +157,14 @@ gpointer tuner_read(gpointer nothing)
         else if(buffer[0] == 'a') // socket auth
         {
             gint auth = atoi(buffer+1);
-            g_idle_add(gui_auth, GINT_TO_POINTER(auth));
             if(!auth)
             {
+                g_idle_add(connection_socket_auth_fail, NULL);
                 break;
+            }
+            else if(auth == 1)
+            {
+                tuner.guest = TRUE;
             }
         }
         else
@@ -198,6 +202,7 @@ gpointer tuner_read(gpointer nothing)
     close(tuner.serial);
 #endif
     tuner.online = 0;
+    tuner.guest = FALSE;
     tuner.thread = FALSE;
     g_idle_add(gui_clear_power_off, NULL);
     return NULL;

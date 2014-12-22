@@ -95,8 +95,8 @@ gpointer open_socket(gpointer ptr)
 
     /* Resolve the hostname */
     data->state = CONN_SOCKET_STATE_RESOLV;
-    g_idle_add(connection_socket_callback, data);
-    if(getaddrinfo(data->hostname, data->port, &hints, &result) || data->canceled)
+    g_idle_add(connection_socket_callback_info, data);
+    if(getaddrinfo(data->hostname, data->port, &hints, &result))
     {
         data->state = CONN_SOCKET_FAIL_RESOLV;
         g_idle_add(connection_socket_callback, data);
@@ -105,22 +105,24 @@ gpointer open_socket(gpointer ptr)
 
     data->socketfd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     data->state = CONN_SOCKET_STATE_CONN;
-    g_idle_add(connection_socket_callback, data);
+    g_idle_add(connection_socket_callback_info, data);
     if(connect(data->socketfd, result->ai_addr, result->ai_addrlen) < 0  || data->canceled)
     {
+        freeaddrinfo(result);
         data->state = CONN_SOCKET_FAIL_CONN;
         g_idle_add(connection_socket_callback, data);
         return NULL;
     }
+    freeaddrinfo(result);
 
     FD_ZERO(&input);
     FD_SET(data->socketfd, &input);
-    timeout.tv_sec  = SOCKET_AUTH_TIMEOUT;
+    timeout.tv_sec = SOCKET_AUTH_TIMEOUT;
     /* Wait SOCKET_AUTH_TIMEOUT seconds for the salt */
     if(select(data->socketfd+1, &input, NULL, NULL, &timeout) <= 0  || data->canceled)
     {
         closesocket(data->socketfd);
-        data->state = CONN_SOCKET_FAIL_TIMEOUT;
+        data->state = CONN_SOCKET_FAIL_AUTH;
         g_idle_add(connection_socket_callback, data);
         return NULL;
     }
@@ -148,6 +150,7 @@ gpointer open_socket(gpointer ptr)
     if(!tuner_write_socket(data->socketfd, msg, strlen(msg)) || data->canceled)
     {
         g_free(msg);
+        closesocket(data->socketfd);
         data->state = CONN_SOCKET_FAIL_WRITE;
         g_idle_add(connection_socket_callback, data);
         return NULL;

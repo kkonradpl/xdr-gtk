@@ -20,7 +20,7 @@ void signal_clear()
         s.data[i].rds = FALSE;
         s.data[i].stereo = FALSE;
     }
-    s.pos = -1;
+    s.pos = 0;
 }
 
 s_data_t* signal_get_prev_i(gint i)

@@ -44,6 +44,7 @@ typedef struct tuner
     gchar rt[2][65];
     gint filter;
     gint online;
+    gboolean guest;
 } tuner_t;
 
 tuner_t tuner;

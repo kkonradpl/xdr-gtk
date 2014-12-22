@@ -5,11 +5,11 @@
 #define STATIONLIST_DEBUG       0
 #define STATIONLIST_AF_BUFF_LEN 25
 
-struct
+typedef struct
 {
     gchar* param;
     gchar* value;
-} typedef sl_data_t;
+} sl_data_t;
 
 gboolean stationlist_is_up();
 void stationlist_init();
