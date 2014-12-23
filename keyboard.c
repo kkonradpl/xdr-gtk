@@ -123,8 +123,8 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
             gchar buff[50];
             conf.presets[id] = tuner.freq;
             g_source_remove(gui.status_timeout);
-            g_snprintf(buff, sizeof(buff), "Preset F%d saved: %d kHz", id+1, tuner.freq);
-            gtk_label_set_text(GTK_LABEL(gui.l_status), buff);
+            g_snprintf(buff, sizeof(buff), "Preset <b>F%d</b> has been saved.", id+1);
+            gtk_label_set_markup(GTK_LABEL(gui.l_status), buff);
             gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
             settings_write();
         }
