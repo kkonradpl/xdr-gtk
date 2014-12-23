@@ -143,7 +143,7 @@ void connection_dialog(gboolean autoconnect)
     l_password = gtk_label_new("Password:");
     gtk_box_pack_start(GTK_BOX(box_tcp2), l_password, FALSE, FALSE, 1);
     e_password = gtk_entry_new();
-    gtk_entry_set_width_chars(GTK_ENTRY(e_password), 15);
+    gtk_entry_set_width_chars(GTK_ENTRY(e_password), 20);
     gtk_entry_set_text(GTK_ENTRY(e_password), conf.password);
     gtk_entry_set_visibility(GTK_ENTRY(e_password), FALSE);
     g_signal_connect(e_password, "changed", G_CALLBACK(connection_dialog_select), r_tcp);
@@ -180,6 +180,7 @@ void connection_dialog(gboolean autoconnect)
 
     gtk_widget_show_all(dialog);
     gtk_widget_hide(l_status);
+    connect_button(FALSE);
     if(autoconnect)
     {
         gtk_button_clicked(GTK_BUTTON(b_connect));
@@ -194,13 +195,12 @@ void connection_dialog_destroy(GtkWidget *widget, gpointer data)
         connecting->canceled = TRUE;
         connecting = NULL;
     }
-    if(!tuner.ready && tuner.thread)
+    if(wait_for_tuner)
     {
         /* Waiting for tuner, force its thread to end */
         tuner.thread = FALSE;
+        wait_for_tuner = FALSE;
     }
-
-    wait_for_tuner = FALSE;
 }
 
 void connection_dialog_select(GtkWidget *widget, gpointer data)
@@ -336,10 +336,13 @@ void connection_dialog_connected(gint mode)
 
     if(!tuner.thread)
     {
+        if(wait_for_tuner)
+        {
+            connection_dialog_unlock(TRUE);
+            connection_dialog_status("Connection has been unexpectedly closed.");
+        }
         return;
     }
-
-    gtk_widget_destroy(dialog);
 
     if(mode == MODE_SERIAL)
     {
@@ -356,6 +359,8 @@ void connection_dialog_connected(gint mode)
 
     connect_button(TRUE);
     gtk_widget_set_sensitive(gui.b_connect, TRUE);
+    wait_for_tuner = FALSE;
+    gtk_widget_destroy(dialog);
 }
 
 gboolean connection_socket_callback(gpointer ptr)
@@ -420,6 +425,10 @@ gboolean connection_socket_callback_info(gpointer ptr)
 
         case CONN_SOCKET_STATE_CONN:
             connection_dialog_status("Connecting...");
+            break;
+
+        case CONN_SOCKET_STATE_AUTH:
+            connection_dialog_status("Authenticating...");
             break;
         }
     }

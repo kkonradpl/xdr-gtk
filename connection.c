@@ -87,7 +87,7 @@ gpointer open_socket(gpointer ptr)
     struct addrinfo hints = {0}, *result;
     struct timeval timeout = {0};
     fd_set input;
-    gchar salt[SOCKET_SALT_LEN+1], *msg;
+    gchar salt[SOCKET_SALT_LEN+1], msg[42];
     GChecksum *sha1;
 
     hints.ai_family = AF_INET;
@@ -103,11 +103,19 @@ gpointer open_socket(gpointer ptr)
         return NULL;
     }
 
-    data->socketfd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if(data->canceled)
+    {
+        freeaddrinfo(result);
+        g_idle_add(connection_socket_callback, data);
+        return NULL;
+    }
+
     data->state = CONN_SOCKET_STATE_CONN;
     g_idle_add(connection_socket_callback_info, data);
-    if(connect(data->socketfd, result->ai_addr, result->ai_addrlen) < 0  || data->canceled)
+    data->socketfd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if(connect(data->socketfd, result->ai_addr, result->ai_addrlen) < 0 || data->canceled)
     {
+        closesocket(data->socketfd);
         freeaddrinfo(result);
         data->state = CONN_SOCKET_FAIL_CONN;
         g_idle_add(connection_socket_callback, data);
@@ -115,11 +123,13 @@ gpointer open_socket(gpointer ptr)
     }
     freeaddrinfo(result);
 
+    data->state = CONN_SOCKET_STATE_AUTH;
+    g_idle_add(connection_socket_callback_info, data);
     FD_ZERO(&input);
     FD_SET(data->socketfd, &input);
     timeout.tv_sec = SOCKET_AUTH_TIMEOUT;
     /* Wait SOCKET_AUTH_TIMEOUT seconds for the salt */
-    if(select(data->socketfd+1, &input, NULL, NULL, &timeout) <= 0  || data->canceled)
+    if(select(data->socketfd+1, &input, NULL, NULL, &timeout) <= 0 || data->canceled)
     {
         closesocket(data->socketfd);
         data->state = CONN_SOCKET_FAIL_AUTH;
@@ -139,23 +149,21 @@ gpointer open_socket(gpointer ptr)
     /* Calculate the SHA1 checksum of salt and password concatenation */
     sha1 = g_checksum_new(G_CHECKSUM_SHA1);
     g_checksum_update(sha1, (guchar*)salt, SOCKET_SALT_LEN);
-    if(strlen(data->password))
+    if(data->password && strlen(data->password))
     {
         g_checksum_update(sha1, (guchar*)data->password, strlen(data->password));
     }
-    msg = g_strdup_printf("%s\n", g_checksum_get_string(sha1));
+    snprintf(msg, sizeof(msg), "%s\n", g_checksum_get_string(sha1));
     g_checksum_free(sha1);
 
     /* Send the hash */
     if(!tuner_write_socket(data->socketfd, msg, strlen(msg)) || data->canceled)
     {
-        g_free(msg);
         closesocket(data->socketfd);
         data->state = CONN_SOCKET_FAIL_WRITE;
         g_idle_add(connection_socket_callback, data);
         return NULL;
     }
-    g_free(msg);
 
     data->state = CONN_SUCCESS;
     g_idle_add(connection_socket_callback, data);
