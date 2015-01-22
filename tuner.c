@@ -6,6 +6,7 @@
 #include <math.h>
 #include "gui-connect.h"
 #include "gui-update.h"
+#include "gui-tuner.h"
 #include "connection.h"
 #include "tuner.h"
 #include "graph.h"
@@ -164,6 +165,7 @@ gpointer tuner_read(gpointer nothing)
             }
             else if(auth == 1)
             {
+                tuner.ready = TRUE;
                 tuner.guest = TRUE;
             }
         }
@@ -215,9 +217,11 @@ void tuner_parse(gchar c, gchar msg[])
         s_data_t* data = g_new(s_data_t, 1);
         sscanf(msg+1, "%f", &data->value);
         data->stereo = (msg[0]=='s');
-        data->rds = s.rds_timer;
-
-        s.rds_timer = (s.rds_timer ? (s.rds_timer-1) : 0);
+        data->rds = tuner.rds_timer;
+        if(tuner.rds_timer)
+        {
+            tuner.rds_timer--;
+        }
         g_idle_add(gui_update_signal, data);
     }
     else if(c == 'T') // tuned frequency
@@ -241,7 +245,7 @@ void tuner_parse(gchar c, gchar msg[])
         guint16 pi = strtoul(msg, NULL, 16);
         gboolean checked = (msg[4] != '?');
 
-        s.rds_timer = conf.rds_timeout;
+        tuner.rds_timer = 2;
         if(conf.rds_reset)
         {
             s.rds_reset_timer = g_get_real_time();
@@ -273,14 +277,11 @@ void tuner_parse(gchar c, gchar msg[])
 
         if(tuner.pi >= 0)
         {
-            rdsspy_send(tuner.pi, msg, errors);
-        }
-
-        if((!conf.rds_discard && tuner.pi>=0) || s.data[s.pos].rds)
-        {
             guchar group = (data[BLOCK_B] & 0xF000) >> 12;
             gboolean flag = (data[BLOCK_B] & 0x0800) >> 11;
             guchar err[] = { (errors&3), ((errors&12)>>2), ((errors&48)>>4) };
+
+            rdsspy_send((tuner.rds_timer?tuner.pi:-1), msg, errors);
 
             // PTY, TP, TA, MS, AF, ECC: error-free blocks
             if(!err[BLOCK_B])
@@ -344,9 +345,9 @@ void tuner_parse(gchar c, gchar msg[])
             }
 
             // PS: user-defined error correction
-            if(conf.rds_ps_progressive || err[BLOCK_B] <= conf.rds_info_error)
+            if(conf.rds_ps_progressive || err[BLOCK_B] <= conf.ps_info_error)
             {
-                if(err[BLOCK_B] < 3 && err[BLOCK_D] < 3 && group == 0 && (conf.rds_ps_progressive || (err[BLOCK_D] <= conf.rds_data_error)))
+                if(err[BLOCK_B] < 3 && err[BLOCK_D] < 3 && group == 0 && (conf.rds_ps_progressive || (err[BLOCK_D] <= conf.ps_data_error)))
                 {
                     gchar pos = data[BLOCK_B] & 3;
                     gchar ps[] = { data[BLOCK_D] >> 8, data[BLOCK_D] & 0xFF };
@@ -380,7 +381,7 @@ void tuner_parse(gchar c, gchar msg[])
             }
 
             // RT: user-defined error correction
-            if(err[BLOCK_B] <= conf.rds_info_error)
+            if(err[BLOCK_B] <= conf.rt_info_error)
             {
                 if(group == 2)
                 {
@@ -405,7 +406,7 @@ void tuner_parse(gchar c, gchar msg[])
                         // only ASCII printable characters
                         else if(rt[i] >= 32 && rt[i] < 127)
                         {
-                            if( (i <= 1 && ((errors&12)>>2) <= conf.rds_data_error) || (i >= 2 && ((errors&48)>>4) <= conf.rds_data_error) )
+                            if( (i <= 1 && ((errors&12)>>2) <= conf.rt_data_error) || (i >= 2 && ((errors&48)>>4) <= conf.rt_data_error) )
                             {
                                 tuner.rt[flag][pos*4+i] = rt[i];
                                 changed = TRUE;
@@ -477,6 +478,14 @@ void tuner_parse(gchar c, gchar msg[])
     else if(c == 'Z') // Antenna switch (network)
     {
         g_idle_add(gui_update_ant, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'z') // RDS data reset after antenna switching
+    {
+        if(conf.ant_clear_rds)
+        {
+            g_idle_add(gui_clear_rds, NULL);
+            rdsspy_reset();
+        }
     }
     else if(c == 'G') // RF/IF Gain (network)
     {
@@ -580,4 +589,59 @@ gboolean tuner_write_socket(int fd, gchar* msg, int len)
 void tuner_poweroff()
 {
     tuner_write("X");
+}
+
+void tuner_modify_frequency(guint mode)
+{
+    if(tuner.freq <= 300)
+    {
+        tuner_modify_frequency_full(99, 9, mode);
+    }
+    else if(tuner.freq <= 1900)
+    {
+        tuner_modify_frequency_full((conf.amstep?100:99), (conf.amstep?10:9), mode);
+    }
+    else if(tuner.freq <= 30000)
+    {
+        tuner_modify_frequency_full(1900, 10, mode);
+    }
+    else if(tuner.freq >= 65750 && tuner.freq <= 74000)
+    {
+        tuner_modify_frequency_full(65750, 30, mode);
+    }
+    else
+    {
+        tuner_modify_frequency_full(0, 100, mode);
+    }
+}
+
+void tuner_modify_frequency_full(guint base_freq, guint step, guint mode)
+{
+    if(((tuner.freq-base_freq) % step) == 0)
+    {
+        if(mode == FREQ_MODIFY_UP)
+        {
+            tuner_set_frequency(tuner.freq+step);
+        }
+        else if(mode == FREQ_MODIFY_DOWN)
+        {
+            tuner_set_frequency(tuner.freq-step);
+        }
+        else if(mode == FREQ_MODIFY_RESET)
+        {
+            tuner_set_frequency(tuner.freq);
+        }
+    }
+    else
+    {
+        gint m = (tuner.freq-base_freq) % step;
+        if(mode == FREQ_MODIFY_UP || (mode == FREQ_MODIFY_RESET && m >= (step/2)))
+        {
+            tuner_set_frequency(base_freq+((tuner.freq-base_freq)/step*step)+step);
+        }
+        else if(mode == FREQ_MODIFY_DOWN || (mode == FREQ_MODIFY_RESET && m < (step/2)))
+        {
+            tuner_set_frequency(base_freq+((tuner.freq-base_freq)/step*step));
+        }
+    }
 }

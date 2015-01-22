@@ -1,19 +1,13 @@
 #ifndef XDR_GUI_UPDATE_H_
 #define XDR_GUI_UPDATE_H_
 
-typedef struct pi
-{
-    guint16 pi;
-    gboolean checked;
-} pi_t;
-
 gboolean gui_update_freq(gpointer data);
 gboolean gui_update_signal(gpointer data);
 gboolean gui_update_pi(gpointer data);
 gboolean gui_update_af(gpointer data);
 gboolean gui_update_af_check(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer* newfreq);
-gboolean gui_update_ps(gpointer nothing); // !
-gboolean gui_update_rt(gpointer flag); // !
+gboolean gui_update_ps(gpointer nothing);
+gboolean gui_update_rt(gpointer flag);
 gboolean gui_update_tp(gpointer data);
 gboolean gui_update_ta(gpointer data);
 gboolean gui_update_ms(gpointer data);

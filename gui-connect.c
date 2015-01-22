@@ -18,7 +18,7 @@ GtkWidget *r_serial, *c_serial;
 GtkWidget *r_tcp;
 GtkWidget *box_tcp1, *l_host, *e_host, *l_port, *e_port;
 GtkWidget *box_tcp2, *l_password, *e_password, *c_password;
-GtkWidget *l_status;
+GtkWidget *box_status_wrapper, *box_status, *spinner, *l_status;
 GtkWidget *box_button, *b_connect, *b_cancel;
 GtkListStore *ls_host;
 
@@ -156,8 +156,17 @@ void connection_dialog(gboolean autoconnect)
     g_signal_connect(c_password, "toggled", G_CALLBACK(connection_dialog_select), r_tcp);
     gtk_box_pack_start(GTK_BOX(box_tcp2), c_password, FALSE, FALSE, 1);
 
+    box_status_wrapper = gtk_hbox_new(TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(content), box_status_wrapper, FALSE, FALSE, 1);
+
+    box_status = gtk_hbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(box_status_wrapper), box_status, FALSE, FALSE, 1);
+
+    spinner = gtk_spinner_new();
+    gtk_box_pack_start(GTK_BOX(box_status), spinner, FALSE, FALSE, 1);
+
     l_status = gtk_label_new(NULL);
-    gtk_box_pack_start(GTK_BOX(content), l_status, FALSE, FALSE, 1);
+    gtk_box_pack_start(GTK_BOX(box_status), l_status, FALSE, FALSE, 1);
 
     box_button = gtk_hbutton_box_new();
     gtk_button_box_set_layout(GTK_BUTTON_BOX(box_button), GTK_BUTTONBOX_END);
@@ -179,6 +188,7 @@ void connection_dialog(gboolean autoconnect)
 #endif
 
     gtk_widget_show_all(dialog);
+    gtk_widget_hide(spinner);
     gtk_widget_hide(l_status);
     connect_button(FALSE);
     if(autoconnect)
@@ -214,13 +224,13 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
     const gchar* port = gtk_entry_get_text(GTK_ENTRY(e_port));
     const gchar* password = gtk_entry_get_text(GTK_ENTRY(e_password));
 
-    connection_dialog_unlock(FALSE);
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(r_serial)))
     {
         /* Serial port */
         gchar* serial = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(c_serial));
         if(serial)
         {
+            connection_dialog_unlock(FALSE);
             g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, serial);
             settings_update_string(&conf.serial, serial);
             conf.network = FALSE;
@@ -233,6 +243,7 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
     else if(strlen(hostname) && atoi(port) > 0)
     {
         /* Network */
+        connection_dialog_unlock(FALSE);
         connecting = conn_new(hostname, port, password);
         g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, hostname);
 
@@ -268,6 +279,15 @@ void connection_dialog_unlock(gboolean value)
     gtk_widget_set_sensitive(e_password, value);
     gtk_widget_set_sensitive(c_password, value);
     gtk_widget_set_sensitive(b_connect, value);
+    if(!value)
+    {
+        gtk_widget_show(spinner);
+        gtk_spinner_start(GTK_SPINNER(spinner));
+    }
+    else
+    {
+        gtk_widget_hide(spinner);
+    }
 }
 
 gboolean connection_dialog_key(GtkWidget* widget, GdkEventKey* event, gpointer button)

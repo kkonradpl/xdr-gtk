@@ -17,75 +17,63 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
     // tuning
     if(current == conf.key_tune_down)
     {
-        if(tuner.freq > 65750 && tuner.freq <= 74000)
-        {
-            if(((tuner.freq-65750) % 30) == 0)
-                tuner_set_frequency(tuner.freq-30);
-            else
-                tuner_set_frequency(65750+((tuner.freq-65750)/30*30));
-        }
-        else
-        {
-            if(tuner.freq%100<50 && tuner.freq%100!=0)
-                tuner_reset_frequency(tuner.freq);
-            else
-                tuner_reset_frequency(tuner.freq-100);
-        }
+        tuner_modify_frequency(FREQ_MODIFY_DOWN);
         return TRUE;
     }
 
     if(current == conf.key_tune_up)
     {
-        if(tuner.freq >= 65750 && tuner.freq < 74000)
-        {
-            if(((tuner.freq-65750) % 30) == 0)
-                tuner_set_frequency(tuner.freq+30);
-            else
-                tuner_set_frequency(65750+((tuner.freq-65750)/30*30)+30);
-        }
-        else
-        {
-            if(tuner.freq%100>=50)
-                tuner_reset_frequency(tuner.freq);
-            else
-                tuner_reset_frequency(tuner.freq+100);
-        }
+        tuner_modify_frequency(FREQ_MODIFY_UP);
         return TRUE;
     }
 
     if(current == conf.key_tune_up_5)
     {
-        tuner_set_frequency(tuner.freq+5);
+        if(tuner.freq < 1900)
+        {
+            tuner_set_frequency(tuner.freq+1);
+        }
+        else
+        {
+            tuner_set_frequency(tuner.freq+5);
+        }
         return TRUE;
     }
 
     if(current == conf.key_tune_down_5)
     {
-        tuner_set_frequency(tuner.freq-5);
+        if(tuner.freq <= 1900)
+        {
+            tuner_set_frequency(tuner.freq-1);
+        }
+        else
+        {
+            tuner_set_frequency(tuner.freq-5);
+        }
         return TRUE;
     }
 
     if(current == conf.key_tune_down_1000)
     {
-        tuner_reset_frequency(tuner.freq-1000);
+        tuner_set_frequency(tuner.freq-1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_up_1000)
     {
-        tuner_reset_frequency(tuner.freq+1000);
+        tuner_set_frequency(tuner.freq+1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_back)
     {
-        tuner_set_frequency(tuner.prevfreq);
+        gtk_button_clicked(GTK_BUTTON(gui.b_tune_back));
         return TRUE;
     }
 
     if(current == conf.key_reset)
     {
-        tuner_reset_frequency(tuner.freq);
+        gtk_button_clicked(GTK_BUTTON(gui.b_tune_reset));
         return TRUE;
     }
 
@@ -299,15 +287,8 @@ void save_screenshot()
     GdkPixmap *pixmap;
     GdkPixbuf *pixbuf;
     time_t tt = time(NULL);
+    strftime(t, sizeof(t), "%Y%m%d-%H%M%S", conf.utc?gmtime(&tt):localtime(&tt));
 
-    if(conf.utc)
-    {
-        strftime(t, sizeof(t), "%Y%m%d-%H%M%S", gmtime(&tt));
-    }
-    else
-    {
-        strftime(t, sizeof(t), "%Y%m%d-%H%M%S", localtime(&tt));
-    }
     if(tuner.pi!=-1)
     {
         g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d-%04X.png", t, tuner.freq, tuner.pi);
@@ -334,3 +315,4 @@ void save_screenshot()
     g_object_unref(G_OBJECT(pixmap));
     g_object_unref(G_OBJECT(pixbuf));
 }
+

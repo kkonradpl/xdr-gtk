@@ -1,10 +1,6 @@
 #ifndef XDR_STATIONLIST_H_
 #define XDR_STATIONLIST_H_
 
-#define STATIONLIST_BUFF        1024
-#define STATIONLIST_DEBUG       0
-#define STATIONLIST_AF_BUFF_LEN 25
-
 typedef struct
 {
     gchar* param;
@@ -34,7 +30,6 @@ void stationlist_clear_rds();
 gboolean stationlist_send(gchar*);
 void stationlist_free(gpointer);
 void stationlist_stop();
-
 #endif
 
 

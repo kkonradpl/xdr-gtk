@@ -15,7 +15,6 @@
 #include "settings.h"
 #include "pattern.h"
 #include "connection.h"
-#include "sig.h"
 
 gint rdsspy_socket = -1;
 gint rdsspy_client = -1;
@@ -173,7 +172,7 @@ void rdsspy_send(gint pi, gchar *msg, guint errors)
     gchar out[25];
 
     // 1st block (PI code)
-    if(s.data[s.pos].rds)
+    if(pi >= 0)
     {
         g_snprintf(groups[0], 5, "%04X", pi);
     }

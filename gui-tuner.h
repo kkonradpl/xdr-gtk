@@ -3,7 +3,6 @@
 #include <gtk/gtk.h>
 
 void tuner_set_frequency(gint freq);
-#define tuner_reset_frequency(f) tuner_set_frequency(((f)/100)*100 + (((f)%100<50)?0:100))
 void tuner_set_mode();
 void tuner_set_volume();
 void tuner_set_squelch();

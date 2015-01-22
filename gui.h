@@ -60,7 +60,7 @@ typedef struct gui
     GtkWidget *b_connect;
     GtkWidget *b_pattern;
     GtkWidget *b_settings;
-    GtkWidget *b_about;
+    GtkWidget *b_scheduler;
     GtkWidget *b_rdsspy;
     GtkWidget *b_ontop, *b_ontop_icon;
 
@@ -97,8 +97,8 @@ gboolean gui_clear_rds();
 gboolean gui_mode_FM();
 gboolean gui_mode_AM();
 void gui_fill_bandwidths(GtkWidget*, gboolean);
-void tune_gui_back(GtkWidget*, GdkEventButton*, gpointer);
-void tune_gui_round(GtkWidget*, GdkEventButton*, gpointer);
+void tune_gui_back(GtkWidget*, gpointer);
+void tune_gui_round(GtkWidget*, gpointer);
 void tune_gui_step_click(GtkWidget*, GdkEventButton*, gpointer);
 void tune_gui_step_scroll(GtkWidget*, GdkEventScroll*, gpointer);
 void tune_gui_af(GtkTreeSelection*, gpointer);

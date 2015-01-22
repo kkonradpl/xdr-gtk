@@ -58,10 +58,6 @@ void tuner_set_antenna()
     gchar buffer[3];
     g_snprintf(buffer, sizeof(buffer), "Z%d", gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant)));
     tuner_write(buffer);
-    if(conf.ant_clear_rds)
-    {
-        g_timeout_add(50, (GSourceFunc)gui_clear_rds, NULL);
-    }
 }
 
 void tuner_set_agc()

@@ -104,6 +104,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="keyboard.h" />
+		<Unit filename="log.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="log.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -135,9 +139,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="tuner.h" />
-		<Unit filename="version.c">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="version.h" />
 		<Unit filename="win32.c">
 			<Option compilerVar="CC" />
@@ -148,6 +149,10 @@
 			<Option target="Debug-win" />
 			<Option target="Release-win" />
 		</Unit>
+		<Unit filename="scheduler.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="scheduler.h" />
 		<Extensions>
 			<code_completion />
 			<envvars />

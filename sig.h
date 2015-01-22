@@ -16,8 +16,6 @@ typedef struct s
     gfloat max;
     gboolean stereo;
     gboolean rds;
-
-    gint rds_timer;
     gint64 rds_reset_timer;
 } s_t;
 

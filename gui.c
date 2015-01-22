@@ -16,6 +16,7 @@
 #include "sig.h"
 #include "rdsspy.h"
 #include "version.h"
+#include "scheduler.h"
 #ifdef G_OS_WIN32
 #include "win32.h"
 #endif
@@ -32,7 +33,7 @@ void gui_init()
     gui.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_position(GTK_WINDOW(gui.window), GTK_WIN_POS_CENTER);
     gtk_container_set_border_width(GTK_CONTAINER(gui.window), 3);
-    gtk_window_set_title(GTK_WINDOW(gui.window), "XDR-GTK");
+    gtk_window_set_title(GTK_WINDOW(gui.window), APP_NAME);
     gtk_window_set_resizable(GTK_WINDOW(gui.window), FALSE);
     gtk_widget_modify_bg(gui.window, GTK_STATE_NORMAL, &gui.colors.background);
     gui.clipboard = gtk_widget_get_clipboard(gui.window, GDK_SELECTION_CLIPBOARD);
@@ -76,6 +77,8 @@ void gui_init()
     gui.event_freq = gtk_event_box_new();
     gui.l_freq = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_freq, font_header);
+    gtk_misc_set_alignment(GTK_MISC(gui.l_freq), 1.0, 0.5);
+    gtk_label_set_width_chars(GTK_LABEL(gui.l_freq), 7);
     gtk_container_add(GTK_CONTAINER(gui.event_freq), gui.l_freq);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_freq, TRUE, FALSE, 6);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_freq), FALSE);
@@ -84,6 +87,8 @@ void gui_init()
     gui.event_pi = gtk_event_box_new();
     gui.l_pi = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_pi, font_header);
+    gtk_misc_set_alignment(GTK_MISC(gui.l_pi), 0.0, 0.5);
+    gtk_label_set_width_chars(GTK_LABEL(gui.l_pi), 5);
     gtk_container_add(GTK_CONTAINER(gui.event_pi), gui.l_pi);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_pi, TRUE, FALSE, 5);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_pi), FALSE);
@@ -92,10 +97,12 @@ void gui_init()
     gui.event_ps = gtk_event_box_new();
     gui.l_ps = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_ps, font_header);
+    gtk_misc_set_alignment(GTK_MISC(gui.l_ps), 0.0, 0.5);
+    gtk_label_set_width_chars(GTK_LABEL(gui.l_ps), 10);
     gtk_container_add(GTK_CONTAINER(gui.event_ps), gui.l_ps);
     gtk_box_pack_start(GTK_BOX(gui.box_header), gui.event_ps, TRUE, FALSE, 0);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(gui.event_ps), FALSE);
-    g_signal_connect(gui.event_ps, "button-press-event", G_CALLBACK(clipboard_ps), tuner.ps);
+    g_signal_connect(gui.event_ps, "button-press-event", G_CALLBACK(clipboard_ps), NULL);
 
     // ----------------
 
@@ -111,9 +118,10 @@ void gui_init()
     g_signal_connect(gui.b_scan, "clicked", G_CALLBACK(scan_dialog), NULL);
 
     gui.b_tune_back = gtk_button_new_with_label("↔");
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_tune_back), FALSE);
     gtk_widget_modify_font(gui.b_tune_back, font_header);
     gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.b_tune_back, TRUE, TRUE, 0);
-    g_signal_connect(gui.b_tune_back, "button-press-event", G_CALLBACK(tune_gui_back), NULL);
+    g_signal_connect(gui.b_tune_back, "clicked", G_CALLBACK(tune_gui_back), NULL);
     gtk_widget_set_tooltip_text(gui.b_tune_back, "Tune back to the previous frequency");
 
     gui.e_freq = gtk_entry_new_with_max_length(7);
@@ -125,8 +133,8 @@ void gui_init()
     gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_tune_reset), FALSE);
     gtk_widget_set_name(gui.b_tune_reset, "small-button");
     gtk_box_pack_start(GTK_BOX(gui.box_left_tune), gui.b_tune_reset, TRUE, TRUE, 0);
-    g_signal_connect(gui.b_tune_reset, "button-press-event", G_CALLBACK(tune_gui_round), NULL);
-    gtk_widget_set_tooltip_text(gui.b_tune_reset, "Round to the nearest 100kHz");
+    g_signal_connect(gui.b_tune_reset, "clicked", G_CALLBACK(tune_gui_round), NULL);
+    gtk_widget_set_tooltip_text(gui.b_tune_reset, "Reset the frequency to a nearest channel");
 
     gchar label[5];
     size_t i;
@@ -206,13 +214,15 @@ void gui_init()
 
     gui.l_pty = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_pty, font_status);
-    gtk_misc_set_alignment(GTK_MISC(gui.l_pty), 1, 0.5);
+    gtk_misc_set_alignment(GTK_MISC(gui.l_pty), 0.0, 0.5);
+    gtk_label_set_width_chars(GTK_LABEL(gui.l_pty), 8);
     gtk_widget_set_tooltip_text(gui.l_pty, "RDS Programme Type (PTY)");
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_pty, TRUE, TRUE, 3);
 
     gui.l_sig = gtk_label_new(NULL);
     gtk_widget_modify_font(gui.l_sig, font_status);
     gtk_misc_set_alignment(GTK_MISC(gui.l_sig), 1, 0.5);
+    gtk_label_set_width_chars(GTK_LABEL(gui.l_sig), 12);
     gtk_box_pack_start(GTK_BOX(gui.box_left_indicators), gui.l_sig, TRUE, TRUE, 2);
     gtk_widget_set_tooltip_text(gui.l_sig, "max / current signal level");
 
@@ -245,13 +255,13 @@ void gui_init()
     gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_settings, FALSE, FALSE, 0);
     g_signal_connect(gui.b_settings, "clicked", G_CALLBACK(settings_dialog), NULL);
 
-    gui.b_about = gtk_button_new();
-    gtk_button_set_image(GTK_BUTTON(gui.b_about), gtk_image_new_from_icon_name("xdr-gtk-about", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_about), FALSE);
-    gtk_widget_set_name(gui.b_about, "small-button");
-    gtk_widget_set_tooltip_text(gui.b_about, "About...");
-    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_about, FALSE, FALSE, 0);
-    g_signal_connect(gui.b_about, "clicked", G_CALLBACK(version_dialog), NULL);
+    gui.b_scheduler = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(gui.b_scheduler), gtk_image_new_from_icon_name("xdr-gtk-scheduler", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_scheduler), FALSE);
+    gtk_widget_set_name(gui.b_scheduler, "small-button");
+    gtk_widget_set_tooltip_text(gui.b_scheduler, "Scheduler");
+    gtk_box_pack_start(GTK_BOX(gui.box_left_settings1), gui.b_scheduler, FALSE, FALSE, 0);
+    g_signal_connect(gui.b_scheduler, "toggled", G_CALLBACK(scheduler_toggle), NULL);
 
     gui.b_rdsspy = gtk_toggle_button_new();
     gtk_button_set_image(GTK_BUTTON(gui.b_rdsspy), gtk_image_new_from_icon_name("xdr-gtk-rdsspy", GTK_ICON_SIZE_BUTTON));
@@ -262,7 +272,7 @@ void gui_init()
     g_signal_connect(gui.b_rdsspy, "toggled", G_CALLBACK(rdsspy_toggle), NULL);
 
     gui.b_ontop = gtk_toggle_button_new();
-    gui.b_ontop_icon = gtk_image_new_from_icon_name("xdr-gtk-top-off", GTK_ICON_SIZE_BUTTON);
+    gui.b_ontop_icon = gtk_image_new_from_icon_name("xdr-gtk-top", GTK_ICON_SIZE_BUTTON);
     gtk_button_set_image(GTK_BUTTON(gui.b_ontop), gui.b_ontop_icon);
     gtk_button_set_focus_on_click(GTK_BUTTON(gui.b_ontop), FALSE);
     gtk_widget_set_name(gui.b_ontop, "small-button");
@@ -449,8 +459,8 @@ void gui_quit()
 
 void gui_clear()
 {
-    gtk_label_set_text(GTK_LABEL(gui.l_freq), "       ");
-    gtk_label_set_text(GTK_LABEL(gui.l_sig),  "            ");
+    gtk_label_set_text(GTK_LABEL(gui.l_freq), " ");
+    gtk_label_set_text(GTK_LABEL(gui.l_sig),  " ");
     gui_clear_rds();
 }
 
@@ -458,15 +468,25 @@ gboolean gui_clear_rds()
 {
     gint i;
 
-    gtk_label_set_text(GTK_LABEL(gui.l_pi),  "     ");
-    gtk_label_set_text(GTK_LABEL(gui.l_ps),  "          ");
-    gtk_label_set_text(GTK_LABEL(gui.l_pty), "        ");
+    gtk_label_set_text(GTK_LABEL(gui.l_pi),  " ");
+    gtk_label_set_text(GTK_LABEL(gui.l_ps),  " ");
+    gtk_label_set_text(GTK_LABEL(gui.l_pty), " ");
     gtk_label_set_text(GTK_LABEL(gui.l_tp),  "  ");
     gtk_label_set_text(GTK_LABEL(gui.l_ta),  "  ");
     gtk_label_set_text(GTK_LABEL(gui.l_ms),  "  ");
-
     gtk_label_set_text(GTK_LABEL(gui.l_rt[0]), " ");
     gtk_label_set_text(GTK_LABEL(gui.l_rt[1]), " ");
+    gtk_list_store_clear(GTK_LIST_STORE(gui.af));
+    gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
+    gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
+
+    s.stereo = FALSE;
+    s.rds = FALSE;
+    s.rds_reset_timer = -1;
+
+    tuner.pi = tuner.pi_checked = tuner.pty = tuner.tp = tuner.ta = tuner.ms = tuner.ecc = -1;
+    tuner.ps_avail = FALSE;
+    tuner.rds_timer = 0;
 
     g_sprintf(tuner.ps, "%8s", "");
     for(i=0; i<8; i++)
@@ -476,18 +496,6 @@ gboolean gui_clear_rds()
 
     g_sprintf(tuner.rt[0], "%64s", "");
     g_sprintf(tuner.rt[1], "%64s", "");
-
-    gtk_list_store_clear(GTK_LIST_STORE(gui.af));
-
-    gtk_widget_modify_fg(GTK_WIDGET(gui.l_st), GTK_STATE_NORMAL, &gui.colors.grey);
-    gtk_widget_modify_fg(GTK_WIDGET(gui.l_rds), GTK_STATE_NORMAL, &gui.colors.grey);
-    s.stereo = FALSE;
-    s.rds = FALSE;
-    s.rds_timer = 0;
-    s.rds_reset_timer = -1;
-
-    tuner.pi = tuner.pi_checked = tuner.pty = tuner.tp = tuner.ta = tuner.ms = tuner.ecc = -1;
-    tuner.ps_avail = FALSE;
 
     return FALSE;
 }
@@ -507,7 +515,7 @@ gboolean gui_mode_FM()
 gboolean gui_mode_AM()
 {
     tuner.mode = MODE_AM;
-    s.rds_timer = 0;
+    tuner.rds_timer = 0;
     gtk_label_set_text(GTK_LABEL(gui.l_band), "AM");
     g_signal_handlers_block_by_func(G_OBJECT(gui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
     gui_fill_bandwidths(gui.c_bw, FALSE);
@@ -595,20 +603,14 @@ void gui_fill_bandwidths(GtkWidget* combo, gboolean auto_mode)
     }
 }
 
-void tune_gui_back(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
+void tune_gui_back(GtkWidget *widget, gpointer nothing)
 {
-    if(event->type == GDK_BUTTON_PRESS)
-    {
-        tuner_set_frequency(tuner.prevfreq);
-    }
+    tuner_set_frequency(tuner.prevfreq);
 }
 
-void tune_gui_round(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
+void tune_gui_round(GtkWidget *widget, gpointer nothing)
 {
-    if(event->type == GDK_BUTTON_PRESS)
-    {
-        tuner_reset_frequency(tuner.freq);
-    }
+    tuner_modify_frequency(FREQ_MODIFY_RESET);
 }
 
 void tune_gui_step_click(GtkWidget *widget, GdkEventButton *event, gpointer step)
@@ -806,7 +808,6 @@ void window_on_top(GtkToggleButton *item)
 {
     gboolean state = gtk_toggle_button_get_active(item);
     gtk_window_set_keep_above(GTK_WINDOW(gui.window), state);
-    gtk_image_set_from_icon_name(GTK_IMAGE(gui.b_ontop_icon), (state ? "xdr-gtk-top-on" : "xdr-gtk-top-off"), GTK_ICON_SIZE_BUTTON);
 }
 
 void connect_button(gboolean is_active)

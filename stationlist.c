@@ -18,6 +18,10 @@
 #include "tuner.h"
 #include "version.h"
 
+#define STATIONLIST_BUFF        1024
+#define STATIONLIST_DEBUG       0
+#define STATIONLIST_AF_BUFF_LEN 25
+
 gint stationlist_socket = -1;
 gint stationlist_client = -1;
 struct sockaddr_in stationlist_client_addr;
@@ -53,11 +57,11 @@ void stationlist_init()
     memset((char*)&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(conf.stationlist_server);
+    addr.sin_port = htons(conf.stationlist_port);
 
     if(bind(stationlist_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
-        dialog_error("StationList link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", conf.stationlist_server);
+        dialog_error("StationList link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", conf.stationlist_port);
         closesocket(stationlist_socket);
         stationlist_socket = -1;
         return;
@@ -73,7 +77,7 @@ void stationlist_init()
     memset((char*)&stationlist_client_addr, 0, sizeof(stationlist_client_addr));
     stationlist_client_addr.sin_family = AF_INET;
     stationlist_client_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    stationlist_client_addr.sin_port = htons(conf.stationlist_client);
+    stationlist_client_addr.sin_port = htons(conf.stationlist_port-1);
 
     g_thread_unref(g_thread_new("thread_stationlist", stationlist_server, NULL));
     g_mutex_init(&stationlist_mutex);
@@ -84,10 +88,8 @@ void stationlist_init()
 gpointer stationlist_server(gpointer nothing)
 {
     gchar msg[STATIONLIST_BUFF], *ptr, *parse, *param, *value;
-    struct sockaddr_in client;
-    socklen_t len = sizeof(client);
     gint n;
-    while((n = recvfrom(stationlist_socket, msg, STATIONLIST_BUFF-1, 0, (struct sockaddr *)&client, &len)) > 0)
+    while((n = recvfrom(stationlist_socket, msg, STATIONLIST_BUFF-1, 0, NULL, NULL)) > 0)
     {
         msg[n] = 0;
 #if STATIONLIST_DEBUG
@@ -103,9 +105,7 @@ gpointer stationlist_server(gpointer nothing)
                 stationlist_cmd(param, value);
             }
         }
-        len = sizeof(client);
     }
-
     return NULL;
 }
 

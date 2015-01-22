@@ -6,6 +6,7 @@
 #include "gui.h"
 #include "win32.h"
 
+#define WIN32_FONT_FILE "VeraMono.ttf"
 gint win32_font;
 
 void win32_init()
@@ -38,7 +39,7 @@ char *strsep(char **sp, char *sep)
     return(s);
 }
 
-gboolean win32_uri(GtkAboutDialog *label, gchar *uri, gpointer user_data)
+gboolean win32_uri(GtkWidget *label, gchar *uri, gpointer user_data)
 {
     ShellExecute(0, "open", uri, NULL, NULL, 1);
     return TRUE;

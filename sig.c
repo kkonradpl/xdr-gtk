@@ -9,6 +9,11 @@ void signal_push(gfloat level, gboolean stereo, gboolean rds)
     signal_get()->value = level;
     signal_get()->stereo = stereo;
     signal_get()->rds = rds;
+
+    if(level > s.max)
+    {
+        s.max = level;
+    }
 }
 
 void signal_clear()

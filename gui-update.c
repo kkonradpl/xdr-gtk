@@ -10,6 +10,7 @@
 #include "sig.h"
 #include "stationlist.h"
 #include "version.h"
+#include "log.h"
 #ifdef G_OS_WIN32
 #include "win32.h"
 #endif
@@ -20,25 +21,31 @@ static const gchar* const pty_list[][32] =
     { "None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!" }
 };
 
+static const gchar* const ecc_list[][16] =
+{
+    {"??", "DE", "DZ", "AD", "IL", "IT", "BE", "RU", "PS", "AL", "AT", "HU", "MT", "DE", "??", "EG" },
+    {"??", "GR", "CY", "SM", "CH", "JO", "FI", "LU", "BG", "DK", "GI", "IQ", "GB", "LY", "RO", "FR" },
+    {"??", "MA", "CZ", "PL", "VA", "SK", "SY", "TN", "??", "LI", "IS", "MC", "LT", "YU", "ES", "NO" },
+    {"??", "??", "IE", "TR", "MK", "??", "??", "??", "NL", "LV", "LB", "??", "HR", "??", "SE", "BY" },
+    {"??", "MD", "EE", "??", "??", "??", "UA", "??", "PT", "SI", "??", "??", "??", "??", "??", "BA" },
+};
+
 gboolean gui_update_freq(gpointer data)
 {
     gchar buffer[8];
-    g_snprintf(buffer, sizeof(buffer), "%7.3f", GPOINTER_TO_INT(data)/1000.0);
+    g_snprintf(buffer, sizeof(buffer), "%.3f", GPOINTER_TO_INT(data)/1000.0);
     gtk_label_set_text(GTK_LABEL(gui.l_freq), buffer);
     stationlist_freq(GPOINTER_TO_INT(data));
     s.max = 0;
     gui_clear_rds();
+    log_cleanup();
     return FALSE;
 }
 
 gboolean gui_update_signal(gpointer data)
 {
     s_data_t* signal = (s_data_t*)data;
-
-    if(signal->value > s.max)
-    {
-        s.max = signal->value;
-    }
+    signal_push(signal->value, signal->stereo, signal->rds);
 
     if(s.stereo != signal->stereo)
     {
@@ -75,26 +82,24 @@ gboolean gui_update_signal(gpointer data)
             case UNIT_S:
                 s_m = s_meter(s.max);
                 s_m2 = s_meter(signal->value);
-                str = g_markup_printf_escaped("<span color=\"#777777\"> %5s↑</span>%5s", s_m, s_m2);
+                str = g_markup_printf_escaped("<span color=\"#777777\">%5s↑</span>%5s", s_m, s_m2);
                 g_free(s_m);
                 g_free(s_m2);
                 break;
 
             case UNIT_DBF:
             default:
-                str = g_markup_printf_escaped("<span color=\"#777777\"> %3.0f↑</span>%3.0f dBf", s.max, signal->value);
+                str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span>%3.0f dBf", s.max, signal->value);
                 break;
             }
         }
         else
         {
-            str = g_markup_printf_escaped("<span color=\"#777777\">    %3.0f↑</span> %3.0f", s.max, signal->value);
+            str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span> %3.0f", s.max, signal->value);
         }
         gtk_label_set_markup(GTK_LABEL(gui.l_sig), str);
         g_free(str);
     }
-
-    signal_push(signal->value, signal->stereo, signal->rds);
 
     if(conf.signal_display == SIGNAL_GRAPH)
     {
@@ -116,9 +121,17 @@ gboolean gui_update_pi(gpointer data)
 {
     pi_t* pi = (pi_t*)data;
     gchar buffer[6];
-    g_snprintf(buffer, sizeof(buffer), "%04X%c", pi->pi, (pi->checked?' ':'?'));
+    if(pi->checked)
+    {
+        g_snprintf(buffer, sizeof(buffer), "%04X", pi->pi);
+    }
+    else
+    {
+        g_snprintf(buffer, sizeof(buffer), "%04X?", pi->pi);
+    }
     gtk_label_set_text(GTK_LABEL(gui.l_pi), buffer);
     stationlist_pi(pi->pi);
+    log_pi(pi);
     g_free(data);
     return FALSE;
 }
@@ -134,6 +147,7 @@ gboolean gui_update_af(gpointer data)
         gchar* af_new_freq = g_strdup_printf("%.1f", ((87500+GPOINTER_TO_INT(data)*100)/1000.0));
         gtk_list_store_set(gui.af, &iter, 0, GPOINTER_TO_INT(data), 1, af_new_freq, -1);
         stationlist_af(GPOINTER_TO_INT(data));
+        log_af(af_new_freq);
         g_free(af_new_freq);
     }
     return FALSE;
@@ -174,8 +188,9 @@ gboolean gui_update_ps(gpointer nothing)
                  (conf.rds_ps_progressive?')':']')
              );
     gtk_label_set_markup(GTK_LABEL(gui.l_ps), markup);
-    stationlist_ps(tuner.ps);
     g_free(markup);
+    stationlist_ps(tuner.ps);
+    log_ps(tuner.ps, tuner.ps_err);
     return FALSE;
 }
 
@@ -185,6 +200,7 @@ gboolean gui_update_rt(gpointer flag)
     gtk_label_set_markup(GTK_LABEL(gui.l_rt[GPOINTER_TO_INT(flag)]), markup);
     g_free(markup);
     stationlist_rt(GPOINTER_TO_INT(flag), tuner.rt[GPOINTER_TO_INT(flag)]);
+    log_rt(GPOINTER_TO_INT(flag), tuner.rt[GPOINTER_TO_INT(flag)]);
     return FALSE;
 }
 
@@ -217,17 +233,22 @@ gboolean gui_update_ms(gpointer data)
 
 gboolean gui_update_pty(gpointer data)
 {
-    gchar buffer[9];
-    g_snprintf(buffer, sizeof(buffer), "%-8s", pty_list[conf.rds_pty][GPOINTER_TO_INT(data)]);
-    gtk_label_set_text(GTK_LABEL(gui.l_pty), buffer);
-    stationlist_pty(GPOINTER_TO_INT(data));
+    gint id = GPOINTER_TO_INT(data);
+    gtk_label_set_text(GTK_LABEL(gui.l_pty), pty_list[conf.rds_pty][id]);
+    stationlist_pty(id);
+    log_pty(pty_list[conf.rds_pty][id]);
     return FALSE;
 }
 
 gboolean gui_update_ecc(gpointer data)
 {
-    /* ECC is currently displayed only in StationList */
-    stationlist_ecc(GPOINTER_TO_INT(data));
+    guint ecc = GPOINTER_TO_INT(data);
+    /* ECC is currently displayed only in StationList and logs */
+    if(tuner.pi >= 0 && (ecc >= 0xE0 && ecc <= 0xE4))
+    {
+        stationlist_ecc(ecc);
+        log_ecc(ecc_list[ecc & 7][tuner.pi >> 12], ecc);
+    }
     return FALSE;
 }
 

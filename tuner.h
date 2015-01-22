@@ -16,6 +16,13 @@
 #define SERIAL_BUFFER 10000
 #define FILTERS_N 30
 
+#define TUNER_FREQ_MIN 100
+#define TUNER_FREQ_MAX 200000
+
+#define FREQ_MODIFY_DOWN  0
+#define FREQ_MODIFY_UP    1
+#define FREQ_MODIFY_RESET 2
+
 typedef struct tuner
 {
 #ifdef G_OS_WIN32
@@ -33,6 +40,7 @@ typedef struct tuner
     gint prevfreq;
     gint pi;
     gint pi_checked;
+    gint rds_timer;
     gint pty;
     gint tp;
     gint ta;
@@ -47,6 +55,12 @@ typedef struct tuner
     gboolean guest;
 } tuner_t;
 
+typedef struct pi
+{
+    guint16 pi;
+    gboolean checked;
+} pi_t;
+
 tuner_t tuner;
 extern gint filters[];
 extern gint filters_bw[][FILTERS_N];
@@ -56,4 +70,6 @@ void tuner_parse(gchar, gchar[]);
 void tuner_write(gchar*);
 gboolean tuner_write_socket(int, gchar*, int);
 void tuner_poweroff();
+void tuner_modify_frequency(guint);
+void tuner_modify_frequency_full(guint, guint, guint);
 #endif

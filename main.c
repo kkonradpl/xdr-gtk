@@ -1,6 +1,6 @@
 /*
- *  XDR-GTK v0.3
- *  Copyright (C) 2012-2014  Konrad Kosmatka
+ *  XDR-GTK v0.3.1
+ *  Copyright (C) 2012-2015  Konrad Kosmatka
  *  http://fmdx.pl/
 
  *  This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 #include "sig.h"
 #include "rdsspy.h"
 #include "stationlist.h"
+#include "log.h"
 #ifdef G_OS_WIN32
 #include "win32.h"
 #endif
@@ -43,6 +44,7 @@ gint main(gint argc, gchar* argv[])
     }
     gtk_main();
     g_free(s.data);
+    log_cleanup();
 #ifdef G_OS_WIN32
     win32_cleanup();
 #endif
