@@ -35,12 +35,17 @@ void settings_read()
     if(!g_key_file_load_from_file(keyfile, CONF_FILE, G_KEY_FILE_KEEP_COMMENTS, &error))
     {
         GtkWidget *dialog;
-        dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Configuration file not found.\nUsing default settings");
+        dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK, "Configuration file not found.\nUsing default settings.");
+        gtk_window_set_title(GTK_WINDOW(dialog), APP_NAME);
         gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
         g_error_free(error);
         g_key_file_free(keyfile);
+
+        /* Window */
+        conf.win_x = 0;
+        conf.win_y = 0;
 
         /* Connection */
         conf.network = 0;
@@ -62,18 +67,29 @@ void settings_read()
         conf.deemphasis = 0;
 
         /* Interface */
-        conf.signal_display = SIGNAL_GRAPH;
+        conf.init_freq = 87500;
+        conf.signal_offset = 0.0;
         conf.signal_unit = UNIT_DBF;
-        conf.graph_height = 100;
+        conf.event_action = ACTION_NONE;
+        conf.utc = TRUE;
+        conf.autoconnect = FALSE;
+        conf.amstep = FALSE;
+        conf.disconnect_confirm = TRUE;
+        conf.auto_reconnect = FALSE;
+        conf.grab_focus = FALSE;
+        conf.hide_decorations = FALSE;
+        conf.hide_status = FALSE;
+        conf.restore_pos = TRUE;
+
+        /* Graph */
+        conf.signal_display = SIGNAL_GRAPH;
+        conf.graph_mode = GRAPH_DEFAULT;
         gdk_color_parse("#B5B5FF", &conf.color_mono);
         gdk_color_parse("#8080FF", &conf.color_stereo);
         gdk_color_parse("#3333FF", &conf.color_rds);
-        conf.signal_avg = FALSE;
+        conf.graph_height = 100;
         conf.show_grid = TRUE;
-        conf.utc = TRUE;
-        conf.alignment = FALSE;
-        conf.autoconnect = FALSE;
-        conf.amstep = FALSE;
+        conf.signal_avg = FALSE;
 
         /* RDS */
         conf.rds_pty = 0;
@@ -86,6 +102,8 @@ void settings_read()
         conf.rt_data_error = 1;
 
         /* Antenna */
+        conf.alignment = FALSE;
+        conf.swap_rotator = FALSE;
         conf.ant_count = ANT_COUNT;
         conf.ant_clear_rds = TRUE;
         conf.ant_switching = FALSE;
@@ -99,6 +117,8 @@ void settings_read()
         conf.stationlist_port = 9031;
         conf.rds_logging = FALSE;
         conf.replace_spaces = TRUE;
+        conf.log_dir = g_strdup("");
+        conf.screen_dir = g_strdup("");
 
         /* Keyboard */
         conf.key_tune_up = GDK_Right;
@@ -116,6 +136,8 @@ void settings_read()
         conf.key_rotate_cw = GDK_KEY_Home;
         conf.key_rotate_ccw = GDK_KEY_End;
         conf.key_switch_ant = GDK_KEY_Delete;
+        conf.key_ps_mode = GDK_KEY_grave;
+        conf.key_spectral_toggle = GDK_KEY_Q;
 
         /* Presets */
         conf.presets[0] = 87600;
@@ -143,17 +165,26 @@ void settings_read()
         conf.pattern_avg = FALSE;
 
         /* Spectral scan */
+        conf.scan_x = 0;
+        conf.scan_y = 0;
         conf.scan_width = 950;
-        conf.scan_height = 250;
+        conf.scan_height = 150;
         conf.scan_start = 87500;
         conf.scan_end = 108000;
         conf.scan_step = 100;
         conf.scan_bw = 12;
+        conf.scan_continuous = FALSE;
         conf.scan_relative = FALSE;
+        conf.scan_peakhold = TRUE;
+        conf.scan_freq_list = NULL;
 
         settings_write();
         return;
     }
+
+    /* Window */
+    conf.win_x = g_key_file_get_integer(keyfile, "window", "x", NULL);
+    conf.win_y = g_key_file_get_integer(keyfile, "window", "y", NULL);
 
     /* Connection */
     conf.network = g_key_file_get_integer(keyfile, "connection", "network", NULL);
@@ -169,18 +200,29 @@ void settings_read()
     conf.deemphasis = g_key_file_get_integer(keyfile, "tuner", "deemphasis", NULL);
 
     /* Interface */
-    conf.signal_display = g_key_file_get_integer(keyfile, "settings", "signal_display", NULL);
+    conf.init_freq = g_key_file_get_integer(keyfile, "settings", "init_freq", NULL);
+    conf.signal_offset = g_key_file_get_double(keyfile, "settings", "signal_offset", NULL);
     conf.signal_unit = g_key_file_get_integer(keyfile, "settings", "signal_unit", NULL);
+    conf.event_action = g_key_file_get_integer(keyfile, "settings", "event_action", NULL);
+    conf.utc = g_key_file_get_boolean(keyfile, "settings", "utc", NULL);
+    conf.autoconnect = g_key_file_get_boolean(keyfile, "settings", "autoconnect", NULL);
+    conf.amstep = g_key_file_get_boolean(keyfile, "settings", "amstep", NULL);
+    conf.disconnect_confirm = g_key_file_get_boolean(keyfile, "settings", "disconnect_confirm", NULL);
+    conf.auto_reconnect = g_key_file_get_boolean(keyfile, "settings", "auto_reconnect", NULL);
+    conf.grab_focus = g_key_file_get_boolean(keyfile, "settings", "grab_focus", NULL);
+    conf.hide_decorations = g_key_file_get_boolean(keyfile, "settings", "hide_decorations", NULL);
+    conf.hide_status = g_key_file_get_boolean(keyfile, "settings", "hide_status", NULL);
+    conf.restore_pos = g_key_file_get_boolean(keyfile, "settings", "restore_pos", NULL);
+
+    /* Graph */
+    conf.signal_display = g_key_file_get_integer(keyfile, "settings", "signal_display", NULL);
+    conf.graph_mode = g_key_file_get_integer(keyfile, "settings", "graph_mode", NULL);
     conf.graph_height = g_key_file_get_integer(keyfile, "settings", "graph_height", NULL);
     gdk_color_parse(g_key_file_get_string(keyfile, "settings", "color_mono", NULL), &conf.color_mono);
     gdk_color_parse(g_key_file_get_string(keyfile, "settings", "color_stereo", NULL), &conf.color_stereo);
     gdk_color_parse(g_key_file_get_string(keyfile, "settings", "color_rds", NULL), &conf.color_rds);
-    conf.signal_avg = g_key_file_get_boolean(keyfile, "settings", "signal_avg", NULL);
     conf.show_grid = g_key_file_get_boolean(keyfile, "settings", "show_grid", NULL);
-    conf.utc = g_key_file_get_boolean(keyfile, "settings", "utc", NULL);
-    conf.alignment = g_key_file_get_boolean(keyfile, "settings", "alignment", NULL);
-    conf.autoconnect = g_key_file_get_boolean(keyfile, "settings", "autoconnect", NULL);
-    conf.amstep = g_key_file_get_boolean(keyfile, "settings", "amstep", NULL);
+    conf.signal_avg = g_key_file_get_boolean(keyfile, "settings", "signal_avg", NULL);
 
     /* RDS */
     conf.rds_pty = g_key_file_get_integer(keyfile, "rds", "rds_pty", NULL);
@@ -193,6 +235,8 @@ void settings_read()
     conf.rt_data_error = g_key_file_get_integer(keyfile, "rds", "rt_data_error", NULL);
 
     /* Antenna */
+    conf.alignment = g_key_file_get_boolean(keyfile, "antenna", "alignment", NULL);
+    conf.swap_rotator = g_key_file_get_boolean(keyfile, "antenna", "swap_rotator", NULL);
     conf.ant_count = g_key_file_get_integer(keyfile, "antenna", "ant_count", NULL);
     conf.ant_clear_rds = g_key_file_get_boolean(keyfile, "antenna", "ant_clear_rds", NULL);
     conf.ant_switching = g_key_file_get_boolean(keyfile, "antenna", "ant_switching", NULL);
@@ -218,6 +262,8 @@ void settings_read()
     conf.stationlist_port = g_key_file_get_integer(keyfile, "logs", "stationlist_port", NULL);
     conf.rds_logging = g_key_file_get_boolean(keyfile, "logs", "rds_logging", NULL);
     conf.replace_spaces = g_key_file_get_boolean(keyfile, "logs", "replace_spaces", NULL);
+    conf.log_dir = settings_read_string(g_key_file_get_string(keyfile, "logs", "log_dir", NULL));
+    conf.screen_dir = settings_read_string(g_key_file_get_string(keyfile, "logs", "screen_dir", NULL));
 
     /* Keyboard */
     conf.key_tune_up = g_key_file_get_integer(keyfile, "keyboard", "key_tune_up", NULL);
@@ -235,6 +281,8 @@ void settings_read()
     conf.key_rotate_cw = g_key_file_get_integer(keyfile, "keyboard", "key_rotate_cw", NULL);
     conf.key_rotate_ccw = g_key_file_get_integer(keyfile, "keyboard", "key_rotate_ccw", NULL);
     conf.key_switch_ant = g_key_file_get_integer(keyfile, "keyboard", "key_switch_ant", NULL);
+    conf.key_ps_mode = g_key_file_get_integer(keyfile, "keyboard", "key_ps_mode", NULL);
+    conf.key_spectral_toggle = g_key_file_get_integer(keyfile, "keyboard", "key_spectral_toggle", NULL);
 
     /* Presets */
     p = g_key_file_get_integer_list(keyfile, "settings", "presets", &length, NULL);
@@ -257,13 +305,25 @@ void settings_read()
     conf.pattern_avg = g_key_file_get_boolean(keyfile, "pattern", "pattern_avg", NULL);
 
     /* Spectral scan */
+    conf.scan_x = g_key_file_get_integer(keyfile, "scan", "scan_x", NULL);
+    conf.scan_y = g_key_file_get_integer(keyfile, "scan", "scan_y", NULL);
     conf.scan_width = g_key_file_get_integer(keyfile, "scan", "scan_width", NULL);
     conf.scan_height = g_key_file_get_integer(keyfile, "scan", "scan_height", NULL);
     conf.scan_start = g_key_file_get_integer(keyfile, "scan", "scan_start", NULL);
     conf.scan_end = g_key_file_get_integer(keyfile, "scan", "scan_end", NULL);
     conf.scan_step = g_key_file_get_integer(keyfile, "scan", "scan_step", NULL);
     conf.scan_bw = g_key_file_get_integer(keyfile, "scan", "scan_bw", NULL);
+    conf.scan_continuous = g_key_file_get_boolean(keyfile, "scan", "scan_continuous", NULL);
     conf.scan_relative = g_key_file_get_boolean(keyfile, "scan", "scan_relative", NULL);
+    conf.scan_peakhold = g_key_file_get_boolean(keyfile, "scan", "scan_peakhold", NULL);
+    conf.scan_freq_list = NULL;
+
+    p = g_key_file_get_integer_list(keyfile, "scan", "scan_freq_list", &length, NULL);
+    for(i=0; i<length; i++)
+    {
+        settings_scan_mark_add(p[i]);
+    }
+    g_free(p);
 
     g_key_file_free(keyfile);
 }
@@ -274,7 +334,12 @@ void settings_write()
     GError *error = NULL;
     gsize length;
     gchar *tmp;
+    gint *int_ptr = NULL;
     FILE *f;
+
+    /* Window */
+    g_key_file_set_integer(keyfile, "window", "x", conf.win_x);
+    g_key_file_set_integer(keyfile, "window", "y", conf.win_y);
 
     /* Connection */
     g_key_file_set_integer(keyfile, "connection", "network", conf.network);
@@ -290,9 +355,23 @@ void settings_write()
     g_key_file_set_integer(keyfile, "tuner", "deemphasis", conf.deemphasis);
 
     /* Interface */
-    g_key_file_set_integer(keyfile, "settings", "signal_display", conf.signal_display);
+    g_key_file_set_integer(keyfile, "settings", "init_freq", conf.init_freq);
+    g_key_file_set_double(keyfile, "settings", "signal_offset", conf.signal_offset);
     g_key_file_set_integer(keyfile, "settings", "signal_unit", conf.signal_unit);
-    g_key_file_set_integer(keyfile, "settings", "graph_height", conf.graph_height);
+    g_key_file_set_integer(keyfile, "settings", "event_action", conf.event_action);
+    g_key_file_set_boolean(keyfile, "settings", "utc", conf.utc);
+    g_key_file_set_boolean(keyfile, "settings", "autoconnect", conf.autoconnect);
+    g_key_file_set_boolean(keyfile, "settings", "amstep", conf.amstep);
+    g_key_file_set_boolean(keyfile, "settings", "disconnect_confirm", conf.disconnect_confirm);
+    g_key_file_set_boolean(keyfile, "settings", "auto_reconnect", conf.auto_reconnect);
+    g_key_file_set_boolean(keyfile, "settings", "grab_focus", conf.grab_focus);
+    g_key_file_set_boolean(keyfile, "settings", "hide_decorations", conf.hide_decorations);
+    g_key_file_set_boolean(keyfile, "settings", "hide_status", conf.hide_status);
+    g_key_file_set_boolean(keyfile, "settings", "restore_pos", conf.restore_pos);
+
+    /* Graph */
+    g_key_file_set_integer(keyfile, "settings", "signal_display", conf.signal_display);
+    g_key_file_set_integer(keyfile, "settings", "graph_mode", conf.graph_mode);
     tmp = gdk_color_to_string(&conf.color_mono);
     g_key_file_set_string(keyfile, "settings", "color_mono", tmp);
     g_free(tmp);
@@ -302,12 +381,9 @@ void settings_write()
     tmp = gdk_color_to_string(&conf.color_rds);
     g_key_file_set_string(keyfile, "settings", "color_rds", tmp);
     g_free(tmp);
-    g_key_file_set_boolean(keyfile, "settings", "signal_avg", conf.signal_avg);
+    g_key_file_set_integer(keyfile, "settings", "graph_height", conf.graph_height);
     g_key_file_set_boolean(keyfile, "settings", "show_grid", conf.show_grid);
-    g_key_file_set_boolean(keyfile, "settings", "utc", conf.utc);
-    g_key_file_set_boolean(keyfile, "settings", "alignment", conf.alignment);
-    g_key_file_set_boolean(keyfile, "settings", "autoconnect", conf.autoconnect);
-    g_key_file_set_boolean(keyfile, "settings", "amstep", conf.amstep);
+    g_key_file_set_boolean(keyfile, "settings", "signal_avg", conf.signal_avg);
 
     /* RDS */
     g_key_file_set_integer(keyfile, "rds", "rds_pty", conf.rds_pty);
@@ -320,6 +396,8 @@ void settings_write()
     g_key_file_set_integer(keyfile, "rds", "rt_data_error", conf.rt_data_error);
 
     /* Antenna */
+    g_key_file_set_boolean(keyfile, "antenna", "alignment", conf.alignment);
+    g_key_file_set_boolean(keyfile, "antenna", "swap_rotator", conf.swap_rotator);
     g_key_file_set_integer(keyfile, "antenna", "ant_count", conf.ant_count);
     g_key_file_set_boolean(keyfile, "antenna", "ant_clear_rds", conf.ant_clear_rds);
     g_key_file_set_boolean(keyfile, "antenna", "ant_switching", conf.ant_switching);
@@ -335,6 +413,8 @@ void settings_write()
     g_key_file_set_integer(keyfile, "logs", "stationlist_port", conf.stationlist_port);
     g_key_file_set_boolean(keyfile, "logs", "rds_logging", conf.rds_logging);
     g_key_file_set_boolean(keyfile, "logs", "replace_spaces", conf.replace_spaces);
+    g_key_file_set_string(keyfile, "logs", "log_dir", conf.log_dir);
+    g_key_file_set_string(keyfile, "logs", "screen_dir", conf.screen_dir);
 
     /* Keyboard */
     g_key_file_set_integer(keyfile, "keyboard", "key_tune_up", conf.key_tune_up);
@@ -352,6 +432,8 @@ void settings_write()
     g_key_file_set_integer(keyfile, "keyboard", "key_rotate_cw", conf.key_rotate_cw);
     g_key_file_set_integer(keyfile, "keyboard", "key_rotate_ccw", conf.key_rotate_ccw);
     g_key_file_set_integer(keyfile, "keyboard", "key_switch_ant", conf.key_switch_ant);
+    g_key_file_set_integer(keyfile, "keyboard", "key_ps_mode", conf.key_ps_mode);
+    g_key_file_set_integer(keyfile, "keyboard", "key_spectral_toggle", conf.key_spectral_toggle);
 
     /* Presets */
     g_key_file_set_integer_list(keyfile, "settings", "presets", conf.presets, PRESETS);
@@ -370,25 +452,46 @@ void settings_write()
     g_key_file_set_boolean(keyfile, "pattern", "pattern_avg", conf.pattern_avg);
 
     /* Spectral scan */
+    g_key_file_set_integer(keyfile, "scan", "scan_x", conf.scan_x);
+    g_key_file_set_integer(keyfile, "scan", "scan_y", conf.scan_y);
     g_key_file_set_integer(keyfile, "scan", "scan_width", conf.scan_width);
     g_key_file_set_integer(keyfile, "scan", "scan_height", conf.scan_height);
     g_key_file_set_integer(keyfile, "scan", "scan_start", conf.scan_start);
     g_key_file_set_integer(keyfile, "scan", "scan_end", conf.scan_end);
     g_key_file_set_integer(keyfile, "scan", "scan_step", conf.scan_step);
     g_key_file_set_integer(keyfile, "scan", "scan_bw", conf.scan_bw);
+    g_key_file_set_boolean(keyfile, "scan", "scan_continuous", conf.scan_continuous);
     g_key_file_set_boolean(keyfile, "scan", "scan_relative", conf.scan_relative);
+    g_key_file_set_boolean(keyfile, "scan", "scan_peakhold", conf.scan_peakhold);
+
+    if(conf.scan_freq_list)
+    {
+        GList *l = conf.scan_freq_list;
+        gint n = g_list_length(conf.scan_freq_list);
+        gint i = 0;
+
+        int_ptr = g_new(gint, n);
+        while(l)
+        {
+            int_ptr[i++] = GPOINTER_TO_INT(l->data);
+            l = l->next;
+        }
+
+        g_key_file_set_integer_list(keyfile, "scan", "scan_freq_list", int_ptr, n);
+    }
 
     if(!(tmp = g_key_file_to_data(keyfile, &length, &error)))
     {
-        dialog_error("Unable to generate the configuration file.");
+        dialog_error(APP_NAME, "Unable to generate the configuration file.");
         g_error_free(error);
         error = NULL;
     }
     g_key_file_free(keyfile);
+    g_free(int_ptr);
 
     if((f = fopen(CONF_FILE, "w")) == NULL)
     {
-        dialog_error("Unable to save the configuration file.");
+        dialog_error(APP_NAME, "Unable to save the configuration file.");
     }
     else
     {
@@ -402,10 +505,9 @@ void settings_write()
 void settings_dialog()
 {
     GtkWidget *dialog, *notebook;
-    GtkWidget *page_interface, *page_rds, *page_ant, *page_logs, *page_key, *page_presets, *page_about;
-    GtkWidget *table_signal, *l_display, *c_display, *l_unit, *c_unit, *l_height;
-    GtkWidget *s_height, *l_colors, *box_colors, *c_mono, *c_stereo, *c_rds;
-    GtkWidget *x_avg, *x_grid, *x_utc, *x_replace, *x_alignment, *x_autoconnect, *x_amstep;
+    GtkWidget *page_interface, *page_graph, *page_rds, *page_ant, *page_logs, *page_key, *page_presets, *page_about;
+    GtkWidget *table_interface, *box_init_freq, *l_init_freq, *l_init_freq_unit, *s_init_freq, *l_signal_offset, *box_signal_offset, *s_signal_offset, *l_signal_offset_unit, *l_unit, *c_unit, *x_utc, *x_replace, *x_alignment, *x_swap_rotator, *x_autoconnect, *x_amstep, *x_disconnect_confirm, *x_auto_reconnect, *l_event, *c_event, *x_hide_decorations, *x_hide_status, *x_restore_pos;
+    GtkWidget *table_graph, *l_display, *c_display, *l_graph_mode, *c_graph_mode, *l_height, *s_height, *l_colors, *box_colors, *c_mono, *c_stereo, *c_rds, *x_avg, *x_grid;
     GtkWidget *s_ant_start[ANT_COUNT], *s_ant_stop[ANT_COUNT];
 
     GtkWidget *table_logs;
@@ -437,46 +539,138 @@ void settings_dialog()
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_interface, gtk_label_new("Interface"));
     gtk_container_child_set(GTK_CONTAINER(notebook), page_interface, "tab-expand", FALSE, "tab-fill", FALSE, NULL);
 
-    table_signal = gtk_table_new(14, 2, TRUE);
-    gtk_table_set_homogeneous(GTK_TABLE(table_signal), FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(table_signal), 4);
-    gtk_table_set_col_spacings(GTK_TABLE(table_signal), 4);
-    gtk_container_add(GTK_CONTAINER(page_interface), table_signal);
+    table_interface = gtk_table_new(13, 2, TRUE);
+    gtk_table_set_homogeneous(GTK_TABLE(table_interface), FALSE);
+    gtk_table_set_row_spacings(GTK_TABLE(table_interface), 4);
+    gtk_table_set_col_spacings(GTK_TABLE(table_interface), 4);
+    gtk_container_add(GTK_CONTAINER(page_interface), table_interface);
+
 
     row = 0;
-    l_display = gtk_label_new("Signal display:");
-    gtk_misc_set_alignment(GTK_MISC(l_display), 0.0, 0.5);
-    gtk_table_attach(GTK_TABLE(table_signal), l_display, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-    c_display = gtk_combo_box_new_text();
-    gtk_combo_box_append_text(GTK_COMBO_BOX(c_display), "text only");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(c_display), "graph");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(c_display), "bar");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(c_display), conf.signal_display);
-    gtk_table_attach(GTK_TABLE(table_signal), c_display, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    l_init_freq = gtk_label_new("Initial frequency:");
+    gtk_misc_set_alignment(GTK_MISC(l_init_freq), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_interface), l_init_freq, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    box_init_freq = gtk_hbox_new(FALSE, 7);
+    s_init_freq = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.init_freq, TUNER_FREQ_MIN, TUNER_FREQ_MAX, 100.0, 200.0, 0.0)), 0, 0);
+    gtk_box_pack_start(GTK_BOX(box_init_freq), s_init_freq, TRUE, TRUE, 0);
+    l_init_freq_unit = gtk_label_new("kHz");
+    gtk_box_pack_start(GTK_BOX(box_init_freq), l_init_freq_unit, FALSE, FALSE, 0);
+    gtk_table_attach(GTK_TABLE(table_interface), box_init_freq, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+//    row++;
+//    l_signal_offset = gtk_label_new("Signal level offset:");
+//    gtk_misc_set_alignment(GTK_MISC(l_signal_offset), 0.0, 0.5);
+//    gtk_table_attach(GTK_TABLE(table_interface), l_signal_offset, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+//    box_signal_offset = gtk_hbox_new(FALSE, 7);
+//    s_signal_offset = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.signal_offset, -50.0, +50.0, 1.0, 2.0, 0.0)), 0, 1);
+//    gtk_box_pack_start(GTK_BOX(box_signal_offset), s_signal_offset, TRUE, TRUE, 0);
+//    l_signal_offset_unit = gtk_label_new("dB");
+//    gtk_box_pack_start(GTK_BOX(box_signal_offset), l_signal_offset_unit, FALSE, FALSE, 0);
+//    gtk_table_attach(GTK_TABLE(table_interface), box_signal_offset, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     l_unit = gtk_label_new("Signal unit:");
     gtk_misc_set_alignment(GTK_MISC(l_unit), 0.0, 0.5);
-    gtk_table_attach(GTK_TABLE(table_signal), l_unit, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_interface), l_unit, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     c_unit = gtk_combo_box_new_text();
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "dBf");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "dBm");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "dBuV");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_unit), "S-meter");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_unit), conf.signal_unit);
-    gtk_table_attach(GTK_TABLE(table_signal), c_unit, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_interface), c_unit, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    l_height = gtk_label_new("Graph height [px]:");
-    gtk_misc_set_alignment(GTK_MISC(l_height), 0.0, 0.5);
-    gtk_table_attach(GTK_TABLE(table_signal), l_height, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-    s_height = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.graph_height, 50.0, 300.0, 5.0, 10.0, 0.0)), 0, 0);
-    gtk_table_attach(GTK_TABLE(table_signal), s_height, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    l_event = gtk_label_new("External event:");
+    gtk_misc_set_alignment(GTK_MISC(l_event), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_interface), l_event, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    c_event = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_event), "no action");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_event), "grab focus");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_event), "screenshot");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(c_event), conf.event_action);
+    gtk_table_attach(GTK_TABLE(table_interface), c_event, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_utc = gtk_check_button_new_with_label("Use UTC instead of local time");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_utc), conf.utc);
+    gtk_table_attach(GTK_TABLE(table_interface), x_utc, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_autoconnect = gtk_check_button_new_with_label("Automatic connect on startup");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_autoconnect), conf.autoconnect);
+    gtk_table_attach(GTK_TABLE(table_interface), x_autoconnect, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_amstep = gtk_check_button_new_with_label("10kHz MW steps instead of 9kHz");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_amstep), conf.amstep);
+    gtk_table_attach(GTK_TABLE(table_interface), x_amstep, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_disconnect_confirm = gtk_check_button_new_with_label("Show disconnect confirmation");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_disconnect_confirm), conf.disconnect_confirm);
+    gtk_table_attach(GTK_TABLE(table_interface), x_disconnect_confirm, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_auto_reconnect = gtk_check_button_new_with_label("Automatic re-connect");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_auto_reconnect), conf.auto_reconnect);
+    gtk_table_attach(GTK_TABLE(table_interface), x_auto_reconnect, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_hide_decorations = gtk_check_button_new_with_label("Hide window decorations");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_hide_decorations), conf.hide_decorations);
+    gtk_table_attach(GTK_TABLE(table_interface), x_hide_decorations, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_hide_status = gtk_check_button_new_with_label("Hide statusbar (clock)");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_hide_status), conf.hide_status);
+    gtk_table_attach(GTK_TABLE(table_interface), x_hide_status, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_restore_pos = gtk_check_button_new_with_label("Restore window position");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_restore_pos), conf.restore_pos);
+    gtk_table_attach(GTK_TABLE(table_interface), x_restore_pos, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    /* Graph page */
+    page_graph = gtk_vbox_new(FALSE, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(page_graph), 4);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_graph, gtk_label_new("Graph"));
+    gtk_container_child_set(GTK_CONTAINER(notebook), page_graph, "tab-expand", FALSE, "tab-fill", FALSE, NULL);
+
+    table_graph = gtk_table_new(6, 2, TRUE);
+    gtk_table_set_homogeneous(GTK_TABLE(table_graph), FALSE);
+    gtk_table_set_row_spacings(GTK_TABLE(table_graph), 4);
+    gtk_table_set_col_spacings(GTK_TABLE(table_graph), 4);
+    gtk_container_add(GTK_CONTAINER(page_graph), table_graph);
+
+    row = 0;
+    l_display = gtk_label_new("Signal display:");
+    gtk_misc_set_alignment(GTK_MISC(l_display), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_graph), l_display, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    c_display = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_display), "text only");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_display), "graph");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_display), "bar");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(c_display), conf.signal_display);
+    gtk_table_attach(GTK_TABLE(table_graph), c_display, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    l_graph_mode = gtk_label_new("Frequency change:");
+    gtk_misc_set_alignment(GTK_MISC(l_graph_mode), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_graph), l_graph_mode, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    c_graph_mode = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_graph_mode), "no action");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_graph_mode), "reset graph");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_graph_mode), "add separator");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(c_graph_mode), conf.graph_mode);
+    gtk_table_attach(GTK_TABLE(table_graph), c_graph_mode, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     l_colors = gtk_label_new("Graph colors:");
     gtk_misc_set_alignment(GTK_MISC(l_colors), 0.0, 0.5);
-    gtk_table_attach(GTK_TABLE(table_signal), l_colors, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_graph), l_colors, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     box_colors = gtk_hbox_new(FALSE, 5);
     c_mono = gtk_color_button_new_with_color(&conf.color_mono);
@@ -494,37 +688,24 @@ void settings_dialog()
     gtk_widget_set_tooltip_text(c_rds, "RDS color");
     gtk_box_pack_start(GTK_BOX(box_colors), c_rds, TRUE, TRUE, 0);
 
-    gtk_table_attach(GTK_TABLE(table_signal), box_colors, 1, 2, row, row+1, 0, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_graph), box_colors, 1, 2, row, row+1, 0, 0, 0, 0);
 
     row++;
-    x_avg = gtk_check_button_new_with_label("Average the signal level in graph");
+    l_height = gtk_label_new("Graph height [px]:");
+    gtk_misc_set_alignment(GTK_MISC(l_height), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_graph), l_height, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    s_height = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.graph_height, 50.0, 300.0, 5.0, 10.0, 0.0)), 0, 0);
+    gtk_table_attach(GTK_TABLE(table_graph), s_height, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_avg = gtk_check_button_new_with_label("Average the signal level");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_avg), conf.signal_avg);
-    gtk_table_attach(GTK_TABLE(table_signal), x_avg, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_graph), x_avg, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    x_grid = gtk_check_button_new_with_label("Draw grid in graph");
+    x_grid = gtk_check_button_new_with_label("Draw grid");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_grid), conf.show_grid);
-    gtk_table_attach(GTK_TABLE(table_signal), x_grid, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
-    x_utc = gtk_check_button_new_with_label("Use UTC time");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_utc), conf.utc);
-    gtk_table_attach(GTK_TABLE(table_signal), x_utc, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
-    x_alignment = gtk_check_button_new_with_label("Show antenna input alignment");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_alignment), conf.alignment);
-    gtk_table_attach(GTK_TABLE(table_signal), x_alignment, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
-    x_autoconnect = gtk_check_button_new_with_label("Automatic connect on startup");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_autoconnect), conf.autoconnect);
-    gtk_table_attach(GTK_TABLE(table_signal), x_autoconnect, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
-    x_amstep = gtk_check_button_new_with_label("10kHz MW steps instead of 9kHz");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_amstep), conf.amstep);
-    gtk_table_attach(GTK_TABLE(table_signal), x_amstep, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table_graph), x_grid, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     /* RDS page */
     page_rds = gtk_vbox_new(FALSE, 5);
@@ -633,18 +814,32 @@ void settings_dialog()
     gtk_container_set_border_width(GTK_CONTAINER(page_ant), 4);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_ant, gtk_label_new("Antenna"));
 
-    GtkWidget *table_ant = gtk_table_new(10, 2, FALSE);
+    GtkWidget *table_ant = gtk_table_new(12, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_ant), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_ant), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_ant), 4);
     gtk_container_add(GTK_CONTAINER(page_ant), table_ant);
 
+
     row = 0;
-    GtkWidget *l_count = gtk_label_new("Antenna count:");
+    x_alignment = gtk_check_button_new_with_label("Show antenna input alignment");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_alignment), conf.alignment);
+    gtk_table_attach(GTK_TABLE(table_ant), x_alignment, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_swap_rotator = gtk_check_button_new_with_label("Swap antenna rotator buttons");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_swap_rotator), conf.swap_rotator);
+    gtk_table_attach(GTK_TABLE(table_ant), x_swap_rotator, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    gtk_table_attach(GTK_TABLE(table_ant), gtk_hseparator_new(), 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *l_count = gtk_label_new("Antenna switch count:");
     gtk_misc_set_alignment(GTK_MISC(l_count), 0.0, 0.5);
     gtk_table_attach(GTK_TABLE(table_ant), l_count, 0, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     GtkWidget *c_ant_count = gtk_combo_box_new_text();
-    gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "(hidden)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "hidden");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "2");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "3");
     gtk_combo_box_append_text(GTK_COMBO_BOX(c_ant_count), "4");
@@ -652,7 +847,7 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_ant), c_ant_count, 3, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    GtkWidget *x_ant_clear_rds = gtk_check_button_new_with_label("Reset RDS data");
+    GtkWidget *x_ant_clear_rds = gtk_check_button_new_with_label("Reset RDS data after switching");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_ant_clear_rds), conf.ant_clear_rds);
     gtk_table_attach(GTK_TABLE(table_ant), x_ant_clear_rds, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
@@ -683,7 +878,7 @@ void settings_dialog()
     gtk_container_set_border_width(GTK_CONTAINER(page_logs), 4);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_logs, gtk_label_new("Logs"));
 
-    table_logs = gtk_table_new(13, 2, FALSE);
+    table_logs = gtk_table_new(14, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_logs), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_logs), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_logs), 4);
@@ -704,7 +899,7 @@ void settings_dialog()
 
     row++;
     GtkWidget *l_rdsspy_port = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(l_rdsspy_port), "<a href=\"http://rdsspy.com/\">RDS Spy</a> ASCII G TCP Port:");
+    gtk_label_set_markup(GTK_LABEL(l_rdsspy_port), "<a href=\"http://rdsspy.com/\">RDS Spy</a> ASCII G Port:");
 #ifdef G_OS_WIN32
     g_signal_connect(l_rdsspy_port, "activate-link", G_CALLBACK(win32_uri), NULL);
 #endif
@@ -740,9 +935,6 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_logs), c_rdsspy_command, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    gtk_table_attach(GTK_TABLE(table_logs), gtk_hseparator_new(), 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
     x_stationlist = gtk_check_button_new_with_label("Enable SRCP (StationList)");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_stationlist), conf.stationlist);
     gtk_table_attach(GTK_TABLE(table_logs), x_stationlist, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
@@ -755,9 +947,6 @@ void settings_dialog()
     gtk_table_attach(GTK_TABLE(table_logs), s_stationlist_port, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    gtk_table_attach(GTK_TABLE(table_logs), gtk_hseparator_new(), 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
     x_rds_logging = gtk_check_button_new_with_label("Enable simple RDS logging");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_rds_logging), conf.rds_logging);
     gtk_table_attach(GTK_TABLE(table_logs), x_rds_logging, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
@@ -767,12 +956,34 @@ void settings_dialog()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_replace), conf.replace_spaces);
     gtk_table_attach(GTK_TABLE(table_logs), x_replace, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
+    row++;
+    GtkWidget *l_log_dir = gtk_label_new("Log directory:");
+    gtk_misc_set_alignment(GTK_MISC(l_log_dir), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_logs), l_log_dir, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *c_log_dir = gtk_file_chooser_button_new("Log directory", GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
+    if(strlen(conf.log_dir))
+    {
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(c_log_dir), conf.log_dir);
+    }
+    gtk_table_attach(GTK_TABLE(table_logs), c_log_dir, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *l_screen_dir = gtk_label_new("Screenshot directory:");
+    gtk_misc_set_alignment(GTK_MISC(l_screen_dir), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_logs), l_screen_dir, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *c_screen_dir = gtk_file_chooser_button_new("Screenshot directory", GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
+    if(strlen(conf.screen_dir))
+    {
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(c_screen_dir), conf.screen_dir);
+    }
+    gtk_table_attach(GTK_TABLE(table_logs), c_screen_dir, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
     /* Keyboard page */
     page_key = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(page_key), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_key, gtk_label_new("Keyboard"));
 
-    GtkWidget *table_key = gtk_table_new(14, 2, FALSE);
+    GtkWidget *table_key = gtk_table_new(17, 2, FALSE);
     gtk_container_set_border_width(GTK_CONTAINER(table_key), 4);
     gtk_table_set_homogeneous(GTK_TABLE(table_key), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_key), 1);
@@ -900,6 +1111,22 @@ void settings_dialog()
     GtkWidget *b_switch_ant = gtk_button_new_with_label(gdk_keyval_name(conf.key_switch_ant));
     g_signal_connect(b_switch_ant, "clicked", G_CALLBACK(settings_key), NULL);
     gtk_table_attach(GTK_TABLE(table_key), b_switch_ant, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *l_key_ps_mode = gtk_label_new("Toggle RDS PS mode");
+    gtk_misc_set_alignment(GTK_MISC(l_key_ps_mode), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_key_ps_mode, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *b_key_ps_mode = gtk_button_new_with_label(gdk_keyval_name(conf.key_ps_mode));
+    g_signal_connect(b_key_ps_mode, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_key_ps_mode, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    GtkWidget *l_spectral_toggle = gtk_label_new("Start/stop spectral scan");
+    gtk_misc_set_alignment(GTK_MISC(l_spectral_toggle), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_spectral_toggle, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    GtkWidget *b_key_spectral_toggle = gtk_button_new_with_label(gdk_keyval_name(conf.key_spectral_toggle));
+    g_signal_connect(b_key_spectral_toggle, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_key_spectral_toggle, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
 
     /* Presets page */
@@ -1053,18 +1280,28 @@ void settings_dialog()
     }
 
     /* Interface page */
-    conf.signal_display = gtk_combo_box_get_active(GTK_COMBO_BOX(c_display));
+    conf.init_freq = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_init_freq));
+//    conf.signal_offset = gtk_spin_button_get_value(GTK_SPIN_BUTTON(s_signal_offset));
     conf.signal_unit = gtk_combo_box_get_active(GTK_COMBO_BOX(c_unit));
-    conf.graph_height = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_height));
+    conf.event_action = gtk_combo_box_get_active(GTK_COMBO_BOX(c_event));
+    conf.utc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_utc));
+    conf.autoconnect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_autoconnect));
+    conf.amstep = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_amstep));
+    conf.disconnect_confirm = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_disconnect_confirm));
+    conf.auto_reconnect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_auto_reconnect));
+    conf.hide_decorations = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_hide_decorations));
+    conf.hide_status = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_hide_status));
+    conf.restore_pos = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_restore_pos));
+
+    /* Graph page */
+    conf.signal_display = gtk_combo_box_get_active(GTK_COMBO_BOX(c_display));
+    conf.graph_mode = gtk_combo_box_get_active(GTK_COMBO_BOX(c_graph_mode));
     gtk_color_button_get_color(GTK_COLOR_BUTTON(c_mono), &conf.color_mono);
     gtk_color_button_get_color(GTK_COLOR_BUTTON(c_stereo), &conf.color_stereo);
     gtk_color_button_get_color(GTK_COLOR_BUTTON(c_rds), &conf.color_rds);
-    conf.show_grid = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_grid));
+    conf.graph_height = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_height));
     conf.signal_avg = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_avg));
-    conf.utc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_utc));
-    conf.alignment = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_alignment));
-    conf.autoconnect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_autoconnect));
-    conf.amstep = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_amstep));
+    conf.show_grid = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_grid));
 
     /* RDS page */
     conf.rds_pty = gtk_combo_box_get_active(GTK_COMBO_BOX(c_pty));
@@ -1076,7 +1313,9 @@ void settings_dialog()
     conf.rt_info_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rt_info_error));
     conf.rt_data_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rt_data_error));
 
-    /* PAGE ANTENNA */
+    /* Antenna page */
+    conf.alignment = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_alignment));
+    conf.swap_rotator = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_swap_rotator));
     conf.ant_count = gtk_combo_box_get_active(GTK_COMBO_BOX(c_ant_count))+1;
     conf.ant_clear_rds = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ant_clear_rds));
     conf.ant_switching = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ant));
@@ -1110,6 +1349,10 @@ void settings_dialog()
     }
     conf.rds_logging = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rds_logging));
     conf.replace_spaces = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_replace));
+    g_free(conf.log_dir);
+    conf.log_dir = settings_read_string(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(c_log_dir)));
+    g_free(conf.screen_dir);
+    conf.screen_dir = settings_read_string(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(c_screen_dir)));
 
     /* Keyboard page */
     conf.key_tune_up = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_tune_up)));
@@ -1127,6 +1370,8 @@ void settings_dialog()
     conf.key_rotate_cw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_cw)));
     conf.key_rotate_ccw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_ccw)));
     conf.key_switch_ant = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_switch_ant)));
+    conf.key_ps_mode = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_ps_mode)));
+    conf.key_spectral_toggle = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_spectral_toggle)));
 
     /* Presets page */
     for(i=0; i<PRESETS; i++)
@@ -1139,10 +1384,13 @@ void settings_dialog()
     scheduler_stop();
     conf.scheduler_default_timeout = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_scheduler_timeout));
 
+
     settings_write();
     graph_resize();
     signal_display();
     gui_antenna_showhide();
+    gui_rotator_button_swap();
+
     if(conf.alignment)
     {
         gtk_widget_show(gui.hs_align);
@@ -1151,6 +1399,18 @@ void settings_dialog()
     {
         gtk_widget_hide(gui.hs_align);
     }
+    if(conf.hide_status)
+    {
+        gtk_widget_hide(gui.l_status);
+    }
+    else
+    {
+        gtk_widget_show(gui.l_status);
+    }
+
+    gtk_window_set_decorated(GTK_WINDOW(gui.window), !conf.hide_decorations);
+    gtk_window_set_resizable(GTK_WINDOW(gui.window), FALSE);
+    gtk_widget_modify_bg(gui.frame, GTK_STATE_NORMAL, (conf.hide_decorations?&gui.colors.grey:&gui.colors.background));
     gtk_widget_destroy(dialog);
 }
 
@@ -1321,4 +1581,57 @@ gboolean settings_scheduler_add_key_idle(gpointer ptr)
 {
     gtk_button_clicked(GTK_BUTTON(ptr));
     return FALSE;
+}
+
+void settings_scan_mark_add(gint frequency)
+{
+    gpointer value = GINT_TO_POINTER(frequency);
+    if(!g_list_find(conf.scan_freq_list, value))
+    {
+        conf.scan_freq_list = g_list_prepend(conf.scan_freq_list, value);
+    }
+}
+
+void settings_scan_mark_toggle(gint frequency)
+{
+    gpointer value = GINT_TO_POINTER(frequency);
+    GList* ptr = g_list_find(conf.scan_freq_list, value);
+    if(ptr)
+    {
+        conf.scan_freq_list = g_list_delete_link(conf.scan_freq_list, ptr);
+    }
+    else
+    {
+        conf.scan_freq_list = g_list_prepend(conf.scan_freq_list, value);
+    }
+}
+
+void settings_scan_mark_remove(gint frequency)
+{
+    gpointer value = GINT_TO_POINTER(frequency);
+    conf.scan_freq_list = g_list_remove(conf.scan_freq_list, value);
+}
+
+void settings_scan_mark_clear(gint from, gint to)
+{
+    GList* ptr = conf.scan_freq_list;
+    gint freq;
+
+    while(ptr)
+    {
+        GList *next = ptr->next;
+        freq = GPOINTER_TO_INT(ptr->data);
+        if(freq >= from && freq <= to)
+        {
+            conf.scan_freq_list = g_list_delete_link(conf.scan_freq_list, ptr);
+        }
+        ptr = next;
+    }
+}
+
+
+void settings_scan_mark_clear_all()
+{
+    g_list_free(conf.scan_freq_list);
+    conf.scan_freq_list = NULL;
 }

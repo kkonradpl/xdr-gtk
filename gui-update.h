@@ -24,5 +24,6 @@ gboolean gui_update_rotator(gpointer data);
 gboolean gui_update_alignment(gpointer data);
 gboolean gui_clear_power_off();
 gboolean gui_update_pilot(gpointer data);
+gboolean gui_external_event(gpointer data);
 
 #endif

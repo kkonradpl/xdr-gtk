@@ -17,6 +17,7 @@ void connection_dialog_connected(gint);
 gboolean connection_socket_callback(gpointer);
 gboolean connection_socket_callback_info(gpointer);
 gboolean connection_socket_auth_fail(gpointer);
+gboolean connection_confirm_disconnect();
 
 #endif
 

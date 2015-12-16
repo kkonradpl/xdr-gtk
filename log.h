@@ -5,7 +5,7 @@
 gboolean log_prepare();
 void log_timestamp();
 void log_cleanup();
-void log_pi(pi_t*);
+void log_pi(gint, gboolean);
 void log_af(const gchar*);
 void log_ps(const gchar*, const guchar*);
 void log_rt(guint8, const gchar*);

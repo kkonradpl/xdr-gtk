@@ -24,6 +24,8 @@
 #include <sys/ioctl.h>
 #endif
 
+#define DEFAULT_RDS_TIMER 2
+
 gint filters[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 29, 2, 28, 1, 26, 0, 24, 23, 22, 21, 20, 19, 18, 17, 16, 31, -1};
 gint filters_bw[][FILTERS_N] =
 {
@@ -242,24 +244,23 @@ void tuner_parse(gchar c, gchar msg[])
     }
     else if(c == 'P') // PI code
     {
-        guint16 pi = strtoul(msg, NULL, 16);
-        gboolean checked = (msg[4] != '?');
+        guint pi = strtoul(msg, NULL, 16);
+        gboolean checked = !(strlen(msg) > 4 && msg[4] == '?');
+        gint value;
 
-        tuner.rds_timer = 2;
+        tuner.rds_timer = DEFAULT_RDS_TIMER;
         if(conf.rds_reset)
         {
             s.rds_reset_timer = g_get_real_time();
         }
 
+
         if(tuner.pi != pi || tuner.pi_checked != checked)
         {
             tuner.pi = pi;
             tuner.pi_checked = checked;
-
-            pi_t* p = g_new(pi_t, 1);
-            p->pi = pi;
-            p->checked = checked;
-            g_idle_add(gui_update_pi, (gpointer)p);
+            value = pi | ((!checked) << 16);
+            g_idle_add(gui_update_pi, GUINT_TO_POINTER(value));
         }
     }
     else if(c == 'R') // RDS data
@@ -281,7 +282,7 @@ void tuner_parse(gchar c, gchar msg[])
             gboolean flag = (data[BLOCK_B] & 0x0800) >> 11;
             guchar err[] = { (errors&3), ((errors&12)>>2), ((errors&48)>>4) };
 
-            rdsspy_send((tuner.rds_timer?tuner.pi:-1), msg, errors);
+            rdsspy_send((tuner.rds_timer?(tuner.pi&0xFFFF):-1), msg, errors);
 
             // PTY, TP, TA, MS, AF, ECC: error-free blocks
             if(!err[BLOCK_B])
@@ -429,35 +430,37 @@ void tuner_parse(gchar c, gchar msg[])
         for(i=0; i<strlen(msg); i++)
             if(msg[i] == ',')
                 n++;
-        scan_data_t* data = g_new(scan_data_t, 1);
-        data->len = n;
-        data->min = 100;
-        data->max = 0;
-        data->signals = g_new(scan_node_t, data->len);
-        for(i=0; i<strlen(msg); i++)
+        if(n)
         {
-            if(msg[i] == '=')
+            scan_data_t* data = g_new(scan_data_t, 1);
+            data->len = n;
+            data->min = G_MAXINT;
+            data->max = G_MININT;
+            data->signals = g_new(scan_node_t, data->len);
+            for(i=0; i<strlen(msg); i++)
             {
-                tmp[j] = 0;
-                data->signals[k].freq = atoi(tmp);
-                j = 0;
+                if(msg[i] == '=')
+                {
+                    tmp[j] = 0;
+                    data->signals[k].freq = atoi(tmp);
+                    j = 0;
+                }
+                else if(msg[i] == ',')
+                {
+                    tmp[j] = 0;
+                    sscanf(tmp, "%f", &data->signals[k].signal);
+                    j = 0;
+                    if(data->signals[k].signal > data->max)
+                        data->max = ceil(data->signals[k].signal);
+                    if(data->signals[k].signal < data->min)
+                        data->min = floor(data->signals[k].signal);
+                    k++;
+                }
+                else
+                    tmp[j++] = msg[i];
             }
-            else if(msg[i] == ',')
-            {
-                tmp[j] = 0;
-                sscanf(tmp, "%f", &data->signals[k].signal);
-                //data->signals[k].signal = atoi(tmp);
-                j = 0;
-                if(data->signals[k].signal > data->max)
-                    data->max = data->signals[k].signal;
-                if(data->signals[k].signal < data->min)
-                    data->min = data->signals[k].signal;
-                k++;
-            }
-            else
-                tmp[j++] = msg[i];
+            g_idle_add(scan_update, (gpointer)data);
         }
-        g_idle_add(scan_update, (gpointer)data);
     }
     else if(c == 'N') // stereo pilot level test
     {
@@ -486,6 +489,10 @@ void tuner_parse(gchar c, gchar msg[])
             g_idle_add(gui_clear_rds, NULL);
             rdsspy_reset();
         }
+    }
+    else if(c == '!') // RDS data reset after antenna switching
+    {
+        g_idle_add(gui_external_event, NULL);
     }
     else if(c == 'G') // RF/IF Gain (network)
     {

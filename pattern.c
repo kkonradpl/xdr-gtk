@@ -11,18 +11,19 @@ void pattern_dialog()
 {
     if(pattern.window)
     {
-        gtk_window_present(GTK_WINDOW(pattern.dialog));
+        gtk_window_present(GTK_WINDOW(pattern.window));
         return;
     }
     pattern_init(0);
-    pattern.dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(pattern.dialog), "Antenna pattern");
-    gtk_window_set_icon_name(GTK_WINDOW(pattern.dialog), "xdr-gtk-pattern");
-    gtk_window_set_resizable(GTK_WINDOW(pattern.dialog), FALSE);
-    gtk_container_set_border_width(GTK_CONTAINER(pattern.dialog), 5);
+    pattern.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(pattern.window), "Antenna pattern");
+    gtk_window_set_icon_name(GTK_WINDOW(pattern.window), "xdr-gtk-pattern");
+    gtk_window_set_resizable(GTK_WINDOW(pattern.window), FALSE);
+    gtk_container_set_border_width(GTK_CONTAINER(pattern.window), 5);
+    gtk_window_set_transient_for(GTK_WINDOW(pattern.window), GTK_WINDOW(gui.window));
 
     GtkWidget *content = gtk_vbox_new(FALSE, 4);
-    gtk_container_add(GTK_CONTAINER(pattern.dialog), content);
+    gtk_container_add(GTK_CONTAINER(pattern.window), content);
 
     GtkWidget *menu_box = gtk_hbox_new(FALSE, 4);
     gtk_container_add(GTK_CONTAINER(content), menu_box);
@@ -49,7 +50,7 @@ void pattern_dialog()
 
     pattern.b_close = gtk_button_new_with_label("Close");
     gtk_button_set_image(GTK_BUTTON(pattern.b_close), gtk_image_new_from_stock(GTK_STOCK_CLOSE, GTK_ICON_SIZE_BUTTON));
-    g_signal_connect_swapped(pattern.b_close, "clicked", G_CALLBACK(gui_pattern_destroy), pattern.dialog);
+    g_signal_connect_swapped(pattern.b_close, "clicked", G_CALLBACK(gui_pattern_destroy), pattern.window);
     gtk_box_pack_start(GTK_BOX(menu_box), pattern.b_close, TRUE, TRUE, 0);
 
     GtkWidget *settings_box = gtk_hbox_new(FALSE, 4);
@@ -74,6 +75,10 @@ void pattern_dialog()
 
     GtkWidget *plot_settings_box = gtk_hbox_new(FALSE, 4);
     gtk_container_add(GTK_CONTAINER(content), plot_settings_box);
+
+    pattern.b_reverse = gtk_button_new_with_label("Rev");
+    g_signal_connect(pattern.b_reverse, "clicked", G_CALLBACK(pattern_reverse), NULL);
+    gtk_box_pack_start(GTK_BOX(plot_settings_box), pattern.b_reverse, TRUE, TRUE, 0);
 
     pattern.b_rotate_ll = gtk_button_new_with_label("");
     gtk_button_set_image(GTK_BUTTON(pattern.b_rotate_ll), gtk_image_new_from_stock(GTK_STOCK_MEDIA_REWIND, GTK_ICON_SIZE_MENU));
@@ -113,10 +118,10 @@ void pattern_dialog()
     g_signal_connect_swapped(pattern.avg, "toggled", G_CALLBACK(gtk_widget_queue_draw), pattern.image);
 
     g_signal_connect(pattern.image, "expose-event", G_CALLBACK(draw_pattern), NULL);
-    g_signal_connect(pattern.dialog, "destroy", G_CALLBACK(gui_pattern_destroy), NULL);
+    g_signal_connect(pattern.window, "destroy", G_CALLBACK(gui_pattern_destroy), NULL);
 
-    gtk_widget_show_all(pattern.dialog);
-    pattern.window = TRUE;
+    gtk_widget_show_all(pattern.window);
+    gtk_window_set_transient_for(GTK_WINDOW(pattern.window), NULL);
 }
 
 gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
@@ -138,7 +143,7 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
     cr = gdk_cairo_create(widget->window);
     cairo_set_line_width(cr, 1);
-    cairo_select_font_face(cr, "Bitstream Vera Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(cr, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 
     // clear image
     cairo_set_source_rgb(cr, 1, 1, 1);
@@ -285,15 +290,15 @@ gboolean draw_pattern(GtkWidget *widget, GdkEventExpose *event, gpointer data)
     return FALSE;
 }
 
-void gui_pattern_destroy(gpointer dialog)
+void gui_pattern_destroy(GtkWidget* widget, gpointer user_data)
 {
-    pattern.window = FALSE;
     pattern_clear();
     conf.pattern_size = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(pattern.s_size));
     conf.pattern_fill = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.fill));
     conf.pattern_avg = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pattern.avg));
-    settings_write();
-    gtk_widget_destroy(GTK_WIDGET(dialog));
+
+    gtk_widget_destroy(GTK_WIDGET(widget));
+    pattern.window = NULL;
 }
 
 void pattern_init(gint freq)
@@ -343,6 +348,7 @@ void pattern_start(GtkWidget *widget, gpointer data)
         gtk_widget_set_sensitive(pattern.b_load, FALSE);
         gtk_widget_set_sensitive(pattern.b_save, FALSE);
         gtk_widget_set_sensitive(pattern.b_save_img, FALSE);
+        gtk_widget_set_sensitive(pattern.b_reverse, FALSE);
     }
     else
     {
@@ -351,6 +357,7 @@ void pattern_start(GtkWidget *widget, gpointer data)
         gtk_widget_set_sensitive(pattern.b_load, TRUE);
         gtk_widget_set_sensitive(pattern.b_save, TRUE);
         gtk_widget_set_sensitive(pattern.b_save_img, TRUE);
+        gtk_widget_set_sensitive(pattern.b_reverse, TRUE);
     }
 
     gtk_widget_queue_draw(pattern.image);
@@ -382,7 +389,7 @@ void pattern_load(GtkWidget *widget, gpointer data)
         fgets(buff, sizeof(buff), f);
         if(!sscanf(buff, "%d", &freq))
         {
-            dialog_error("Wrong file format?");
+            dialog_error("Antenna pattern", "Error: Invalid file format");
         }
         else
         {
@@ -406,7 +413,7 @@ void pattern_load(GtkWidget *widget, gpointer data)
     }
     else
     {
-        dialog_error("Unable to open the file");
+        dialog_error("Antenna pattern", "Unable to open the file");
     }
     g_free(filename);
 }
@@ -456,7 +463,7 @@ void pattern_save(GtkWidget *widget, gpointer data)
     }
     else
     {
-        dialog_error("Unable to save the file");
+        dialog_error("Antenna pattern", "Unable to save the file");
     }
     g_free(filename);
 }
@@ -576,4 +583,23 @@ void pattern_rotate(GtkWidget *widget, gpointer data)
         }
         gtk_widget_queue_draw(pattern.image);
     }
+}
+
+void pattern_reverse(GtkWidget *widget, gpointer data)
+{
+    pattern_sig_t *prev = NULL;
+    pattern_sig_t *current = pattern.head;
+    pattern_sig_t *next;
+    pattern.head = pattern.tail;
+    pattern.tail = current;
+    while(current)
+    {
+        next = current->next;
+        current->next = prev;
+        prev = current;
+        current = next;
+    }
+    pattern.rotate_i = -pattern.rotate_i-1;
+    pattern.peak_i = pattern.count - pattern.peak_i - 1;
+    gtk_widget_queue_draw(pattern.image);
 }

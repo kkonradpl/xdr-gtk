@@ -7,6 +7,7 @@
 #include "log.h"
 #include "tuner.h"
 #include "settings.h"
+#include "gui.h"
 
 #ifdef G_OS_WIN32
 #define LOG_NL "\r\n"
@@ -14,15 +15,16 @@
 #define LOG_NL "\n"
 #endif
 
-#define LOG_PATH "./logs"
 FILE *logfp = NULL;
 gchar ps_buff[9];
 gchar rt_buff[2][65];
 gboolean ps_buff_error;
+gchar* default_log_path = "./logs";
 
 gboolean log_prepare()
 {
     gchar t[16], t2[16], path[100];
+    gchar* directory;
     time_t tt;
 
     if(!conf.rds_logging)
@@ -36,22 +38,30 @@ gboolean log_prepare()
         return TRUE;
     }
 
+    directory = ((conf.log_dir && strlen(conf.log_dir)) ? conf.log_dir : default_log_path);
+
     g_sprintf(ps_buff, "%8s", "");
     g_sprintf(rt_buff[0], "%64s", "");
     g_sprintf(rt_buff[1], "%64s", "");
     ps_buff_error = TRUE;
 
-    g_snprintf(path, sizeof(path), "%s/", LOG_PATH);
+    g_snprintf(path, sizeof(path), "%s/", directory);
     g_mkdir(path, 0755);
 
     tt = time(NULL);
     strftime(t, sizeof(t), "%Y-%m-%d", (conf.utc)?gmtime(&tt):localtime(&tt));
     strftime(t2, sizeof(t2), "%H%M%S", (conf.utc)?gmtime(&tt):localtime(&tt));
-    g_snprintf(path, sizeof(path), "%s/%s/", LOG_PATH, t);
+    g_snprintf(path, sizeof(path), "%s/%s/", directory, t);
     g_mkdir(path, 0755);
 
-    g_snprintf(path, sizeof(path), "%s/%s/%d-%s.txt", LOG_PATH, t, tuner.freq, t2);
+    g_snprintf(path, sizeof(path), "%s/%s/%d-%s.txt", directory, t, tuner.freq, t2);
     logfp = fopen(path, "w");
+
+    if(!logfp)
+    {
+        gui_status(2000, "<b>Failed to create a log. Check logging directory in settings.</b>");
+    }
+
     return GPOINTER_TO_INT(logfp);
 }
 
@@ -77,19 +87,16 @@ void log_cleanup()
     }
 }
 
-void log_pi(pi_t* data)
+void log_pi(gint pi, gboolean unsure)
 {
     if(!log_prepare())
         return;
+
     log_timestamp();
-    if(!data->checked)
-    {
-        fprintf(logfp, "PI\t%04X\t?%s", data->pi, LOG_NL);
-    }
-    else
-    {
-        fprintf(logfp, "PI\t%04X%s", data->pi, LOG_NL);
-    }
+    fprintf(logfp, "PI\t%04X%s%s",
+            pi,
+            (unsure ? "\t?" : ""),
+            LOG_NL);
 }
 
 void log_af(const gchar* af)

@@ -47,7 +47,7 @@ void rdsspy_toggle()
         {
             if(!g_spawn_async(NULL, command, NULL, G_SPAWN_DO_NOT_REAP_CHILD, 0, NULL, &rdsspy_pid, &error))
             {
-                dialog_error("Unable to start RDS Spy:\n%s", error->message);
+                dialog_error("RDS Spy link", "Unable to start RDS Spy:\n%s", error->message);
                 g_error_free(error);
             }
             else
@@ -84,7 +84,7 @@ gboolean rdsspy_init(gint port)
     rdsspy_socket = socket(AF_INET, SOCK_STREAM, 0);
     if(rdsspy_socket < 0)
     {
-        dialog_error("rdsspy_init: socket");
+        dialog_error("RDS Spy link", "rdsspy_init: socket");
         return FALSE;
     }
 
@@ -92,7 +92,7 @@ gboolean rdsspy_init(gint port)
     int on = 1;
     if(setsockopt(rdsspy_socket, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on)) < 0)
     {
-        dialog_error("rdsspy_init: SO_REUSEADDR");
+        dialog_error("RDS Spy link", "rdsspy_init: SO_REUSEADDR");
         return FALSE;
     }
 #endif
@@ -105,7 +105,7 @@ gboolean rdsspy_init(gint port)
 
     if(bind(rdsspy_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
-        dialog_error("RDS Spy link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", port);
+        dialog_error("RDS Spy link", "Failed to bind to a port: %d.\nIt may be already in use by another application.", port);
         closesocket(rdsspy_socket);
         rdsspy_socket = -1;
         rdsspy_toggle_button(GINT_TO_POINTER(FALSE));

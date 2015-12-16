@@ -13,7 +13,7 @@ typedef struct pattern_sig
 
 typedef struct pattern
 {
-    gboolean window;
+    GtkWidget* window;
     volatile gboolean active;
 
     gint freq;
@@ -22,7 +22,6 @@ typedef struct pattern
     gint peak_i;
     gint rotate_i;
 
-    GtkWidget* dialog;
     GtkWidget* b_start;
     GtkWidget* b_load;
     GtkWidget* b_save;
@@ -35,7 +34,7 @@ typedef struct pattern
     GtkWidget* e_title;
 
     GtkWidget* image;
-
+    GtkWidget* b_reverse;
     GtkWidget* b_rotate_ll;
     GtkWidget* b_rotate_l;
     GtkWidget* b_rotate_peak;
@@ -52,7 +51,7 @@ pattern_t pattern;
 
 void pattern_dialog();
 gboolean gui_pattern(gpointer);
-void gui_pattern_destroy(gpointer);
+void gui_pattern_destroy(GtkWidget*, gpointer);
 gboolean draw_pattern(GtkWidget*, GdkEventExpose*, gpointer);
 
 void pattern_init(gint);
@@ -66,5 +65,6 @@ gboolean pattern_update();
 void pattern_clear();
 gfloat pattern_log_signal(gfloat);
 void pattern_rotate(GtkWidget*, gpointer);
+void pattern_reverse(GtkWidget*, gpointer);
 
 #endif

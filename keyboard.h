@@ -3,5 +3,6 @@
 
 gboolean keyboard_press(GtkWidget*, GdkEventKey*, gpointer);
 gboolean keyboard_release(GtkWidget*, GdkEventKey*, gpointer);
-void save_screenshot();
+gboolean window_click(GtkWidget *widget, GdkEventButton *event, GtkWindow* window);
+
 #endif

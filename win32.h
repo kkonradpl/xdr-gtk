@@ -7,4 +7,6 @@ void win32_cleanup();
 char *strsep(char**, char*);
 gboolean win32_uri(GtkWidget*, gchar*, gpointer);
 gint win32_dialog_workaround(GtkDialog*);
+void win32_grab_focus(GtkWindow*);
+
 #endif

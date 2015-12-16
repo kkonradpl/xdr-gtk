@@ -24,17 +24,21 @@ GtkListStore *ls_host;
 
 conn_t* connecting;
 gboolean wait_for_tuner;
+gboolean successfully_connected = FALSE;
 
 void connection_toggle()
 {
     if(tuner.thread)
     {
-        /* The tuner is connected, shutdown it */
-        tuner_write("X");
-        /* Lock the connection button until the thread ends */
-        gtk_widget_set_sensitive(gui.b_connect, FALSE);
-        g_usleep(100000);
-        tuner.thread = FALSE;
+        if(!conf.disconnect_confirm || connection_confirm_disconnect())
+        {
+            /* The tuner is connected, shutdown it */
+            tuner_write("X");
+            /* Lock the connection button until the thread ends */
+            gtk_widget_set_sensitive(gui.b_connect, FALSE);
+            g_usleep(100000);
+            tuner.thread = FALSE;
+        }
         return;
     }
 
@@ -46,7 +50,7 @@ void connection_toggle()
     connection_dialog(FALSE);
 }
 
-void connection_dialog(gboolean autoconnect)
+void connection_dialog(gboolean auto_connect)
 {
     gint i;
     connecting = NULL;
@@ -191,7 +195,7 @@ void connection_dialog(gboolean autoconnect)
     gtk_widget_hide(spinner);
     gtk_widget_hide(l_status);
     connect_button(FALSE);
-    if(autoconnect)
+    if(auto_connect || (conf.auto_reconnect && successfully_connected))
     {
         gtk_button_clicked(GTK_BUTTON(b_connect));
     }
@@ -234,7 +238,6 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
             g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, serial);
             settings_update_string(&conf.serial, serial);
             conf.network = FALSE;
-            settings_write();
 
             connection_serial_state(open_serial(serial));
             g_free(serial);
@@ -254,7 +257,6 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
         {
             settings_update_string(&conf.password, password);
         }
-        settings_write();
 
         g_thread_unref(g_thread_new("open_socket", open_socket, connecting));
     }
@@ -330,6 +332,7 @@ void connection_serial_state(gint result)
         connection_dialog_status("Unable to set serial port speed.");
         break;
     }
+    successfully_connected = FALSE;
     connection_dialog_unlock(TRUE);
 }
 
@@ -361,8 +364,11 @@ void connection_dialog_connected(gint mode)
             connection_dialog_unlock(TRUE);
             connection_dialog_status("Connection has been unexpectedly closed.");
         }
+        successfully_connected = FALSE;
         return;
     }
+
+    successfully_connected = TRUE;
 
     if(mode == MODE_SERIAL)
     {
@@ -463,4 +469,19 @@ gboolean connection_socket_auth_fail(gpointer ptr)
         connection_dialog_unlock(TRUE);
     }
     return FALSE;
+}
+
+gboolean connection_confirm_disconnect()
+{
+    GtkWidget *dialog;
+    gint response;
+    dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window),
+                                    GTK_DIALOG_MODAL,
+                                    GTK_MESSAGE_QUESTION,
+                                    GTK_BUTTONS_YES_NO,
+                                    "Are you sure you want to disconnect?");
+    gtk_window_set_title(GTK_WINDOW(dialog), APP_NAME);
+    response = gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    return (response == GTK_RESPONSE_YES);
 }

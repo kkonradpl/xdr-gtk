@@ -8,6 +8,7 @@
 #include "pattern.h"
 #include "settings.h"
 #include "sig.h"
+#include "scan.h"
 #include "stationlist.h"
 #include "version.h"
 #include "log.h"
@@ -37,8 +38,22 @@ gboolean gui_update_freq(gpointer data)
     gtk_label_set_text(GTK_LABEL(gui.l_freq), buffer);
     stationlist_freq(GPOINTER_TO_INT(data));
     s.max = 0;
-    gui_clear_rds();
+    s.samples = 0;
+    s.sum = 0;
+    g_idle_add(gui_clear_rds, NULL);
     log_cleanup();
+    if(conf.grab_focus)
+    {
+        gui_activate();
+    }
+    if(conf.graph_mode == GRAPH_RESET)
+    {
+        signal_clear();
+    }
+    else if(conf.graph_mode == GRAPH_SEPARATOR)
+    {
+        signal_separator();
+    }
     return FALSE;
 }
 
@@ -46,6 +61,8 @@ gboolean gui_update_signal(gpointer data)
 {
     s_data_t* signal = (s_data_t*)data;
     signal_push(signal->value, signal->stereo, signal->rds);
+
+    scan_check_finished();
 
     if(s.stereo != signal->stereo)
     {
@@ -64,7 +81,7 @@ gboolean gui_update_signal(gpointer data)
         stationlist_rcvlevel(lround(signal->value));
     }
 
-    if((s.pos % 3) == 0) // slower signal level label refresh (~5 fps)
+    if((s.pos % 3) == 1) // slower signal level label refresh (~5 fps)
     {
         gchar *str, *s_m, *s_m2;
         if(tuner.mode == MODE_FM)
@@ -72,30 +89,45 @@ gboolean gui_update_signal(gpointer data)
             switch(conf.signal_unit)
             {
             case UNIT_DBM:
-                str = g_markup_printf_escaped("<span color=\"#777777\">%4.0f↑</span>%4.0fdBm", s.max-120, signal->value-120);
+                str = g_markup_printf_escaped("<span color=\"#777777\">%4.0f%s</span>%4.0fdBm",
+                                              signal_level(s.max),
+                                              ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
+                                              signal_level(signal->value));
                 break;
 
             case UNIT_DBUV:
-                str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span>%3.0f dBµV", s.max-11.25, signal->value-11.25);
+                str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f%s</span>%3.0f dBµV",
+                                              signal_level(s.max),
+                                              ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
+                                              signal_level(signal->value));
                 break;
 
             case UNIT_S:
-                s_m = s_meter(s.max);
-                s_m2 = s_meter(signal->value);
-                str = g_markup_printf_escaped("<span color=\"#777777\">%5s↑</span>%5s", s_m, s_m2);
+                s_m = s_meter(signal_level(s.max));
+                s_m2 = s_meter(signal_level(signal->value));
+                str = g_markup_printf_escaped("<span color=\"#777777\">%5s%s</span>%5s",
+                                              s_m,
+                                              ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
+                                              s_m2);
                 g_free(s_m);
                 g_free(s_m2);
                 break;
 
             case UNIT_DBF:
             default:
-                str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span>%3.0f dBf", s.max, signal->value);
+                str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f%s</span>%3.0f dBf",
+                                              signal_level(s.max),
+                                              ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
+                                              signal_level(signal->value));
                 break;
             }
         }
         else
         {
-            str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f↑</span> %3.0f", s.max, signal->value);
+            str = g_markup_printf_escaped("<span color=\"#777777\">%3.0f%s</span> %3.0f",
+                                          signal_level(s.max),
+                                          ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
+                                          signal_level(signal->value));
         }
         gtk_label_set_markup(GTK_LABEL(gui.l_sig), str);
         g_free(str);
@@ -119,20 +151,18 @@ gboolean gui_update_signal(gpointer data)
 
 gboolean gui_update_pi(gpointer data)
 {
-    pi_t* pi = (pi_t*)data;
+    gint pi = GPOINTER_TO_INT(data) & 0xFFFF;
+    gboolean unsure = (GPOINTER_TO_INT(data) & 0x10000);
     gchar buffer[6];
-    if(pi->checked)
-    {
-        g_snprintf(buffer, sizeof(buffer), "%04X", pi->pi);
-    }
-    else
-    {
-        g_snprintf(buffer, sizeof(buffer), "%04X?", pi->pi);
-    }
+
+    g_snprintf(buffer, sizeof(buffer),
+               "%04X%s",
+               pi,
+               (unsure ? "?" : ""));
     gtk_label_set_text(GTK_LABEL(gui.l_pi), buffer);
-    stationlist_pi(pi->pi);
-    log_pi(pi);
-    g_free(data);
+
+    stationlist_pi(pi);
+    log_pi(pi, unsure);
     return FALSE;
 }
 
@@ -392,5 +422,21 @@ gboolean gui_update_pilot(gpointer data)
     gtk_dialog_run(GTK_DIALOG(dialog));
 #endif
     gtk_widget_destroy(dialog);
+    return FALSE;
+}
+
+gboolean gui_external_event(gpointer data)
+{
+    switch(conf.event_action)
+    {
+        case ACTION_NONE:
+            break;
+        case ACTION_ACTIVATE:
+            gui_activate();
+            break;
+        case ACTION_SCREENSHOT:
+            gui_screenshot();
+            break;
+    }
     return FALSE;
 }

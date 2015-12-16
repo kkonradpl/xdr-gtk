@@ -44,11 +44,14 @@ gboolean graph_draw(GtkWidget *widget, GdkEventExpose *event, gpointer nothing)
     _min = G_MAXINT;
     for(i=0; i<s.len; i++)
     {
-        if(signal_level(signal_get_i(i)->value) > _max && signal_get_i(i)->value != -1)
+        if(isnan(signal_get_i(i)->value) || signal_get_i(i)->value < 0)
+            continue;
+
+        if(signal_level(signal_get_i(i)->value) > _max)
         {
             _max = ceil((signal_level(signal_get_i(i)->value)));
         }
-        if(signal_level(signal_get_i(i)->value) < _min && signal_get_i(i)->value != -1)
+        if(signal_level(signal_get_i(i)->value) < _min)
         {
             _min = floor(signal_level(signal_get_i(i)->value));
         }
@@ -80,7 +83,7 @@ gboolean graph_draw(GtkWidget *widget, GdkEventExpose *event, gpointer nothing)
     cairo_line_to(cr, GRAPH_OFFSET+s.len, GRAPH_OFFSET_V+conf.graph_height+1); // _
     cairo_stroke(cr);
 
-    cairo_select_font_face(cr, "Bitstream Vera Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(cr, "DejaVu Sans Mono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, GRAPH_FONT_SIZE);
     cairo_text_extents(cr, "0", &extents);
 
@@ -121,46 +124,71 @@ gboolean graph_draw(GtkWidget *widget, GdkEventExpose *event, gpointer nothing)
     i = ((s.pos == (s.len-1)) ? 0 : s.pos+1);
     for(j=1; j<=s.len; j++)
     {
-        if(signal_get_i(i)->value != -1)
+        if(!isnan(signal_get_i(i)->value))
         {
-            if(signal_get_i(i)->rds)
+            if(signal_get_i(i)->value < 0)
             {
-                gdk_cairo_set_source_color(cr, &conf.color_rds);
-            }
-            else if(signal_get_i(i)->stereo)
-            {
-                gdk_cairo_set_source_color(cr, &conf.color_stereo);
+                gdk_cairo_set_source_color(cr, &graph_color_border);
+                cairo_move_to(cr, GRAPH_OFFSET+j, GRAPH_OFFSET_V+conf.graph_height);
+                cairo_line_to(cr, GRAPH_OFFSET+j, GRAPH_OFFSET_V);
+                cairo_stroke(cr);
             }
             else
             {
-                gdk_cairo_set_source_color(cr, &conf.color_mono);
-            }
-
-            if(conf.signal_avg)
-            {
-                if(j==1 || signal_get_prev_i(i)->value == -1)
+                if(signal_get_i(i)->rds)
                 {
-                    value = (signal_get_i(i)->value + signal_get_next_i(i)->value) / 2.0;
+                    gdk_cairo_set_source_color(cr, &conf.color_rds);
                 }
-                else if (j==s.len)
+                else if(signal_get_i(i)->stereo)
                 {
-                    value = (signal_get_prev_i(i)->value + signal_get_i(i)->value) / 2.0;
+                    gdk_cairo_set_source_color(cr, &conf.color_stereo);
                 }
                 else
                 {
-                    value = (signal_get_prev_i(i)->value + signal_get_i(i)->value + signal_get_next_i(i)->value) / 3.0;
+                    gdk_cairo_set_source_color(cr, &conf.color_mono);
                 }
-            }
-            else
-            {
-                value = signal_get_i(i)->value;
-            }
 
-            value = signal_level(value);
+                if(conf.signal_avg)
+                {
+                    if(j==1 || isnan(signal_get_prev_i(i)->value) || signal_get_prev_i(i)->value < 0)
+                    {
+                        if(isnan(signal_get_next_i(i)->value) || signal_get_next_i(i)->value < 0)
+                        {
+                            value = signal_get_i(i)->value;
+                        }
+                        else
+                        {
+                            value = (signal_get_i(i)->value + signal_get_next_i(i)->value) / 2.0;
+                        }
+                    }
+                    else if(j==s.len || isnan(signal_get_next_i(i)->value) || signal_get_next_i(i)->value < 0)
+                    {
+                        if(isnan(signal_get_prev_i(i)->value) || signal_get_prev_i(i)->value < 0)
+                        {
+                            value = signal_get_i(i)->value;
+                        }
+                        else
+                        {
+                            value = (signal_get_i(i)->value + signal_get_prev_i(i)->value) / 2.0;
+                        }
+                    }
+                    else
+                    {
+                        value = (signal_get_prev_i(i)->value + signal_get_i(i)->value + signal_get_next_i(i)->value) / 3.0;
+                    }
 
-            cairo_move_to(cr, GRAPH_OFFSET+j, GRAPH_OFFSET_V+conf.graph_height);
-            cairo_line_to(cr, GRAPH_OFFSET+j, GRAPH_OFFSET_V+conf.graph_height-(value - _min)*step);
-            cairo_stroke(cr);
+                }
+                else
+                {
+                    value = signal_get_i(i)->value;
+                }
+
+                value = signal_level(value);
+
+                cairo_move_to(cr, GRAPH_OFFSET+j, GRAPH_OFFSET_V+conf.graph_height);
+                cairo_line_to(cr, GRAPH_OFFSET+j, GRAPH_OFFSET_V+conf.graph_height-(value - _min)*step);
+                cairo_stroke(cr);
+            }
         }
 
         i = ((i==(s.len-1)) ? 0 : i+1);
@@ -175,12 +203,13 @@ void graph_resize()
     gtk_widget_set_size_request(gui.graph, -1, conf.graph_height+2*GRAPH_OFFSET_V+1);
 }
 
-void graph_click(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
+gboolean graph_click(GtkWidget *widget, GdkEventButton *event, gpointer nothing)
 {
     if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click
     {
         signal_clear();
     }
+    return FALSE;
 }
 
 void signal_display()

@@ -41,7 +41,7 @@ void stationlist_init()
     stationlist_socket = socket(AF_INET, SOCK_DGRAM, 0);
     if(stationlist_socket < 0)
     {
-        dialog_error("stationlist_init: socket");
+        dialog_error("SRCP", "stationlist_init: socket");
         return;
     }
 
@@ -49,7 +49,7 @@ void stationlist_init()
     gint on = 1;
     if(setsockopt(stationlist_socket, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on)) < 0)
     {
-        dialog_error("stationlist_init: SO_REUSEADDR");
+        dialog_error("SRCP", "stationlist_init: SO_REUSEADDR");
     }
 #endif
 
@@ -61,7 +61,7 @@ void stationlist_init()
 
     if(bind(stationlist_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
-        dialog_error("StationList link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", conf.stationlist_port);
+        dialog_error("SRCP", "StationList link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", conf.stationlist_port);
         closesocket(stationlist_socket);
         stationlist_socket = -1;
         return;
@@ -70,7 +70,7 @@ void stationlist_init()
     stationlist_client = socket(AF_INET, SOCK_DGRAM, 0);
     if(stationlist_client < 0)
     {
-        dialog_error("stationlist_init: socket (client)");
+        dialog_error("SRCP", "stationlist_init: socket (client)");
         return;
     }
 
@@ -87,9 +87,12 @@ void stationlist_init()
 
 gpointer stationlist_server(gpointer nothing)
 {
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
     gchar msg[STATIONLIST_BUFF], *ptr, *parse, *param, *value;
     gint n;
-    while((n = recvfrom(stationlist_socket, msg, STATIONLIST_BUFF-1, 0, NULL, NULL)) > 0)
+
+    while((n = recvfrom(stationlist_socket, msg, STATIONLIST_BUFF-1, 0, (struct sockaddr*)&addr, &len)) > 0)
     {
         msg[n] = 0;
 #if STATIONLIST_DEBUG
@@ -105,6 +108,8 @@ gpointer stationlist_server(gpointer nothing)
                 stationlist_cmd(param, value);
             }
         }
+        stationlist_client_addr.sin_addr.s_addr = addr.sin_addr.s_addr;
+        len = sizeof(addr);
     }
     return NULL;
 }

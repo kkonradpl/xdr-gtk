@@ -12,13 +12,6 @@
 #define ANT_COUNT 4
 #define HOST_HISTORY_LEN 5
 
-enum Signal
-{
-    SIGNAL_NONE,
-    SIGNAL_GRAPH,
-    SIGNAL_BAR
-};
-
 enum Unit
 {
     UNIT_DBF,
@@ -27,8 +20,46 @@ enum Unit
     UNIT_S
 };
 
+enum Action
+{
+    ACTION_NONE,
+    ACTION_ACTIVATE,
+    ACTION_SCREENSHOT
+};
+
+enum Signal
+{
+    SIGNAL_NONE,
+    SIGNAL_GRAPH,
+    SIGNAL_BAR
+};
+
+enum Graph_Mode
+{
+    GRAPH_DEFAULT,
+    GRAPH_RESET,
+    GRAPH_SEPARATOR
+};
+
+enum RDS_Mode
+{
+    RDS,
+    RBDS
+};
+
+enum RDS_Err_Correction
+{
+    NO_ERR_CORR,
+    UP_TO_2_BIT_ERR_CORR,
+    UP_TO_5_BIT_ERR_CORR
+};
+
 typedef struct settings
 {
+    /* Window */
+    gint win_x;
+    gint win_y;
+
     /* Connection */
     gint network;
     gchar* serial;
@@ -43,34 +74,43 @@ typedef struct settings
     gint deemphasis;
 
     /* Interface */
-    enum Signal signal_display;
+    gint init_freq;
+    gdouble signal_offset;
     enum Unit signal_unit;
-    gint graph_height;
+    gboolean utc;
+    gboolean autoconnect;
+    gboolean amstep;
+    gboolean disconnect_confirm;
+    gboolean auto_reconnect;
+    gboolean grab_focus;
+    enum Action event_action;
+    gboolean hide_decorations;
+    gboolean hide_status;
+    gboolean restore_pos;
+
+    /* Graph */
+    enum Signal signal_display;
+    enum Graph_Mode graph_mode;
     GdkColor color_mono;
     GdkColor color_stereo;
     GdkColor color_rds;
-    gboolean signal_avg;
+    gint graph_height;
     gboolean show_grid;
-    gboolean utc;
-    gboolean replace_spaces;
-    gboolean alignment;
-    gboolean autoconnect;
-    gboolean amstep;
+    gboolean signal_avg;
 
     /* RDS */
-    gint rds_pty; /* 0 = RDS, 1 = RBDS */
+    enum RDS_Mode rds_pty;
     gboolean rds_reset;
     gint rds_reset_timeout;
-    /* 0 = no errors
-       1 = max 2 bit error correction
-       2 = max 5 bit error correction */
-    gint ps_info_error;
-    gint ps_data_error;
+    enum RDS_Err_Correction ps_info_error;
+    enum RDS_Err_Correction ps_data_error;
     gboolean rds_ps_progressive;
-    gint rt_info_error;
-    gint rt_data_error;
+    enum RDS_Err_Correction rt_info_error;
+    enum RDS_Err_Correction rt_data_error;
 
     /* Antenna */
+    gboolean alignment;
+    gboolean swap_rotator;
     gint ant_count;
     gboolean ant_switching;
     gint ant_start[ANT_COUNT];
@@ -85,6 +125,9 @@ typedef struct settings
     gboolean stationlist;
     gint stationlist_port;
     gboolean rds_logging;
+    gboolean replace_spaces;
+    gchar* log_dir;
+    gchar* screen_dir;
 
     /* Keyboard */
     guint key_tune_up;
@@ -102,6 +145,8 @@ typedef struct settings
     guint key_rotate_cw;
     guint key_rotate_ccw;
     guint key_switch_ant;
+    guint key_ps_mode;
+    guint key_spectral_toggle;
 
     /* Presets */
     gint presets[PRESETS];
@@ -118,13 +163,18 @@ typedef struct settings
     gboolean pattern_avg;
 
     /* Spectral scan */
+    gint scan_x;
+    gint scan_y;
     gint scan_width;
     gint scan_height;
     gint scan_start;
     gint scan_end;
     gint scan_step;
     gint scan_bw;
+    gboolean scan_continuous;
     gboolean scan_relative;
+    gboolean scan_peakhold;
+    GList *scan_freq_list;
 } settings_t;
 
 settings_t conf;
@@ -148,5 +198,11 @@ void settings_scheduler_remove(GtkWidget*, gpointer);
 gboolean settings_scheduler_key(GtkWidget*, GdkEventKey*, gpointer);
 gboolean settings_scheduler_add_key(GtkWidget*, GdkEventKey*, gpointer);
 gboolean settings_scheduler_add_key_idle(gpointer);
+
+void settings_scan_mark_add(gint);
+void settings_scan_mark_toggle(gint);
+void settings_scan_mark_remove(gint);
+void settings_scan_mark_clear(gint, gint);
+void settings_scan_mark_clear_all();
 
 #endif

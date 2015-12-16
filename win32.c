@@ -1,21 +1,22 @@
 #include <gtk/gtk.h>
 #define _WIN32_WINNT 0x0500
+#include <gdk/gdkwin32.h>
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
 #include "gui.h"
 #include "win32.h"
 
-#define WIN32_FONT_FILE "VeraMono.ttf"
+#define WIN32_FONT_FILE "DejaVuSansMono.ttf"
 gint win32_font;
 
 void win32_init()
 {
     win32_font = AddFontResourceEx(WIN32_FONT_FILE, FR_PRIVATE, NULL);
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2,2), &wsaData))
+    if(WSAStartup(MAKEWORD(2,2), &wsaData))
     {
-        dialog_error("Unable to initialize Winsock");
+        dialog_error("Error", "Unable to initialize Winsock");
     }
 }
 
@@ -53,4 +54,29 @@ gint win32_dialog_workaround(GtkDialog *dialog)
         gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
     }
     return gtk_dialog_run(dialog);
+}
+
+void win32_grab_focus(GtkWindow* window)
+{
+    if(!gtk_window_is_active(window))
+    {
+        HWND handle = gdk_win32_drawable_get_handle(gtk_widget_get_window(gui.window));
+        int fg = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+        int app = GetCurrentThreadId();
+        if(IsIconic(handle))
+        {
+            ShowWindow(handle, SW_RESTORE);
+        }
+        else if(fg != app)
+        {
+            AttachThreadInput(fg, app, TRUE);
+            BringWindowToTop(handle);
+            ShowWindow(handle, SW_SHOW);
+            AttachThreadInput(fg, app, FALSE);
+        }
+        else
+        {
+            gtk_window_present(window);
+        }
+    }
 }

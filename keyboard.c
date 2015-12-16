@@ -1,18 +1,21 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <glib.h>
-#include <glib/gstdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "keyboard.h"
 #include "gui.h"
+#include "scan.h"
 #include "gui-tuner.h"
 #include "tuner.h"
 #include "settings.h"
 
-gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
+gboolean rotation_shift_pressed;
+
+gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_frequency_entry)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
+    gboolean shift_pressed = (event->state & GDK_SHIFT_MASK);
 
     // tuning
     if(current == conf.key_tune_down)
@@ -79,18 +82,20 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 
     if(current == conf.key_screen)
     {
-        save_screenshot();
+        gui_screenshot();
         return TRUE;
     }
 
     if(current == conf.key_rotate_cw)
     {
+        rotation_shift_pressed = shift_pressed;
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), TRUE);
         return TRUE;
     }
 
     if(current == conf.key_rotate_ccw)
     {
+        rotation_shift_pressed = shift_pressed;
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), TRUE);
         return TRUE;
     }
@@ -102,19 +107,26 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
         return TRUE;
     }
 
+    if(current == conf.key_ps_mode)
+    {
+        gui_toggle_ps_mode();
+        return TRUE;
+    }
+
+    if(current == conf.key_spectral_toggle && scan.window)
+    {
+        gtk_button_clicked(GTK_BUTTON(scan.b_start));
+        return TRUE;
+    }
+
     // presets
     if(event->keyval >= GDK_F1 && event->keyval <= GDK_F12)
     {
         gint id = event->keyval-GDK_F1;
-        if(event->state & GDK_SHIFT_MASK)
+        if(shift_pressed)
         {
-            gchar buff[50];
             conf.presets[id] = tuner.freq;
-            g_source_remove(gui.status_timeout);
-            g_snprintf(buff, sizeof(buff), "Preset <b>F%d</b> has been saved.", id+1);
-            gtk_label_set_markup(GTK_LABEL(gui.l_status), buff);
-            gui.status_timeout = g_timeout_add(1000, (GSourceFunc)gui_update_clock, (gpointer)gui.l_status);
-            settings_write();
+            gui_status(1500, "Preset <b>F%d</b> has been stored.", id+1);
         }
         else
         {
@@ -150,6 +162,11 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
     {
         gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(gui.c_bw))), NULL) - 1);
         return TRUE;
+    }
+
+    if(disable_frequency_entry)
+    {
+        return FALSE;
     }
 
     // freq entry
@@ -266,53 +283,50 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
+    rotation_shift_pressed |= (event->state & GDK_SHIFT_MASK);
 
     if(current == conf.key_rotate_cw)
     {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
-        return TRUE;
+        if(!rotation_shift_pressed)
+        {
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+            return TRUE;
+        }
     }
     else if(current == conf.key_rotate_ccw)
     {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
-        return TRUE;
+        if(!rotation_shift_pressed)
+        {
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+            return TRUE;
+        }
     }
 
     return FALSE;
 }
 
-void save_screenshot()
+gboolean window_click(GtkWidget *widget, GdkEventButton *event, GtkWindow* window)
 {
-    gchar t[20], filename[50];
-    GdkPixmap *pixmap;
-    GdkPixbuf *pixbuf;
-    time_t tt = time(NULL);
-    strftime(t, sizeof(t), "%Y%m%d-%H%M%S", conf.utc?gmtime(&tt):localtime(&tt));
+    static gboolean compact_mode = FALSE;
 
-    if(tuner.pi!=-1)
+    if(event->type == GDK_BUTTON_PRESS && event->button == 1 && event->state & GDK_SHIFT_MASK)
     {
-        g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d-%04X.png", t, tuner.freq, tuner.pi);
+        gtk_window_begin_move_drag(window, event->button, event->x_root, event->y_root, event->time);
+        return TRUE;
     }
-    else
+    else if(event->type == GDK_3BUTTON_PRESS && event->button == 1)
     {
-        g_snprintf(filename, sizeof(filename), "./screenshots/%s-%d.png", t, tuner.freq);
+        if(compact_mode)
+        {
+            gtk_widget_hide(gui.box_left_settings1);
+            gtk_widget_hide(gui.box_left_settings2);
+        }
+        else
+        {
+            gtk_widget_show(gui.box_left_settings1);
+            gtk_widget_show(gui.box_left_settings2);
+        }
+        compact_mode = !compact_mode;
     }
-
-    /* HACK: refresh window to avoid icons disappearing */
-    gtk_widget_queue_draw(gui.window);
-    while(gtk_events_pending())
-    {
-        gtk_main_iteration();
-    }
-
-    pixmap = gtk_widget_get_snapshot(gui.window, NULL);
-    pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 0, 0, 0, 0, -1, -1);
-    g_mkdir("./screenshots/", 0755);
-    if(!gdk_pixbuf_save(pixbuf, filename, "png", NULL, NULL))
-    {
-        dialog_error("Unable to save a screenshot...");
-    }
-    g_object_unref(G_OBJECT(pixmap));
-    g_object_unref(G_OBJECT(pixbuf));
+    return FALSE;
 }
-

@@ -36,7 +36,6 @@ void tuner_set_deemphasis()
     conf.deemphasis = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_deemph));
     g_snprintf(buffer, sizeof(buffer), "D%d", conf.deemphasis);
     tuner_write(buffer);
-    settings_write();
 }
 
 void tuner_set_volume()
@@ -66,7 +65,6 @@ void tuner_set_agc()
     conf.agc = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_agc));
     g_snprintf(buffer, sizeof(buffer), "A%d", conf.agc);
     tuner_write(buffer);
-    settings_write();
 }
 
 void tuner_set_gain()
@@ -76,7 +74,6 @@ void tuner_set_gain()
     conf.ifgain = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.x_if));
     g_snprintf(buffer, sizeof(buffer), "G%d%d", conf.rfgain, conf.ifgain);
     tuner_write(buffer);
-    settings_write();
 }
 
 void tuner_set_alignment()
@@ -86,8 +83,9 @@ void tuner_set_alignment()
     tuner_write(buffer);
 }
 
-void tuner_set_rotator(gpointer n)
+void tuner_set_rotator(gpointer user_data)
 {
+    gint n = GPOINTER_TO_INT(user_data);
     gboolean cw = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.b_cw));
     gboolean ccw = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.b_ccw));
     gchar buffer[3];
@@ -95,21 +93,35 @@ void tuner_set_rotator(gpointer n)
     if(!cw && !ccw)
     {
         n = 0;
+        gtk_widget_modify_bg(gui.b_cw, GTK_STATE_ACTIVE, &gui.colors.prelight);
+        gtk_widget_modify_bg(gui.b_cw, GTK_STATE_PRELIGHT, &gui.colors.prelight);
+        gtk_widget_modify_bg(gui.b_ccw, GTK_STATE_ACTIVE, &gui.colors.prelight);
+        gtk_widget_modify_bg(gui.b_ccw, GTK_STATE_PRELIGHT, &gui.colors.prelight);
     }
-    else if(GPOINTER_TO_INT(n) == 1 && ccw)
+    else if(n == 1)
     {
-        g_signal_handlers_block_by_func(G_OBJECT(gui.b_ccw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(2));
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
-        g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_ccw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(2));
+        gtk_widget_modify_bg(gui.b_cw, GTK_STATE_ACTIVE, &gui.colors.action);
+        gtk_widget_modify_bg(gui.b_cw, GTK_STATE_PRELIGHT, &gui.colors.action);
+        if(ccw)
+        {
+            g_signal_handlers_block_by_func(G_OBJECT(gui.b_ccw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(2));
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+            g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_ccw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(2));
+        }
     }
-    else if(GPOINTER_TO_INT(n) == 2 && cw)
+    else if(n == 2)
     {
-        g_signal_handlers_block_by_func(G_OBJECT(gui.b_cw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(1));
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
-        g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_cw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(1));
+        gtk_widget_modify_bg(gui.b_ccw, GTK_STATE_ACTIVE, &gui.colors.action);
+        gtk_widget_modify_bg(gui.b_ccw, GTK_STATE_PRELIGHT, &gui.colors.action);
+        if(cw)
+        {
+            g_signal_handlers_block_by_func(G_OBJECT(gui.b_cw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(1));
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+            g_signal_handlers_unblock_by_func(G_OBJECT(gui.b_cw), GINT_TO_POINTER(tuner_set_rotator), GINT_TO_POINTER(1));
+        }
     }
 
-    g_snprintf(buffer, sizeof(buffer), "C%d", GPOINTER_TO_INT(n));
+    g_snprintf(buffer, sizeof(buffer), "C%d", n);
     tuner_write(buffer);
 }
 

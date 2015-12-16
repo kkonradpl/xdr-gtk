@@ -11,6 +11,8 @@ typedef struct gui_colors
     GdkColor grey;
     GdkColor black;
     GdkColor stereo;
+    GdkColor action;
+    GdkColor prelight;
 } gui_colors_t;
 
 typedef struct gui
@@ -21,6 +23,8 @@ typedef struct gui
     GtkClipboard *clipboard;
     GdkCursor *click_cursor;
 
+    GtkWidget *frame;
+    GtkWidget *margin;
     GtkWidget *box;
     GtkWidget *box_header;
     GtkWidget *box_gui;
@@ -89,8 +93,9 @@ typedef struct gui
 gui_t gui;
 
 void gui_init();
-void gui_quit();
-void dialog_error(gchar* format, ...);
+void gui_destroy();
+gboolean gui_delete_event(GtkWidget*, GdkEvent*, gpointer);
+void dialog_error(gchar*, gchar*, ...);
 gboolean gui_update_status(gpointer);
 void gui_clear();
 gboolean gui_clear_rds();
@@ -112,5 +117,14 @@ void gui_toggle_band(GtkWidget *widget, GdkEventButton *event, gpointer step);
 void gui_st_click(GtkWidget *widget, GdkEventButton *event, gpointer step);
 gboolean gui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor);
 void gui_antenna_showhide();
+gboolean signal_tooltip(GtkWidget*, gint, gint, gboolean, GtkTooltip*, gpointer);
+void gui_toggle_ps_mode();
+void gui_screenshot();
+void gui_activate();
+gboolean gui_window_event(GtkWidget*, gpointer);
+void gui_rotator_button_realized(GtkWidget*);
+void gui_rotator_button_swap();
+void gui_status(gint, gchar*, ...);
 
 #endif
+

@@ -24,7 +24,7 @@ void scheduler_start()
     if(!conf.scheduler_n)
     {
         scheduler_toggle_button(FALSE);
-        dialog_error("No scheduler frequencies defined.");
+        dialog_error("Frequency scheduler", "No scheduler frequencies defined.\nAdd some in settings first.");
         return;
     }
     scheduler_next = 0;

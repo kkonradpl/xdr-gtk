@@ -123,6 +123,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="scan.h" />
+		<Unit filename="scheduler.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="scheduler.h" />
 		<Unit filename="settings.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -149,10 +153,6 @@
 			<Option target="Debug-win" />
 			<Option target="Release-win" />
 		</Unit>
-		<Unit filename="scheduler.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="scheduler.h" />
 		<Extensions>
 			<code_completion />
 			<envvars />
