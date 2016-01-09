@@ -1021,7 +1021,7 @@ void gui_toggle_ps_mode()
 void gui_screenshot()
 {
     static gchar* default_path = "./screenshots";
-    gchar t[20], filename[50];
+    gchar t[20], *filename;
     GdkPixmap *pixmap;
     GdkPixbuf *pixbuf;
     gint width, height;
@@ -1040,13 +1040,13 @@ void gui_screenshot()
         directory = default_path;
     }
 
-    if(tuner.pi!=-1)
+    if(tuner.pi != -1)
     {
-        g_snprintf(filename, sizeof(filename), "%s/%s-%d-%04X.png", directory, t, tuner.freq, tuner.pi);
+        filename = g_strdup_printf("%s/%s-%d-%04X.png", directory, t, tuner.freq, tuner.pi);
     }
     else
     {
-        g_snprintf(filename, sizeof(filename), "%s/%s-%d.png", directory, t, tuner.freq);
+        filename = g_strdup_printf("%s/%s-%d.png", directory, t, tuner.freq);
     }
 
     /* HACK: refresh window to avoid icons disappearing */
@@ -1066,6 +1066,7 @@ void gui_screenshot()
     }
     g_object_unref(G_OBJECT(pixmap));
     g_object_unref(G_OBJECT(pixbuf));
+    g_free(filename);
 }
 
 void gui_activate()
