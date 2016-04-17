@@ -2,55 +2,69 @@
 #include <string.h>
 #include <stdlib.h>
 #include <gdk/gdkkeysyms.h>
-#include "gui-connect.h"
-#include "gui.h"
-#include "gui-update.h"
-#include "settings.h"
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#endif
+#include "ui-connect.h"
+#include "ui.h"
+#include "conf.h"
 #include "tuner.h"
 #include "version.h"
-#include "connection.h"
+#include "tuner-conn.h"
 #include "tuner.h"
-#include "gui-tuner.h"
-#include "sig.h"
+#include "ui-tuner-set.h"
+#include "ui-signal.h"
 
-GtkWidget *dialog, *content;
-GtkWidget *r_serial, *c_serial;
-GtkWidget *r_tcp;
-GtkWidget *box_tcp1, *l_host, *e_host, *l_port, *e_port;
-GtkWidget *box_tcp2, *l_password, *e_password, *c_password;
-GtkWidget *box_status_wrapper, *box_status, *spinner, *l_status;
-GtkWidget *box_button, *b_connect, *b_cancel;
-GtkListStore *ls_host;
+static GtkWidget *dialog, *content;
+static GtkWidget *r_serial, *c_serial;
+static GtkWidget *r_tcp;
+static GtkWidget *box_tcp1, *l_host, *e_host, *l_port, *e_port;
+static GtkWidget *box_tcp2, *l_password, *e_password, *c_password;
+static GtkWidget *box_status_wrapper, *box_status, *spinner, *l_status;
+static GtkWidget *box_button, *b_connect, *b_cancel;
+static GtkListStore *ls_host;
 
-conn_t* connecting;
-gboolean wait_for_tuner;
-gboolean successfully_connected = FALSE;
+static conn_t *connecting;
+static gboolean wait_for_tuner;
+static gboolean successfully_connected = FALSE;
 
-void connection_toggle()
+static void connection_dialog_destroy(GtkWidget*, gpointer);
+static void connection_dialog_select(GtkWidget*, gpointer);
+static void connection_dialog_connect(GtkWidget*, gpointer);
+static void connection_dialog_status(const gchar*);
+static void connection_dialog_unlock(gboolean);
+static gboolean connection_dialog_key(GtkWidget*, GdkEventKey*, gpointer);
+static void connection_serial_state(gint);
+static void connection_dialog_connected(gint, gint);
+
+void
+connection_toggle()
 {
     if(tuner.thread)
     {
-        if(!conf.disconnect_confirm || connection_confirm_disconnect())
+        connect_button(TRUE);
+        if(!conf.disconnect_confirm || ui_dialog_confirm_disconnect())
         {
             /* The tuner is connected, shutdown it */
-            tuner_write("X");
+            tuner_write(tuner.thread, "X");
             /* Lock the connection button until the thread ends */
-            gtk_widget_set_sensitive(gui.b_connect, FALSE);
+            gtk_widget_set_sensitive(ui.b_connect, FALSE);
             g_usleep(100000);
-            tuner.thread = FALSE;
+            tuner_thread_cancel(tuner.thread);
         }
         return;
     }
 
     /* Drop current rotator state */
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.b_cw), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.b_ccw), FALSE);
 
     /* Display connection dialog */
     connection_dialog(FALSE);
 }
 
-void connection_dialog(gboolean auto_connect)
+void
+connection_dialog(gboolean auto_connect)
 {
     gint i;
     connecting = NULL;
@@ -58,7 +72,7 @@ void connection_dialog(gboolean auto_connect)
 
     dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(dialog), "Connect");
-    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(gui.window));
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(ui.window));
     gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
     gtk_window_set_destroy_with_parent(GTK_WINDOW(dialog), TRUE);
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
@@ -136,7 +150,7 @@ void connection_dialog(gboolean auto_connect)
     gtk_box_pack_start(GTK_BOX(box_tcp1), l_port, TRUE, FALSE, 1);
     e_port = gtk_entry_new_with_max_length(5);
     gtk_entry_set_width_chars(GTK_ENTRY(e_port), 5);
-    gchar* s_port = g_strdup_printf("%d", conf.port);
+    gchar *s_port = g_strdup_printf("%d", conf.port);
     gtk_entry_set_text(GTK_ENTRY(e_port), s_port);
     g_free(s_port);
     g_signal_connect(e_port, "changed", G_CALLBACK(connection_dialog_select), r_tcp);
@@ -185,7 +199,7 @@ void connection_dialog(gboolean auto_connect)
     gtk_container_add(GTK_CONTAINER(box_button), b_cancel);
 
 #ifdef G_OS_WIN32
-    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.b_ontop)))
+    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.b_ontop)))
     {
         gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
     }
@@ -201,7 +215,9 @@ void connection_dialog(gboolean auto_connect)
     }
 }
 
-void connection_dialog_destroy(GtkWidget *widget, gpointer data)
+static void
+connection_dialog_destroy(GtkWidget *widget,
+                          gpointer   data)
 {
     if(connecting)
     {
@@ -212,34 +228,45 @@ void connection_dialog_destroy(GtkWidget *widget, gpointer data)
     if(wait_for_tuner)
     {
         /* Waiting for tuner, force its thread to end */
-        tuner.thread = FALSE;
+        tuner_thread_cancel(tuner.thread);
         wait_for_tuner = FALSE;
     }
 }
 
-void connection_dialog_select(GtkWidget *widget, gpointer data)
+static void
+connection_dialog_select(GtkWidget *widget,
+                         gpointer   data)
 {
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(data), TRUE);
 }
 
-void connection_dialog_connect(GtkWidget *widget, gpointer data)
+static void
+connection_dialog_connect(GtkWidget *widget,
+                          gpointer   data)
 {
-    const gchar* hostname = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(e_host))));
-    const gchar* port = gtk_entry_get_text(GTK_ENTRY(e_port));
-    const gchar* password = gtk_entry_get_text(GTK_ENTRY(e_password));
+    const gchar *hostname = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(e_host))));
+    const gchar *port = gtk_entry_get_text(GTK_ENTRY(e_port));
+    const gchar *password = gtk_entry_get_text(GTK_ENTRY(e_password));
+    gint result;
+    gintptr fd;
 
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(r_serial)))
     {
         /* Serial port */
-        gchar* serial = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(c_serial));
+        gchar *serial = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(c_serial));
         if(serial)
         {
             connection_dialog_unlock(FALSE);
-            g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, serial);
-            settings_update_string(&conf.serial, serial);
+            g_snprintf(ui.window_title, 100, "%s / %s", APP_NAME, serial);
+            conf_update_string_const(&conf.serial, serial);
             conf.network = FALSE;
 
-            connection_serial_state(open_serial(serial));
+            result = tuner_open_serial(serial, &fd);
+            if(result == CONN_SUCCESS)
+                connection_dialog_connected(TUNER_THREAD_SERIAL, fd);
+            else
+                connection_serial_state(result);
+
             g_free(serial);
         }
     }
@@ -248,21 +275,22 @@ void connection_dialog_connect(GtkWidget *widget, gpointer data)
         /* Network */
         connection_dialog_unlock(FALSE);
         connecting = conn_new(hostname, port, password);
-        g_snprintf(gui.window_title, 100, "%s / %s", APP_NAME, hostname);
+        g_snprintf(ui.window_title, 100, "%s / %s", APP_NAME, hostname);
 
-        settings_add_host(hostname);
+        conf_add_host(hostname);
         conf.port = atoi(port);
         conf.network = TRUE;
         if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(c_password)))
         {
-            settings_update_string(&conf.password, password);
+            conf_update_string_const(&conf.password, password);
         }
 
-        g_thread_unref(g_thread_new("open_socket", open_socket, connecting));
+        g_thread_unref(g_thread_new("open_socket", tuner_open_socket, connecting));
     }
 }
 
-void connection_dialog_status(const gchar* string)
+static void
+connection_dialog_status(const gchar* string)
 {
     gchar *markup;
     gtk_widget_show(l_status);
@@ -271,7 +299,8 @@ void connection_dialog_status(const gchar* string)
     g_free(markup);
 }
 
-void connection_dialog_unlock(gboolean value)
+static void
+connection_dialog_unlock(gboolean value)
 {
     gtk_widget_set_sensitive(r_serial, value);
     gtk_widget_set_sensitive(c_serial, value);
@@ -292,7 +321,10 @@ void connection_dialog_unlock(gboolean value)
     }
 }
 
-gboolean connection_dialog_key(GtkWidget* widget, GdkEventKey* event, gpointer button)
+static gboolean
+connection_dialog_key(GtkWidget   *widget,
+                      GdkEventKey *event,
+                      gpointer     button)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
     if(current == GDK_Escape)
@@ -308,14 +340,11 @@ gboolean connection_dialog_key(GtkWidget* widget, GdkEventKey* event, gpointer b
     return FALSE;
 }
 
-void connection_serial_state(gint result)
+static void
+connection_serial_state(gint result)
 {
     switch(result)
     {
-    case CONN_SUCCESS:
-        connection_dialog_connected(MODE_SERIAL);
-        return;
-
     case CONN_SERIAL_FAIL_OPEN:
         connection_dialog_status("Unable to open the serial port.");
         break;
@@ -336,17 +365,17 @@ void connection_serial_state(gint result)
     connection_dialog_unlock(TRUE);
 }
 
-void connection_dialog_connected(gint mode)
+static void
+connection_dialog_connected(gint mode,
+                            gint fd)
 {
-    gtk_window_set_title(GTK_WINDOW(gui.window), gui.window_title);
+    gtk_window_set_title(GTK_WINDOW(ui.window), ui.window_title);
     signal_clear();
     connection_dialog_status("Waiting for tuner...");
-    gtk_widget_set_sensitive(gui.b_connect, FALSE);
+    gtk_widget_set_sensitive(ui.b_connect, FALSE);
 
-    tuner.ready = FALSE;
-    tuner.thread = TRUE;
     wait_for_tuner = TRUE;
-    g_thread_unref(g_thread_new("tuner", tuner_read, NULL));
+    tuner.thread = tuner_thread_new(mode, fd);
 
     while(!tuner.ready && tuner.thread)
     {
@@ -370,12 +399,12 @@ void connection_dialog_connected(gint mode)
 
     successfully_connected = TRUE;
 
-    if(mode == MODE_SERIAL)
+    if(mode == MODE_SERIAL || tuner.send_settings)
     {
         tuner_set_volume();
         tuner_set_squelch();
-        tuner_set_frequency(tuner.freq);
-        tuner_set_mode();
+        tuner_set_mode(tuner.mode);
+        tuner_set_frequency(conf.initial_freq);
         tuner_set_agc();
         tuner_set_bandwidth();
         tuner_set_deemphasis();
@@ -384,15 +413,16 @@ void connection_dialog_connected(gint mode)
     }
 
     connect_button(TRUE);
-    gtk_widget_set_sensitive(gui.b_connect, TRUE);
+    gtk_widget_set_sensitive(ui.b_connect, TRUE);
     wait_for_tuner = FALSE;
     gtk_widget_destroy(dialog);
 }
 
-gboolean connection_socket_callback(gpointer ptr)
+gboolean
+connection_socket_callback(gpointer ptr)
 {
     /* Gets final state of conn_t ptr and frees up the memory */
-    conn_t* data = (conn_t*)ptr;
+    conn_t *data = (conn_t*)ptr;
     if(data->canceled && data->state == CONN_SUCCESS)
     {
         closesocket(data->socketfd);
@@ -403,12 +433,7 @@ gboolean connection_socket_callback(gpointer ptr)
         switch(data->state)
         {
         case CONN_SUCCESS:
-#ifdef G_OS_WIN32
-            tuner.socket = data->socketfd;
-#else
-            tuner.serial = data->socketfd;
-#endif
-            connection_dialog_connected(MODE_SOCKET);
+            connection_dialog_connected(TUNER_THREAD_SOCKET, data->socketfd);
             break;
 
         case CONN_SOCKET_FAIL_RESOLV:
@@ -437,10 +462,11 @@ gboolean connection_socket_callback(gpointer ptr)
     return FALSE;
 }
 
-gboolean connection_socket_callback_info(gpointer ptr)
+gboolean
+connection_socket_callback_info(gpointer ptr)
 {
     /* Like connection_socket_callback but does not free up the conn_t pointer */
-    conn_t* data = (conn_t*)ptr;
+    conn_t *data = (conn_t*)ptr;
     if(!data->canceled)
     {
         switch(data->state)
@@ -461,27 +487,12 @@ gboolean connection_socket_callback_info(gpointer ptr)
     return FALSE;
 }
 
-gboolean connection_socket_auth_fail(gpointer ptr)
+void
+connection_socket_auth_fail()
 {
     if(wait_for_tuner)
     {
         connection_dialog_status("Incorrect password.");
         connection_dialog_unlock(TRUE);
     }
-    return FALSE;
-}
-
-gboolean connection_confirm_disconnect()
-{
-    GtkWidget *dialog;
-    gint response;
-    dialog = gtk_message_dialog_new(GTK_WINDOW(gui.window),
-                                    GTK_DIALOG_MODAL,
-                                    GTK_MESSAGE_QUESTION,
-                                    GTK_BUTTONS_YES_NO,
-                                    "Are you sure you want to disconnect?");
-    gtk_window_set_title(GTK_WINDOW(dialog), APP_NAME);
-    response = gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-    return (response == GTK_RESPONSE_YES);
 }

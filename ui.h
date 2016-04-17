@@ -1,39 +1,49 @@
-#ifndef XDR_GUI_H_
-#define XDR_GUI_H_
+#ifndef XDR_UI_H_
+#define XDR_UI_H_
 #include <gtk/gtk.h>
+
+#ifdef G_OS_WIN32
+#define PATH_SEP "\\"
+#define LOG_NL "\r\n"
+#else
+#define PATH_SEP "/"
+#define LOG_NL "\n"
+#endif
 
 #define AF_LIST_STORE_ID   0
 #define AF_LIST_STORE_FREQ 1
 
-typedef struct gui_colors
+typedef struct ui_colors
 {
     GdkColor background;
-    GdkColor grey;
-    GdkColor black;
+    GdkColor foreground;
+    GdkColor insensitive;
     GdkColor stereo;
-    GdkColor action;
-    GdkColor prelight;
-} gui_colors_t;
+    GdkColor lightred;
+    GdkColor lightorange;
+} ui_colors_t;
 
-typedef struct gui
+typedef struct ui
 {
     GtkWidget *window;
     gchar window_title[100];
-    gui_colors_t colors;
-    GtkClipboard *clipboard;
+    ui_colors_t colors;
     GdkCursor *click_cursor;
 
     GtkWidget *frame;
     GtkWidget *margin;
     GtkWidget *box;
     GtkWidget *box_header;
-    GtkWidget *box_gui;
+    GtkWidget *box_ui;
     GtkWidget *box_left;
     GtkWidget *box_left_tune;
+    GtkWidget *box_left_interference;
     GtkWidget *box_left_signal;
     GtkWidget *box_left_indicators;
     GtkWidget *box_left_settings1;
+    GtkWidget *box_buttons;
     GtkWidget *box_left_settings2;
+    GtkWidget *box_rotator;
     GtkWidget *box_right;
 
     GtkWidget *volume;
@@ -50,6 +60,8 @@ typedef struct gui
 
     GtkObject *adj_align;
     GtkWidget *hs_align;
+
+    GtkWidget *p_cci, *p_aci;
 
     GtkWidget *graph, *p_signal;
 
@@ -88,43 +100,26 @@ typedef struct gui
     GtkWidget *l_af;
     GtkListStore *af;
     GtkWidget *af_box;
-} gui_t;
 
-gui_t gui;
+    gboolean autoscroll;
+} ui_t;
 
-void gui_init();
-void gui_destroy();
-gboolean gui_delete_event(GtkWidget*, GdkEvent*, gpointer);
-void dialog_error(gchar*, gchar*, ...);
-gboolean gui_update_status(gpointer);
-void gui_clear();
-gboolean gui_clear_rds();
-gboolean gui_mode_FM();
-gboolean gui_mode_AM();
-void gui_fill_bandwidths(GtkWidget*, gboolean);
-void tune_gui_back(GtkWidget*, gpointer);
-void tune_gui_round(GtkWidget*, gpointer);
-void tune_gui_step_click(GtkWidget*, GdkEventButton*, gpointer);
-void tune_gui_step_scroll(GtkWidget*, GdkEventScroll*, gpointer);
-void tune_gui_af(GtkTreeSelection*, gpointer);
-gboolean gui_toggle_gain(GtkWidget*, GdkEventButton*, gpointer);
-gboolean gui_update_clock(gpointer);
-gchar* s_meter(gfloat);
-void window_on_top(GtkToggleButton*);
+ui_t ui;
+
+void ui_init();
+
+void ui_fill_bandwidths(GtkWidget*, gboolean);
+void ui_dialog(GtkWidget*, GtkMessageType, gchar*, gchar*, ...);
 void connect_button(gboolean);
-void gui_antenna_switch(gint);
-void gui_toggle_band(GtkWidget *widget, GdkEventButton *event, gpointer step);
-void gui_st_click(GtkWidget *widget, GdkEventButton *event, gpointer step);
-gboolean gui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor);
-void gui_antenna_showhide();
-gboolean signal_tooltip(GtkWidget*, gint, gint, gboolean, GtkTooltip*, gpointer);
-void gui_toggle_ps_mode();
-void gui_screenshot();
-void gui_activate();
-gboolean gui_window_event(GtkWidget*, gpointer);
-void gui_rotator_button_realized(GtkWidget*);
-void gui_rotator_button_swap();
-void gui_status(gint, gchar*, ...);
+void ui_antenna_switch(gint);
+void ui_antenna_showhide();
+void ui_toggle_ps_mode();
+void ui_screenshot();
+void ui_activate();
+void ui_rotator_button_swap();
+void ui_status(gint, gchar*, ...);
+void ui_decorations(gboolean);
+gboolean ui_dialog_confirm_disconnect();
 
 #endif
 

@@ -1,6 +1,6 @@
 /*
- *  XDR-GTK v0.3.1
- *  Copyright (C) 2012-2015  Konrad Kosmatka
+ *  XDR-GTK v1.0
+ *  Copyright (C) 2012-2016  Konrad Kosmatka
  *  http://fmdx.pl/
 
  *  This program is free software; you can redistribute it and/or
@@ -15,9 +15,9 @@
  */
 
 #include <gtk/gtk.h>
-#include "gui.h"
-#include "settings.h"
-#include "sig.h"
+#include <getopt.h>
+#include "ui.h"
+#include "conf.h"
 #include "rdsspy.h"
 #include "stationlist.h"
 #include "log.h"
@@ -25,25 +25,47 @@
 #include "win32.h"
 #endif
 
-gint main(gint argc, gchar* argv[])
+static const gchar*
+get_config_path(gint   argc,
+                gchar *argv[])
+{
+    gchar *path = NULL;
+    gint c;
+    while((c = getopt(argc, argv, "c:")) != -1)
+    {
+        switch(c)
+        {
+        case 'c':
+            path = optarg;
+            break;
+        case '?':
+            if(optopt == 'c')
+                fprintf(stderr, "No configuration path argument found, using default.\n");
+            break;
+        }
+    }
+    return path;
+}
+
+gint
+main(gint   argc,
+     gchar *argv[])
 {
     gtk_disable_setlocale();
     gtk_init(&argc, &argv);
 #ifdef G_OS_WIN32
     win32_init();
 #endif
-    settings_read();
-    gui_init();
-    if(conf.rds_spy_auto)
-    {
+    conf_init(get_config_path(argc, argv));
+    ui_init();
+
+    if(conf.rdsspy_auto)
         rdsspy_toggle();
-    }
-    if(conf.stationlist)
-    {
+
+    if(conf.srcp)
         stationlist_init();
-    }
+
     gtk_main();
-    g_free(s.data);
     log_cleanup();
 #ifdef G_OS_WIN32
     win32_cleanup();

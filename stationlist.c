@@ -11,10 +11,10 @@
 #include <arpa/inet.h>
 #endif
 #include "stationlist.h"
-#include "settings.h"
-#include "gui.h"
-#include "gui-tuner.h"
-#include "connection.h"
+#include "conf.h"
+#include "ui.h"
+#include "ui-tuner-set.h"
+#include "tuner-conn.h"
 #include "tuner.h"
 #include "version.h"
 
@@ -22,26 +22,36 @@
 #define STATIONLIST_DEBUG       0
 #define STATIONLIST_AF_BUFF_LEN 25
 
-gint stationlist_socket = -1;
-gint stationlist_client = -1;
-struct sockaddr_in stationlist_client_addr;
-gint stationlist_sender;
-GMutex stationlist_mutex;
-GSList* stationlist_buffer;
-guint8 stationlist_af_buffer[STATIONLIST_AF_BUFF_LEN];
-guint8 stationlist_af_buffer_pos;
+static gint stationlist_socket = -1;
+static gint stationlist_client = -1;
+static struct sockaddr_in stationlist_client_addr;
+static gint stationlist_sender;
+static GMutex stationlist_mutex;
+static GSList *stationlist_buffer;
+static guint8 stationlist_af_buffer[STATIONLIST_AF_BUFF_LEN];
+static guint8 stationlist_af_buffer_pos;
 
-gboolean stationlist_is_up()
-{
-    return (stationlist_socket >= 0 && stationlist_client >= 0);
-}
+static gpointer stationlist_server(gpointer);
+static void stationlist_cmd(gchar*, gchar*);
+static gboolean stationlist_set_freq(gpointer);
+static gboolean stationlist_set_bw(gpointer);
 
-void stationlist_init()
+static void stationlist_add(gchar*, gchar*);
+static void stationlist_clear_rds();
+static gboolean stationlist_send(gchar*);
+static void stationlist_free(gpointer);
+
+
+void
+stationlist_init()
 {
     stationlist_socket = socket(AF_INET, SOCK_DGRAM, 0);
     if(stationlist_socket < 0)
     {
-        dialog_error("SRCP", "stationlist_init: socket");
+        ui_dialog(ui.window,
+                  GTK_MESSAGE_ERROR,
+                  "SRCP",
+                  "stationlist_init: socket");
         return;
     }
 
@@ -49,7 +59,10 @@ void stationlist_init()
     gint on = 1;
     if(setsockopt(stationlist_socket, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on)) < 0)
     {
-        dialog_error("SRCP", "stationlist_init: SO_REUSEADDR");
+        ui_dialog(ui.window,
+                  GTK_MESSAGE_ERROR,
+                  "SRCP",
+                  "stationlist_init: SO_REUSEADDR");
     }
 #endif
 
@@ -57,11 +70,15 @@ void stationlist_init()
     memset((char*)&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(conf.stationlist_port);
+    addr.sin_port = htons(conf.srcp_port);
 
     if(bind(stationlist_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
-        dialog_error("SRCP", "StationList link:\nFailed to bind to a port: %d.\nIt may be already in use by another application.", conf.stationlist_port);
+        ui_dialog(ui.window,
+                  GTK_MESSAGE_ERROR,
+                  "SRCP",
+                  "Failed to bind to a port: %d.\nIt may be already in use by another application.",
+                  conf.srcp_port);
         closesocket(stationlist_socket);
         stationlist_socket = -1;
         return;
@@ -70,14 +87,17 @@ void stationlist_init()
     stationlist_client = socket(AF_INET, SOCK_DGRAM, 0);
     if(stationlist_client < 0)
     {
-        dialog_error("SRCP", "stationlist_init: socket (client)");
+        ui_dialog(ui.window,
+                  GTK_MESSAGE_ERROR,
+                  "SRCP",
+                  "stationlist_init: socket (client)");
         return;
     }
 
     memset((char*)&stationlist_client_addr, 0, sizeof(stationlist_client_addr));
     stationlist_client_addr.sin_family = AF_INET;
     stationlist_client_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    stationlist_client_addr.sin_port = htons(conf.stationlist_port-1);
+    stationlist_client_addr.sin_port = htons(conf.srcp_port-1);
 
     g_thread_unref(g_thread_new("thread_stationlist", stationlist_server, NULL));
     g_mutex_init(&stationlist_mutex);
@@ -85,7 +105,35 @@ void stationlist_init()
     stationlist_sender = g_timeout_add(200, (GSourceFunc)stationlist_send, NULL);
 }
 
-gpointer stationlist_server(gpointer nothing)
+gboolean
+stationlist_is_up()
+{
+    return (stationlist_socket >= 0 && stationlist_client >= 0);
+}
+
+void
+stationlist_stop()
+{
+    if(stationlist_is_up())
+    {
+        shutdown(stationlist_client, 2);
+        closesocket(stationlist_client);
+        stationlist_client = -1;
+        shutdown(stationlist_socket, 2);
+        closesocket(stationlist_socket);
+        stationlist_socket = -1;
+
+        g_source_remove(stationlist_sender);
+        g_mutex_lock(&stationlist_mutex);
+        g_slist_free_full(stationlist_buffer, (GDestroyNotify)stationlist_free);
+        stationlist_buffer = NULL;
+        g_mutex_unlock(&stationlist_mutex);
+        g_mutex_clear(&stationlist_mutex);
+    }
+}
+
+static gpointer
+stationlist_server(gpointer nothing)
 {
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
@@ -114,54 +162,44 @@ gpointer stationlist_server(gpointer nothing)
     return NULL;
 }
 
-void stationlist_cmd(gchar* param, gchar* value)
+static void
+stationlist_cmd(gchar *param,
+                gchar *value)
 {
     if(!g_ascii_strcasecmp(param, "freq"))
     {
         if(!g_ascii_strcasecmp(value, "?"))
-        {
             stationlist_freq(tuner.freq);
-        }
         else
-        {
-            tuner_set_frequency(atoi(value)/1000);
-        }
+            g_idle_add(stationlist_set_freq, GINT_TO_POINTER(atoi(value)));
     }
     else if(!g_ascii_strcasecmp(param, "bandwidth"))
     {
         if(!g_ascii_strcasecmp(value, "?"))
-        {
-            stationlist_bw(tuner.filter);
-        }
+            stationlist_bw(tuner_filter_bw(tuner.filter));
         else
-        {
-            gint bw = atoi(value);
-            gint i, min = G_MAXINT, j = 29;
-            if(bw>=0)
-            {
-                for(i=0; i<FILTERS_N-1; i++)
-                {
-                    gint tmp = abs(filters_bw[tuner.mode][i]-bw);
-                    if(min > tmp)
-                    {
-                        min = tmp;
-                        j = i;
-                    }
-                }
-            }
-            g_idle_add(stationlist_bw_main, GINT_TO_POINTER(j));
-        }
+            g_idle_add(stationlist_set_bw, GINT_TO_POINTER(atoi(value)));
     }
 }
 
-gboolean stationlist_bw_main(gpointer i)
+static gboolean
+stationlist_set_freq(gpointer freq)
 {
-    gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), GPOINTER_TO_INT(i));
-    tuner.filter = GPOINTER_TO_INT(i);
+    tuner_set_frequency(GPOINTER_TO_INT(freq)/1000);
     return FALSE;
 }
 
-void stationlist_freq(gint freq)
+static gboolean
+stationlist_set_bw(gpointer bw)
+{
+    gint index = tuner_filter_index_from_bw(GPOINTER_TO_INT(bw));
+    if(index >= 0)
+        gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw), index);
+    return FALSE;
+}
+
+void
+stationlist_freq(gint freq)
 {
     if(stationlist_is_up())
     {
@@ -170,7 +208,8 @@ void stationlist_freq(gint freq)
     }
 }
 
-void stationlist_rcvlevel(gint level)
+void
+stationlist_rcvlevel(gint level)
 {
     if(stationlist_is_up())
     {
@@ -178,7 +217,8 @@ void stationlist_rcvlevel(gint level)
     }
 }
 
-void stationlist_pi(gint pi)
+void
+stationlist_pi(gint pi)
 {
     if(stationlist_is_up())
     {
@@ -186,7 +226,8 @@ void stationlist_pi(gint pi)
     }
 }
 
-void stationlist_pty(gint pty)
+void
+stationlist_pty(gint pty)
 {
     if(stationlist_is_up())
     {
@@ -194,7 +235,8 @@ void stationlist_pty(gint pty)
     }
 }
 
-void stationlist_ecc(guchar ecc)
+void
+stationlist_ecc(guchar ecc)
 {
     if(stationlist_is_up())
     {
@@ -202,7 +244,8 @@ void stationlist_ecc(guchar ecc)
     }
 }
 
-void stationlist_ps(gchar* ps)
+void
+stationlist_ps(gchar *ps)
 {
     if(stationlist_is_up())
     {
@@ -210,10 +253,12 @@ void stationlist_ps(gchar* ps)
     }
 }
 
-void stationlist_rt(gint n, gchar* rt)
+void
+stationlist_rt(gint   n,
+               gchar *rt)
 {
-    GString* msg;
-    gchar* msg_full;
+    GString *msg;
+    gchar *msg_full;
 
     if(stationlist_is_up())
     {
@@ -227,15 +272,17 @@ void stationlist_rt(gint n, gchar* rt)
     }
 }
 
-void stationlist_bw(gint filter)
+void
+stationlist_bw(gint bw)
 {
     if(stationlist_is_up())
     {
-        stationlist_add(g_strdup("bandwidth"), g_strdup_printf("%d", filters_bw[tuner.mode][filter]));
+        stationlist_add(g_strdup("bandwidth"), g_strdup_printf("%d", bw));
     }
 }
 
-void stationlist_af(gint af)
+void
+stationlist_af(gint af)
 {
     if(stationlist_is_up())
     {
@@ -273,7 +320,8 @@ void stationlist_af(gint af)
     }
 }
 
-void stationlist_af_clear()
+void
+stationlist_af_clear()
 {
     gint i;
     for(i=0; i<STATIONLIST_AF_BUFF_LEN; i++)
@@ -283,7 +331,9 @@ void stationlist_af_clear()
     stationlist_af_buffer_pos = 0;
 }
 
-void stationlist_add(gchar* param, gchar* value)
+static void
+stationlist_add(gchar *param,
+                gchar *value)
 {
     GSList *l;
     sl_data_t *d;
@@ -313,7 +363,8 @@ void stationlist_add(gchar* param, gchar* value)
     g_mutex_unlock(&stationlist_mutex);
 }
 
-void stationlist_clear_rds()
+static void
+stationlist_clear_rds()
 {
     GSList *l;
     sl_data_t *d;
@@ -336,11 +387,12 @@ void stationlist_clear_rds()
     g_mutex_unlock(&stationlist_mutex);
 }
 
-gboolean stationlist_send(gchar* data)
+static gboolean
+stationlist_send(gchar *data)
 {
-    GString* msg;
-    GSList* l;
-    gchar* msg_full;
+    GString *msg;
+    GSList *l;
+    gchar *msg_full;
 
     g_mutex_lock(&stationlist_mutex);
     if(!stationlist_buffer)
@@ -368,30 +420,11 @@ gboolean stationlist_send(gchar* data)
     return TRUE;
 }
 
-void stationlist_free(gpointer data)
+static void
+stationlist_free(gpointer data)
 {
     sl_data_t *d = data;
     g_free(d->param);
     g_free(d->value);
     g_free(data);
-}
-
-void stationlist_stop()
-{
-    if(stationlist_is_up())
-    {
-        shutdown(stationlist_client, 2);
-        closesocket(stationlist_client);
-        stationlist_client = -1;
-        shutdown(stationlist_socket, 2);
-        closesocket(stationlist_socket);
-        stationlist_socket = -1;
-
-        g_source_remove(stationlist_sender);
-        g_mutex_lock(&stationlist_mutex);
-        g_slist_free_full(stationlist_buffer, (GDestroyNotify)stationlist_free);
-        stationlist_buffer = NULL;
-        g_mutex_unlock(&stationlist_mutex);
-        g_mutex_clear(&stationlist_mutex);
-    }
 }

@@ -1,8 +1,8 @@
 #define _WIN32_WINNT 0x0501
 #include <string.h>
 #include <stdlib.h>
-#include "connection.h"
-#include "gui-connect.h"
+#include "ui-connect.h"
+#include "tuner-conn.h"
 #include "tuner.h"
 #ifdef G_OS_WIN32
 #include <windows.h>
@@ -19,50 +19,50 @@
 #include <dirent.h>
 #endif
 
-gint open_serial(const gchar* serial_port)
+gint
+tuner_open_serial(const gchar *serial_port,
+                  gintptr     *fd)
 {
-    gchar path[32];
+    gchar path[100];
 #ifdef G_OS_WIN32
+    HANDLE serial;
     DCB dcbSerialParams = {0};
 
     g_snprintf(path, sizeof(path), "\\\\.\\%s", serial_port);
-    tuner.socket = INVALID_SOCKET;
-    tuner.serial = CreateFile(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
-    if(tuner.serial == INVALID_HANDLE_VALUE)
-    {
+    serial = CreateFile(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    if(serial == INVALID_HANDLE_VALUE)
         return CONN_SERIAL_FAIL_OPEN;
-    }
-    if(!GetCommState(tuner.serial, &dcbSerialParams))
+    if(!GetCommState(serial, &dcbSerialParams))
     {
-        CloseHandle(tuner.serial);
+        CloseHandle(serial);
         return CONN_SERIAL_FAIL_PARM_R;
     }
     dcbSerialParams.BaudRate = CBR_115200;
     dcbSerialParams.ByteSize = 8;
     dcbSerialParams.StopBits = ONESTOPBIT;
     dcbSerialParams.Parity = NOPARITY;
-    if(!SetCommState(tuner.serial, &dcbSerialParams))
+    if(!SetCommState(serial, &dcbSerialParams))
     {
-        CloseHandle(tuner.serial);
+        CloseHandle(serial);
         return CONN_SERIAL_FAIL_PARM_W;
     }
+    *fd = (gintptr)serial;
 #else
     struct termios options;
     g_snprintf(path, sizeof(path), "/dev/%s", serial_port);
-    if((tuner.serial = open(path, O_RDWR | O_NOCTTY | O_NDELAY)) < 0)
-    {
+    *fd = open(path, O_RDWR | O_NOCTTY | O_NDELAY);
+    if(*fd < 0)
         return CONN_SERIAL_FAIL_OPEN;
-    }
-    fcntl(tuner.serial, F_SETFL, 0);
-    tcflush(tuner.serial, TCIOFLUSH);
-    if(tcgetattr(tuner.serial, &options))
+    fcntl(*fd, F_SETFL, 0);
+    tcflush(*fd, TCIOFLUSH);
+    if(tcgetattr(*fd, &options))
     {
-        close(tuner.serial);
+        close(*fd);
         return CONN_SERIAL_FAIL_PARM_R;
     }
     if(cfsetispeed(&options, B115200) || cfsetospeed(&options, B115200))
     {
-        close(tuner.serial);
+        close(*fd);
         return CONN_SERIAL_FAIL_SPEED;
     }
     options.c_iflag &= ~(BRKINT | ICRNL | IXON | IMAXBEL);
@@ -72,18 +72,19 @@ gint open_serial(const gchar* serial_port)
     options.c_oflag |= NOFLSH;
     options.c_cflag |= CS8;
     options.c_cflag &= ~(CRTSCTS);
-    if(tcsetattr(tuner.serial, TCSANOW, &options))
+    if(tcsetattr(*fd, TCSANOW, &options))
     {
-        close(tuner.serial);
+        close(*fd);
         return CONN_SERIAL_FAIL_PARM_W;
     }
 #endif
     return CONN_SUCCESS;
 }
 
-gpointer open_socket(gpointer ptr)
+gpointer
+tuner_open_socket(gpointer ptr)
 {
-    conn_t* data = (conn_t*)ptr;
+    conn_t *data = (conn_t*)ptr;
     struct addrinfo hints = {0}, *result;
     struct timeval timeout = {0};
     fd_set input;
@@ -153,7 +154,7 @@ gpointer open_socket(gpointer ptr)
     {
         g_checksum_update(sha1, (guchar*)data->password, strlen(data->password));
     }
-    snprintf(msg, sizeof(msg), "%s\n", g_checksum_get_string(sha1));
+    g_snprintf(msg, sizeof(msg), "%s\n", g_checksum_get_string(sha1));
     g_checksum_free(sha1);
 
     /* Send the hash */
@@ -170,9 +171,12 @@ gpointer open_socket(gpointer ptr)
     return NULL;
 }
 
-conn_t* conn_new(const gchar* hostname, const gchar* port, const gchar* password)
+conn_t*
+conn_new(const gchar *hostname,
+         const gchar *port,
+         const gchar *password)
 {
-    conn_t* ptr = g_new(conn_t, 1);
+    conn_t *ptr = g_new(conn_t, 1);
     ptr->hostname = g_strdup(hostname);
     ptr->port = g_strdup(port);
     ptr->password = g_strdup(password);
@@ -181,10 +185,12 @@ conn_t* conn_new(const gchar* hostname, const gchar* port, const gchar* password
     return ptr;
 }
 
-void conn_free(conn_t *ptr)
+void
+conn_free(conn_t *ptr)
 {
     g_free(ptr->hostname);
     g_free(ptr->port);
     g_free(ptr->password);
     g_free(ptr);
 }
+

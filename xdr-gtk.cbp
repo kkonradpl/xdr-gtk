@@ -64,46 +64,16 @@
 		<Linker>
 			<Add option="`pkg-config gtk+-2.0 --libs`" />
 		</Linker>
-		<Unit filename="clipboard.c">
+		<Unit filename="conf-defaults.h" />
+		<Unit filename="conf.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="clipboard.h" />
-		<Unit filename="connection.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="connection.h" />
-		<Unit filename="graph.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="graph.h" />
-		<Unit filename="gui-audio.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="gui-audio.h" />
-		<Unit filename="gui-connect.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="gui-connect.h" />
-		<Unit filename="gui-tuner.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="gui-tuner.h" />
-		<Unit filename="gui-update.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="gui-update.h" />
-		<Unit filename="gui.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="gui.h" />
+		<Unit filename="conf.h" />
 		<Unit filename="icon.rc">
+			<Option compilerVar="WINDRES" />
 			<Option target="Debug-win" />
 			<Option target="Release-win" />
 		</Unit>
-		<Unit filename="keyboard.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="keyboard.h" />
 		<Unit filename="log.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -131,18 +101,58 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="settings.h" />
-		<Unit filename="sig.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="sig.h" />
 		<Unit filename="stationlist.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="stationlist.h" />
+		<Unit filename="tuner-callbacks.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="tuner-callbacks.h" />
+		<Unit filename="tuner-conn.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="tuner-conn.h" />
+		<Unit filename="tuner-filters.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="tuner-filters.h" />
+		<Unit filename="tuner-scan.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="tuner-scan.h" />
 		<Unit filename="tuner.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="tuner.h" />
+		<Unit filename="ui-audio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui-audio.h" />
+		<Unit filename="ui-connect.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui-connect.h" />
+		<Unit filename="ui-input.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui-input.h" />
+		<Unit filename="ui-signal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui-signal.h" />
+		<Unit filename="ui-tuner-set.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui-tuner-set.h" />
+		<Unit filename="ui-tuner-update.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui-tuner-update.h" />
+		<Unit filename="ui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ui.h" />
 		<Unit filename="version.h" />
 		<Unit filename="win32.c">
 			<Option compilerVar="CC" />

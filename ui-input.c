@@ -3,16 +3,20 @@
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
-#include "keyboard.h"
-#include "gui.h"
+#include "ui.h"
 #include "scan.h"
-#include "gui-tuner.h"
+#include "ui-tuner-set.h"
 #include "tuner.h"
-#include "settings.h"
+#include "conf.h"
+#include "log.h"
+#include "ui-input.h"
 
 gboolean rotation_shift_pressed;
 
-gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_frequency_entry)
+gboolean
+keyboard_press(GtkWidget   *widget,
+               GdkEventKey *event,
+               gpointer     disable_frequency_entry)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
     gboolean shift_pressed = (event->state & GDK_SHIFT_MASK);
@@ -20,49 +24,41 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
     // tuning
     if(current == conf.key_tune_down)
     {
-        tuner_modify_frequency(FREQ_MODIFY_DOWN);
+        tuner_modify_frequency(TUNER_FREQ_MODIFY_DOWN);
         return TRUE;
     }
 
     if(current == conf.key_tune_up)
     {
-        tuner_modify_frequency(FREQ_MODIFY_UP);
+        tuner_modify_frequency(TUNER_FREQ_MODIFY_UP);
         return TRUE;
     }
 
-    if(current == conf.key_tune_up_5)
+    if(current == conf.key_tune_fine_up)
     {
         if(tuner.freq < 1900)
-        {
             tuner_set_frequency(tuner.freq+1);
-        }
         else
-        {
             tuner_set_frequency(tuner.freq+5);
-        }
         return TRUE;
     }
 
-    if(current == conf.key_tune_down_5)
+    if(current == conf.key_tune_fine_down)
     {
         if(tuner.freq <= 1900)
-        {
             tuner_set_frequency(tuner.freq-1);
-        }
         else
-        {
             tuner_set_frequency(tuner.freq-5);
-        }
         return TRUE;
     }
 
-    if(current == conf.key_tune_down_1000)
+    if(current == conf.key_tune_jump_down)
     {
         tuner_set_frequency(tuner.freq-1000);
         return TRUE;
     }
 
-    if(current == conf.key_tune_up_1000)
+    if(current == conf.key_tune_jump_up)
     {
         tuner_set_frequency(tuner.freq+1000);
         return TRUE;
@@ -70,52 +66,52 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
 
     if(current == conf.key_tune_back)
     {
-        gtk_button_clicked(GTK_BUTTON(gui.b_tune_back));
+        gtk_button_clicked(GTK_BUTTON(ui.b_tune_back));
         return TRUE;
     }
 
-    if(current == conf.key_reset)
+    if(current == conf.key_tune_reset)
     {
-        gtk_button_clicked(GTK_BUTTON(gui.b_tune_reset));
+        gtk_button_clicked(GTK_BUTTON(ui.b_tune_reset));
         return TRUE;
     }
 
-    if(current == conf.key_screen)
+    if(current == conf.key_screenshot)
     {
-        gui_screenshot();
+        ui_screenshot();
         return TRUE;
     }
 
     if(current == conf.key_rotate_cw)
     {
         rotation_shift_pressed = shift_pressed;
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.b_cw), TRUE);
         return TRUE;
     }
 
     if(current == conf.key_rotate_ccw)
     {
         rotation_shift_pressed = shift_pressed;
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.b_ccw), TRUE);
         return TRUE;
     }
 
-    if(current == conf.key_switch_ant)
+    if(current == conf.key_switch_antenna)
     {
-        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_ant));
-        gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_ant), ((current < conf.ant_count-1) ? current+1 : 0));
+        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_ant));
+        gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_ant), ((current < conf.ant_count-1) ? current+1 : 0));
         return TRUE;
     }
 
-    if(current == conf.key_ps_mode)
+    if(current == conf.key_rds_ps_mode)
     {
-        gui_toggle_ps_mode();
+        ui_toggle_ps_mode();
         return TRUE;
     }
 
-    if(current == conf.key_spectral_toggle && scan.window)
+    if(current == conf.key_scan_toggle)
     {
-        gtk_button_clicked(GTK_BUTTON(scan.b_start));
+        scan_try_toggle();
         return TRUE;
     }
 
@@ -126,7 +122,7 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
         if(shift_pressed)
         {
             conf.presets[id] = tuner.freq;
-            gui_status(1500, "Preset <b>F%d</b> has been stored.", id+1);
+            ui_status(1500, "Preset <b>F%d</b> has been stored.", id+1);
         }
         else
         {
@@ -138,10 +134,10 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
     // decrease filter bandwidth
     if(current == conf.key_bw_down)
     {
-        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw));
-        if(current != gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(gui.c_bw))), NULL)-1)
+        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw));
+        if(current != gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(ui.c_bw))), NULL)-1)
         {
-            gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), current+1);
+            gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw), current+1);
         }
         return TRUE;
     }
@@ -149,10 +145,10 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
     // increase filter bandwidth
     if(current == conf.key_bw_up)
     {
-        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(gui.c_bw));
+        gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw));
         if(current != 0)
         {
-            gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), current-1);
+            gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw), current-1);
         }
         return TRUE;
     }
@@ -160,7 +156,11 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
     // adaptive filter bandwidth
     if(current == conf.key_bw_auto)
     {
-        gtk_combo_box_set_active(GTK_COMBO_BOX(gui.c_bw), gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(gui.c_bw))), NULL) - 1);
+        if(tuner.mode == MODE_FM)
+        {
+            gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw),
+                                     gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(ui.c_bw))), NULL) - 1);
+        }
         return TRUE;
     }
 
@@ -170,13 +170,13 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
     }
 
     // freq entry
-    gtk_widget_grab_focus(gui.e_freq);
-    gtk_editable_set_position(GTK_EDITABLE(gui.e_freq), -1);
+    gtk_widget_grab_focus(ui.e_freq);
+    gtk_editable_set_position(GTK_EDITABLE(ui.e_freq), -1);
 
     gchar buff[10], buff2[10];
     gint i = 0, j = 0, k = 0;
     gboolean flag = FALSE;
-    g_snprintf(buff, 10, "%s", gtk_entry_get_text(GTK_ENTRY(gui.e_freq)));
+    g_snprintf(buff, 10, "%s", gtk_entry_get_text(GTK_ENTRY(ui.e_freq)));
     if(event->keyval == GDK_Return)
     {
         for(i=0; i<strlen(buff); i++)
@@ -207,8 +207,8 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
         if(i>=100)
             tuner_set_frequency(atoi(buff2));
 
-        gtk_entry_set_text(GTK_ENTRY(gui.e_freq), "");
-        gtk_editable_set_position(GTK_EDITABLE(gui.e_freq), 2);
+        gtk_entry_set_text(GTK_ENTRY(ui.e_freq), "");
+        gtk_editable_set_position(GTK_EDITABLE(ui.e_freq), 2);
         return TRUE;
     }
     else if(event->state & GDK_CONTROL_MASK)
@@ -271,8 +271,8 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
                     break;
                 }
 
-                gtk_entry_append_text(GTK_ENTRY(gui.e_freq), buff2);
-                gtk_editable_set_position(GTK_EDITABLE(gui.e_freq), -1);
+                gtk_entry_append_text(GTK_ENTRY(ui.e_freq), buff2);
+                gtk_editable_set_position(GTK_EDITABLE(ui.e_freq), -1);
                 return TRUE;
             }
         }
@@ -280,7 +280,10 @@ gboolean keyboard_press(GtkWidget* widget, GdkEventKey* event, gpointer disable_
     return FALSE;
 }
 
-gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothing)
+gboolean
+keyboard_release(GtkWidget   *widget,
+                 GdkEventKey *event,
+                 gpointer     nothing)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
     rotation_shift_pressed |= (event->state & GDK_SHIFT_MASK);
@@ -289,7 +292,7 @@ gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothin
     {
         if(!rotation_shift_pressed)
         {
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_cw), FALSE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.b_cw), FALSE);
             return TRUE;
         }
     }
@@ -297,7 +300,7 @@ gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothin
     {
         if(!rotation_shift_pressed)
         {
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui.b_ccw), FALSE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.b_ccw), FALSE);
             return TRUE;
         }
     }
@@ -305,7 +308,10 @@ gboolean keyboard_release(GtkWidget* widget, GdkEventKey* event, gpointer nothin
     return FALSE;
 }
 
-gboolean window_click(GtkWidget *widget, GdkEventButton *event, GtkWindow* window)
+gboolean
+mouse_window(GtkWidget      *widget,
+             GdkEventButton *event,
+             GtkWindow      *window)
 {
     static gboolean compact_mode = FALSE;
 
@@ -318,15 +324,122 @@ gboolean window_click(GtkWidget *widget, GdkEventButton *event, GtkWindow* windo
     {
         if(compact_mode)
         {
-            gtk_widget_hide(gui.box_left_settings1);
-            gtk_widget_hide(gui.box_left_settings2);
+            gtk_widget_hide(ui.box_left_settings1);
+            gtk_widget_hide(ui.box_left_settings2);
         }
         else
         {
-            gtk_widget_show(gui.box_left_settings1);
-            gtk_widget_show(gui.box_left_settings2);
+            gtk_widget_show(ui.box_left_settings1);
+            gtk_widget_show(ui.box_left_settings2);
         }
         compact_mode = !compact_mode;
+    }
+    return FALSE;
+}
+
+gboolean
+mouse_freq(GtkWidget *widget,
+           GdkEvent  *event,
+           gpointer   nothing)
+{
+    const gchar *freq_text = gtk_label_get_text(GTK_LABEL(ui.l_freq));
+    const gchar *pi_text = gtk_label_get_text(GTK_LABEL(ui.l_pi));
+    gchar buff[30];
+    gchar *ps;
+
+    if(tuner.rds_ps_avail)
+    {
+        if(conf.replace_spaces)
+        {
+            ps = replace_spaces(tuner.rds_ps);
+            g_snprintf(buff, sizeof(buff), "%s %s %s", freq_text, pi_text, ps);
+            g_free(ps);
+        }
+        else
+        {
+            g_snprintf(buff, sizeof(buff), "%s %s %s", freq_text, pi_text, tuner.rds_ps);
+        }
+    }
+    else if(tuner.rds_pi >= 0)
+    {
+        g_snprintf(buff, sizeof(buff), "%s %s", freq_text, pi_text);
+    }
+    else
+    {
+        g_snprintf(buff, sizeof(buff), "%s", freq_text);
+    }
+
+    gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
+                           buff,
+                           -1);
+    return TRUE;
+}
+
+gboolean
+mouse_pi(GtkWidget *widget,
+         GdkEvent  *event,
+         gpointer   nothing)
+{
+    if(tuner.rds_pi < 0)
+        return FALSE;
+
+    gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
+                           gtk_label_get_text(GTK_LABEL(ui.l_pi)),
+                           -1);
+    return TRUE;
+}
+
+gboolean
+mouse_ps(GtkWidget      *widget,
+         GdkEventButton *event,
+         gpointer        data)
+{
+    gchar *ps;
+    if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click
+    {
+        ui_toggle_ps_mode();
+        return FALSE;
+    }
+    if(!tuner.rds_ps_avail)
+    {
+        return FALSE;
+    }
+    if(conf.replace_spaces)
+    {
+        ps = replace_spaces(tuner.rds_ps);
+        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
+                               ps,
+                               -1);
+        g_free(ps);
+    }
+    else
+    {
+        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
+                               tuner.rds_ps,
+                               -1);
+    }
+    return TRUE;
+}
+
+gboolean
+mouse_rt(GtkWidget *widget,
+         GdkEvent  *event,
+         gpointer   data)
+{
+    gchar *str;
+    if(conf.replace_spaces)
+    {
+        str = replace_spaces((gchar*)data);
+        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window,GDK_SELECTION_CLIPBOARD),
+                               str,
+                               -1);
+        g_free(str);
+    }
+    else
+    {
+        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
+                               (gchar*)data,
+                               -1);
     }
     return FALSE;
 }

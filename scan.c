@@ -2,35 +2,113 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gtk/gtk.h>
-#include "gui.h"
-#include "gui-tuner.h"
-#include "settings.h"
-#include "keyboard.h"
+#include "ui.h"
+#include "tuner-scan.h"
+#include "ui-tuner-set.h"
+#include "conf.h"
+#include "ui-input.h"
 #include "scan.h"
-#include "sig.h"
+#include "ui-signal.h"
 #include "tuner.h"
 
 #define MAP(val, in_min, in_max, out_min, out_max) ((val - in_min) * (out_max - out_min) / (gdouble)(in_max - in_min) + out_min)
 #define SCAN_ADD_COLOR(x, y, z, a) cairo_pattern_add_color_stop_rgba(x, y, (((z) & 0xFF0000) >> 16) / 255.0, (((z) & 0xFF00) >> 8) / 255.0, ((z) & 0xFF) / 255.0, (a))
 
 #define SCAN_FONT "DejaVu Sans Mono"
+#define SCAN_FONT_SCALE_SIZE 12
 #define SCAN_POINT_WIDTH 2.5
 
-#define SCAN_OFFSET_LEFT 5
-#define SCAN_OFFSET_RIGHT 5
-#define SCAN_OFFSET_TOP 5
-#define SCAN_OFFSET_BOTTOM 17
+#define SCAN_OFFSET_LEFT 30
+#define SCAN_OFFSET_RIGHT 20
+#define SCAN_OFFSET_TOP (SCAN_FONT_SCALE_SIZE/2 + 2)
+#define SCAN_OFFSET_BOTTOM (SCAN_FONT_SCALE_SIZE+5)
 
-#define SCAN_MIN_SAMPLES 2
-#define SCAN_MAX_SAMPLES 700
-#define SCAN_DEFAULT_MIN_LEVEL 0.0
-#define SCAN_DEFAULT_MAX_LEVEL 85.0
-
-#define SCAN_SPECTRUM_ALPHA_PEAK 0.40
+#define SCAN_SCALE_LINE_LENGTH      5
+#define SCAN_MIN_SAMPLES            2
+#define SCAN_MAX_SAMPLES          700
+#define SCAN_DEFAULT_MIN_LEVEL    3.0
+#define SCAN_DEFAULT_MAX_LEVEL   84.0
+#define SCAN_SPECTRUM_ALPHA_PEAK 0.45
 #define SCAN_SPECTRUM_ALPHA      1.00
 #define SCAN_SPECTRUM_ALPHA_HOLD 1.00
+#define SCAN_GRID_ALPHA          0.50
+#define SCAN_MARK_TUNED_WIDTH     3.0
 
-void scan_init()
+typedef struct scan
+{
+    GtkWidget *window;
+    GtkWidget *box;
+    GtkWidget *box_settings;
+
+    GtkWidget *box_buttons;
+    GtkWidget *b_start;
+    GtkWidget *b_continuous;
+    GtkWidget *b_relative;
+    GtkWidget *b_peakhold;
+    GtkWidget *b_hold;
+
+    GtkWidget *box_from;
+    GtkWidget *l_from;
+    GtkWidget *s_start;
+
+    GtkWidget *box_to;
+    GtkWidget *l_to;
+    GtkWidget *s_end;
+
+    GtkWidget *box_step;
+    GtkWidget *l_step;
+    GtkWidget *s_step;
+
+    GtkWidget *box_bw;
+    GtkWidget *l_bw;
+    GtkWidget *d_bw;
+
+    GtkWidget *box_other;
+    GtkWidget *b_ccir;
+    GtkWidget *b_oirt;
+    GtkWidget *b_marks;
+    GtkWidget *marks_menu;
+
+    GtkWidget *view;
+
+    gboolean active;
+    gboolean locked;
+    gboolean motion_tuning;
+    gint focus;
+    tuner_scan_t *data;
+    tuner_scan_t *peak;
+    tuner_scan_t *hold;
+} scan_t;
+
+static scan_t scan;
+static const double grid_pattern[] = {1.0, 1.0};
+static const gint grid_pattern_len = 2;
+
+static void scan_destroy(GtkWidget*, gpointer);
+static gboolean scan_window_event(GtkWidget*, gpointer);
+static void scan_lock(gboolean);
+static GtkWidget* scan_dialog_menu();
+static void scan_toggle(GtkWidget*, gpointer);
+static void scan_peakhold(GtkWidget*, gpointer);
+static void scan_hold(GtkWidget*, gpointer);
+static void scan_ccir(GtkWidget*, gpointer);
+static void scan_oirt(GtkWidget*, gpointer);
+static gboolean scan_marks(GtkWidget*, GdkEventButton*);
+static void scan_marks_tuned_toggled(GtkCheckMenuItem*, gpointer);
+static void scan_marks_add(GtkMenuItem*, gpointer);
+static void scan_marks_clear(GtkMenuItem*, gpointer);
+
+static gboolean scan_redraw(GtkWidget*, GdkEventExpose*, gpointer);
+static void scan_draw_spectrum(cairo_t*, tuner_scan_t*, gint, gint, gdouble, gdouble, gdouble);
+static void scan_draw_scale(cairo_t*, gint, gint, gdouble, gdouble);
+static void scan_draw_mark(cairo_t*, gint, gint, gint, gboolean);
+static gboolean scan_click(GtkWidget*, GdkEventButton*, gpointer);
+static gboolean scan_motion(GtkWidget*, GdkEventMotion*, gpointer);
+static gboolean scan_leave(GtkWidget*, GdkEvent*, gpointer);
+static const gchar* scan_format_frequency(gint);
+
+void
+scan_init()
 {
     scan.window = NULL;
     scan.active = FALSE;
@@ -42,7 +120,8 @@ void scan_init()
     scan.hold = NULL;
 }
 
-void scan_dialog()
+void
+scan_dialog()
 {
     if(scan.window)
     {
@@ -55,20 +134,17 @@ void scan_dialog()
     gtk_window_set_icon_name(GTK_WINDOW(scan.window), "xdr-gtk-scan");
     gtk_window_set_destroy_with_parent(GTK_WINDOW(scan.window), TRUE);
     gtk_container_set_border_width(GTK_CONTAINER(scan.window), 2);
-    gtk_window_set_transient_for(GTK_WINDOW(scan.window), GTK_WINDOW(gui.window));
+    gtk_window_set_transient_for(GTK_WINDOW(scan.window), GTK_WINDOW(ui.window));
     gtk_window_set_default_size(GTK_WINDOW(scan.window), conf.scan_width, conf.scan_height);
     gtk_widget_add_events(GTK_WIDGET(scan.window), GDK_CONFIGURE);
-    if(conf.restore_pos)
-    {
+    if(conf.restore_position && conf.scan_x >= 0 && conf.scan_y >= 0)
         gtk_window_move(GTK_WINDOW(scan.window), conf.scan_x, conf.scan_y);
-    }
 
     scan.box = gtk_hbox_new(FALSE, 2);
     gtk_container_add(GTK_CONTAINER(scan.window), scan.box);
 
     scan.box_settings = gtk_vbox_new(FALSE, 1);
     gtk_box_pack_start(GTK_BOX(scan.box), scan.box_settings, FALSE, FALSE, 0);
-
 
     scan.box_buttons = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(scan.box_settings), scan.box_buttons, FALSE, FALSE, 0);
@@ -106,9 +182,8 @@ void scan_dialog()
     gtk_button_set_image(GTK_BUTTON(scan.b_hold), gtk_image_new_from_stock(GTK_STOCK_MEDIA_PAUSE, GTK_ICON_SIZE_BUTTON));
     gtk_widget_set_name(scan.b_hold, "small-button");
     if(scan.hold)
-    {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scan.b_hold), TRUE);
-    }
+
     g_signal_connect(scan.b_hold, "clicked", G_CALLBACK(scan_hold), NULL);
     gtk_box_pack_start(GTK_BOX(scan.box_buttons), scan.b_hold, FALSE, FALSE, 0);
 
@@ -148,105 +223,58 @@ void scan_dialog()
     scan.l_bw = gtk_label_new("BW:");
     gtk_misc_set_alignment(GTK_MISC(scan.l_bw), 0.0, 0.5);
     scan.d_bw = gtk_combo_box_new_text();
-    gui_fill_bandwidths(scan.d_bw, FALSE);
+    ui_fill_bandwidths(scan.d_bw, FALSE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(scan.d_bw), 13);
     gtk_box_pack_start(GTK_BOX(scan.box_bw), scan.l_bw, TRUE, TRUE, 2);
     gtk_box_pack_start(GTK_BOX(scan.box_bw), scan.d_bw, FALSE, FALSE, 0);
     if(conf.scan_bw >= 0)
-    {
         gtk_combo_box_set_active(GTK_COMBO_BOX(scan.d_bw), conf.scan_bw);
-    }
 
-    scan.box_presets = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(scan.box_settings), scan.box_presets, FALSE, FALSE, 0);
+    scan.box_other = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(scan.box_settings), scan.box_other, FALSE, FALSE, 0);
 
     scan.b_ccir = gtk_button_new_with_label("CCIR");
     gtk_widget_set_name(scan.b_ccir, "small-button");
-    gtk_box_pack_start(GTK_BOX(scan.box_presets), scan.b_ccir, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_ccir, TRUE, TRUE, 0);
     g_signal_connect(scan.b_ccir, "clicked", G_CALLBACK(scan_ccir), NULL);
 
     scan.b_oirt = gtk_button_new_with_label("OIRT");
     gtk_widget_set_name(scan.b_oirt, "small-button");
-    gtk_box_pack_start(GTK_BOX(scan.box_presets), scan.b_oirt, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_oirt, TRUE, TRUE, 0);
     g_signal_connect(scan.b_oirt, "clicked", G_CALLBACK(scan_oirt), NULL);
 
     scan.marks_menu = scan_dialog_menu();
     scan.b_marks = gtk_button_new_with_label(" M ");
     gtk_widget_set_name(scan.b_marks, "small-button");
-    gtk_box_pack_start(GTK_BOX(scan.box_presets), scan.b_marks, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_marks, FALSE, FALSE, 0);
     g_signal_connect_swapped(scan.b_marks, "event", G_CALLBACK(scan_marks), scan.marks_menu);
 
-
     scan.view = gtk_drawing_area_new();
-    gtk_widget_add_events(scan.view, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK);
+    gtk_widget_add_events(scan.view, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
     gtk_widget_set_size_request(scan.view, 640, -1);
     gtk_box_pack_start(GTK_BOX(scan.box), scan.view, TRUE, TRUE, 0);
 
     g_signal_connect(scan.view, "expose-event", G_CALLBACK(scan_redraw), NULL);
-    g_signal_connect_swapped(scan.b_relative, "clicked", G_CALLBACK(gtk_widget_queue_draw), (GCallback)scan.view);
+    g_signal_connect_swapped(scan.b_relative, "clicked", G_CALLBACK(gtk_widget_queue_draw), scan.view);
     g_signal_connect(scan.view, "button-press-event", G_CALLBACK(scan_click), NULL);
     g_signal_connect(scan.view, "button-release-event", G_CALLBACK(scan_click), NULL);
     g_signal_connect(scan.view, "motion-notify-event", G_CALLBACK(scan_motion), NULL);
+    g_signal_connect(scan.view, "leave-notify-event", G_CALLBACK(scan_leave), NULL);
     g_signal_connect(scan.window, "configure-event", G_CALLBACK(scan_window_event), NULL);
     g_signal_connect(scan.window, "key-press-event", G_CALLBACK(keyboard_press), GINT_TO_POINTER(TRUE));
     g_signal_connect(scan.window, "key-release-event", G_CALLBACK(keyboard_release), NULL);
     g_signal_connect(scan.window, "destroy", G_CALLBACK(scan_destroy), NULL);
 
     if(scan.active)
-    {
         scan_lock(TRUE);
-    }
 
     gtk_widget_show_all(scan.window);
     gtk_window_set_transient_for(GTK_WINDOW(scan.window), NULL);
 }
 
-GtkWidget* scan_dialog_menu()
-{
-    GtkWidget* menu = gtk_menu_new();
-
-    GtkWidget* title = gtk_menu_item_new_with_label("Frequency marks");
-    gtk_widget_set_sensitive(title, FALSE);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), title);
-
-    GtkWidget* sep = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep);
-
-    GtkWidget* add_100k = gtk_image_menu_item_new_with_label("Add every 100 kHz");
-    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_100k),
-                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_100k);
-    g_signal_connect(add_100k, "activate", G_CALLBACK(scan_marks_add), GINT_TO_POINTER(100));
-
-    GtkWidget* add_1M = gtk_image_menu_item_new_with_label("Add every 1 MHz");
-    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_1M),
-                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_1M);
-    g_signal_connect(add_1M, "activate", G_CALLBACK(scan_marks_add), GINT_TO_POINTER(1000));
-
-    GtkWidget* add_2M = gtk_image_menu_item_new_with_label("Add every 2 MHz");
-    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_2M),
-                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_2M);
-    g_signal_connect(add_2M, "activate", G_CALLBACK(scan_marks_add), GINT_TO_POINTER(2000));
-
-    GtkWidget* clear_visible = gtk_image_menu_item_new_with_label("Clear visible marks");
-    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_visible),
-                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_visible);
-    g_signal_connect(clear_visible, "activate", G_CALLBACK(scan_marks_clear), GINT_TO_POINTER(FALSE));
-
-    GtkWidget* clear_all = gtk_image_menu_item_new_with_label("Clear all marks");
-    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_all),
-                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_all);
-    g_signal_connect(clear_all, "activate", G_CALLBACK(scan_marks_clear), GINT_TO_POINTER(TRUE));
-
-    gtk_widget_show_all(menu);
-    return menu;
-}
-
-void scan_destroy(GtkWidget *widget, gpointer user_data)
+static void
+scan_destroy(GtkWidget *widget,
+             gpointer   user_data)
 {
     conf.scan_continuous = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan.b_continuous));
     conf.scan_relative = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan.b_relative));
@@ -259,30 +287,98 @@ void scan_destroy(GtkWidget *widget, gpointer user_data)
     scan.window = NULL;
 }
 
-gboolean scan_window_event(GtkWidget* widget, gpointer data)
+static gboolean
+scan_window_event(GtkWidget *widget,
+                  gpointer   data)
 {
     gtk_window_get_position(GTK_WINDOW(scan.window), &conf.scan_x, &conf.scan_y);
     gtk_window_get_size(GTK_WINDOW(scan.window), &conf.scan_width, &conf.scan_height);
     return FALSE;
 }
 
-void scan_toggle(GtkWidget *widget, gpointer user_data)
+static void
+scan_lock(gboolean value)
+{
+    gboolean sensitive = !value;
+    gtk_widget_set_sensitive(scan.b_continuous, sensitive);
+    gtk_widget_set_sensitive(scan.s_start, sensitive);
+    gtk_widget_set_sensitive(scan.s_end, sensitive);
+    gtk_widget_set_sensitive(scan.s_step, sensitive);
+    gtk_widget_set_sensitive(scan.d_bw, sensitive);
+    gtk_widget_set_sensitive(scan.b_ccir, sensitive);
+    gtk_widget_set_sensitive(scan.b_oirt, sensitive);
+    gtk_button_set_image(GTK_BUTTON(scan.b_start),
+                         gtk_image_new_from_stock((value?GTK_STOCK_MEDIA_STOP:GTK_STOCK_MEDIA_PLAY), GTK_ICON_SIZE_BUTTON));
+    scan.locked = value;
+}
+
+static GtkWidget*
+scan_dialog_menu()
+{
+    GtkWidget *menu = gtk_menu_new();
+
+    GtkWidget *title = gtk_menu_item_new_with_label("Frequency marks");
+    gtk_widget_set_sensitive(title, FALSE);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), title);
+
+    GtkWidget *sep = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep);
+
+    GtkWidget *mark_tuned = gtk_check_menu_item_new_with_label("Mark tuned frequency");
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(mark_tuned), conf.scan_mark_tuned);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), mark_tuned);
+    g_signal_connect(mark_tuned, "toggled", G_CALLBACK(scan_marks_tuned_toggled), NULL);
+
+    GtkWidget *add_100k = gtk_image_menu_item_new_with_label("Add every 100 kHz");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_100k),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_100k);
+    g_signal_connect(add_100k, "activate", G_CALLBACK(scan_marks_add), GINT_TO_POINTER(100));
+
+    GtkWidget *add_1M = gtk_image_menu_item_new_with_label("Add every 1 MHz");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_1M),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_1M);
+    g_signal_connect(add_1M, "activate", G_CALLBACK(scan_marks_add), GINT_TO_POINTER(1000));
+
+    GtkWidget *add_2M = gtk_image_menu_item_new_with_label("Add every 2 MHz");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_2M),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_2M);
+    g_signal_connect(add_2M, "activate", G_CALLBACK(scan_marks_add), GINT_TO_POINTER(2000));
+
+    GtkWidget *clear_visible = gtk_image_menu_item_new_with_label("Clear visible marks");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_visible),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_visible);
+    g_signal_connect(clear_visible, "activate", G_CALLBACK(scan_marks_clear), GINT_TO_POINTER(FALSE));
+
+    GtkWidget *clear_all = gtk_image_menu_item_new_with_label("Clear all marks");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_all),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_all);
+    g_signal_connect(clear_all, "activate", G_CALLBACK(scan_marks_clear), GINT_TO_POINTER(TRUE));
+
+    gtk_widget_show_all(menu);
+    return menu;
+}
+
+static void
+scan_toggle(GtkWidget *widget,
+            gpointer   user_data)
 {
     gint start, stop, step, bw;
     gboolean continuous;
     gchar buff[50];
-    GtkWidget* dialog;
     gint samples;
 
     if(!tuner.thread)
-    {
         return;
-    }
 
     if(scan.active)
     {
         /* Try to cancel current scan */
-        tuner_write("");
+        tuner_write(tuner.thread, "");
         gtk_widget_set_sensitive(scan.b_start, FALSE);
     }
     else
@@ -304,63 +400,48 @@ void scan_toggle(GtkWidget *widget, gpointer user_data)
         samples = (stop - start)/(gdouble)step;
         if(samples < SCAN_MIN_SAMPLES || samples > SCAN_MAX_SAMPLES)
         {
-            dialog = gtk_message_dialog_new(GTK_WINDOW(scan.window),
-                                            GTK_DIALOG_MODAL,
-                                            GTK_MESSAGE_INFO,
-                                            GTK_BUTTONS_CLOSE,
-                                            (samples < SCAN_MIN_SAMPLES) ? "The selected sample count is too low." : "The selected sample count is too large.");
-            gtk_window_set_title(GTK_WINDOW(dialog), "Spectral scan");
-            gtk_dialog_run(GTK_DIALOG(dialog));
-            gtk_widget_destroy(dialog);
+            ui_dialog(scan.window,
+                      GTK_MESSAGE_INFO,
+                      "Spectral scan",
+                      (samples < SCAN_MIN_SAMPLES) ? "The selected sample count is too low." : "The selected sample count is too large.");
             return;
         }
 
         g_snprintf(buff, sizeof(buff),
                    "Sa%d\nSb%d\nSc%d\nSf%d\nS%s",
-                   start, stop, step, filters[bw], (continuous?"m":""));
+                   start, stop, step, tuner_filter_from_index(bw), (continuous?"m":""));
 
-        tuner_write(buff);
+        tuner_write(tuner.thread, buff);
         scan_lock(TRUE);
         gtk_widget_set_sensitive(scan.b_start, FALSE);
     }
 
 }
 
-void scan_lock(gboolean value)
-{
-    gboolean sensitive = !value;
-    gtk_widget_set_sensitive(scan.b_continuous, sensitive);
-    gtk_widget_set_sensitive(scan.s_start, sensitive);
-    gtk_widget_set_sensitive(scan.s_end, sensitive);
-    gtk_widget_set_sensitive(scan.s_step, sensitive);
-    gtk_widget_set_sensitive(scan.d_bw, sensitive);
-    gtk_widget_set_sensitive(scan.b_ccir, sensitive);
-    gtk_widget_set_sensitive(scan.b_oirt, sensitive);
-    gtk_button_set_image(GTK_BUTTON(scan.b_start),
-                         gtk_image_new_from_stock((value?GTK_STOCK_MEDIA_STOP:GTK_STOCK_MEDIA_PLAY), GTK_ICON_SIZE_BUTTON));
-    scan.locked = value;
-}
-
-void scan_peakhold(GtkWidget *widget, gpointer user_data)
+static void
+scan_peakhold(GtkWidget *widget,
+              gpointer   user_data)
 {
     if(!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
     {
         if(scan.peak)
         {
-            scan_data_free(scan.peak);
+            tuner_scan_free(scan.peak);
             scan.peak = NULL;
-            gtk_widget_queue_draw(scan.view);
+            scan_force_redraw();
         }
     }
 }
 
-void scan_hold(GtkWidget *widget, gpointer user_data)
+static void
+scan_hold(GtkWidget *widget,
+          gpointer   user_data)
 {
     gboolean redraw = FALSE;
 
     if(scan.hold)
     {
-        scan_data_free(scan.hold);
+        tuner_scan_free(scan.hold);
         scan.hold = NULL;
         redraw = TRUE;
     }
@@ -369,7 +450,7 @@ void scan_hold(GtkWidget *widget, gpointer user_data)
     {
         if(scan.data)
         {
-            scan.hold = scan_data_copy(scan.data);
+            scan.hold = tuner_scan_copy(scan.data);
             redraw = TRUE;
         }
         else
@@ -381,23 +462,94 @@ void scan_hold(GtkWidget *widget, gpointer user_data)
     }
 
     if(redraw)
+        scan_force_redraw();
+}
+
+static void
+scan_ccir(GtkWidget *widget,
+          gpointer   data)
+{
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 87500.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 108000.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 100.0);
+}
+
+static void
+scan_oirt(GtkWidget *widget,
+          gpointer   data)
+{
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 65750.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 74000.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 30.0);
+}
+
+static gboolean
+scan_marks(GtkWidget      *widget,
+           GdkEventButton *event)
+{
+    if(event->type == GDK_BUTTON_PRESS)
     {
-        gtk_widget_queue_draw(scan.view);
+        gtk_menu_popup(GTK_MENU(widget), NULL, NULL, NULL, NULL, event->button, event->time);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void
+scan_marks_tuned_toggled(GtkCheckMenuItem *item,
+                         gpointer          user_data)
+{
+    conf.scan_mark_tuned = gtk_check_menu_item_get_active(item);
+    scan_force_redraw();
+}
+
+static void
+scan_marks_add(GtkMenuItem *menuitem,
+               gpointer     user_data)
+{
+    gint step = GPOINTER_TO_INT(user_data);
+    gint min, max, curr;
+    if(scan.data)
+    {
+        min = ceil(scan.data->signals[0].freq / (gdouble)step)*step;
+        max = floor(scan.data->signals[scan.data->len-1].freq / (gdouble)step)*step;
+        for(curr=min; curr<=max; curr+=step)
+            conf_uniq_int_list_add(&conf.scan_marks, curr);
+        scan_force_redraw();
     }
 }
 
-gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
+static void
+scan_marks_clear(GtkMenuItem *menuitem,
+                 gpointer     user_data)
+{
+    gboolean all = GPOINTER_TO_INT(user_data);
+    if(all)
+    {
+        conf_uniq_int_list_clear(&conf.scan_marks);
+    }
+    else if(scan.data)
+    {
+        conf_uniq_int_list_clear_range(&conf.scan_marks,
+                                       scan.data->signals[0].freq,
+                                       scan.data->signals[scan.data->len-1].freq);
+    }
+    scan_force_redraw();
+}
+
+static gboolean
+scan_redraw(GtkWidget      *widget,
+            GdkEventExpose *event,
+            gpointer        user_data)
 {
     cairo_t *cr = gdk_cairo_create(widget->window);
-    static const double grid_pattern[] = {1.0, 1.0};
-    static const gint grid_pattern_len = 2;
     cairo_text_extents_t extents;
     cairo_pattern_t *gradient;
     gint width, height;
     gdouble max, min, step;
     gdouble x_focus, y_focus, point_radius;
     gchar text[50];
-    GList* l;
+    GList *l;
 
     width = widget->allocation.width - SCAN_OFFSET_LEFT - SCAN_OFFSET_RIGHT;
     height = widget->allocation.height - SCAN_OFFSET_TOP - SCAN_OFFSET_BOTTOM;
@@ -420,30 +572,41 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, gpointer user_dat
     {
         if(scan.peak && scan.hold)
         {
-            min = MIN(scan.data->min, scan.hold->min);
-            max = MAX(scan.peak->max, scan.hold->max);
+            min = MIN(signal_level(scan.data->min), signal_level(scan.hold->min));
+            max = MAX(signal_level(scan.peak->max), signal_level(scan.hold->max));
         }
         else if(scan.peak)
         {
-            min = scan.data->min;
-            max = scan.peak->max;
+            min = signal_level(scan.peak->min);
+            max = signal_level(scan.peak->max);
         }
         else if(scan.hold)
         {
-            min = MIN(scan.data->min, scan.hold->min);
-            max = MAX(scan.data->max, scan.hold->max);
+            min = MIN(signal_level(scan.data->min), signal_level(scan.hold->min));
+            max = MAX(signal_level(scan.data->max), signal_level(scan.hold->max));
         }
         else
         {
-            min = scan.data->min;
-            max = scan.data->max;
+            min = signal_level(scan.data->min);
+            max = signal_level(scan.data->max);
         }
     }
     else
     {
-        min = SCAN_DEFAULT_MIN_LEVEL;
-        max = SCAN_DEFAULT_MAX_LEVEL;
+        min = signal_level(SCAN_DEFAULT_MIN_LEVEL);
+        max = signal_level(SCAN_DEFAULT_MAX_LEVEL);
     }
+
+
+    /* Draw left vertical and bottom horizontal line  */
+    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+    cairo_move_to(cr, SCAN_OFFSET_LEFT-0.5, SCAN_OFFSET_TOP+0.5);
+    cairo_line_to(cr, SCAN_OFFSET_LEFT-0.5, SCAN_OFFSET_TOP+height+0.5);
+    cairo_line_to(cr, SCAN_OFFSET_LEFT-0.5+width+0.5, SCAN_OFFSET_TOP+height+0.5);
+    cairo_stroke(cr);
+
+    /* Draw signal scale */
+    scan_draw_scale(cr, width, height, min, max);
 
     /* Draw the spectrum (peak) */
     if(scan.peak)
@@ -485,32 +648,36 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, gpointer user_dat
         cairo_restore(cr);
     }
 
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+
     /* Draw each marked frequency */
     cairo_save(cr);
-    cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
     cairo_set_dash(cr, grid_pattern, grid_pattern_len, 0);
-    for(l=conf.scan_freq_list; l; l=l->next)
+    for(l=conf.scan_marks; l; l=l->next)
     {
         gint freq = GPOINTER_TO_INT(l->data);
         if(freq >= scan.data->signals[0].freq &&
            freq <= scan.data->signals[scan.data->len-1].freq)
         {
-            scan_draw_mark(cr, width, height, freq);
+            scan_draw_mark(cr, width, height, freq, FALSE);
         }
     }
     cairo_restore(cr);
 
-    /* Draw a bottom horizontal line  */
-    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-    cairo_move_to(cr, SCAN_OFFSET_LEFT-0.5, SCAN_OFFSET_TOP+height+0.5);
-    cairo_line_to(cr, SCAN_OFFSET_LEFT-0.5+width+0.5, SCAN_OFFSET_TOP+height+0.5);
-    cairo_stroke(cr);
+    /* Mark currently tuned frequency */
+    if(conf.scan_mark_tuned &&
+       tuner.thread &&
+       tuner.freq >= scan.data->signals[0].freq &&
+       tuner.freq <= scan.data->signals[scan.data->len-1].freq)
+    {
+        scan_draw_mark(cr, width, height, tuner.freq, TRUE);
+    }
 
     if(scan.focus >= 0 && scan.focus < scan.data->len)
     {
         /* Mark the selected position */
         x_focus = SCAN_OFFSET_LEFT+step*scan.focus;
-        y_focus = SCAN_OFFSET_TOP+height - MAP(scan.data->signals[scan.focus].signal, min, max, 0.0, height);
+        y_focus = SCAN_OFFSET_TOP+height - MAP(signal_level(scan.data->signals[scan.focus].signal), min, max, 0.0, height);
         point_radius = (height > 200 ? 5.0 : height / 40.0);
 
         cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
@@ -522,7 +689,7 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, gpointer user_dat
         g_snprintf(text, sizeof(text), "%s %d%s",
                    scan_format_frequency(scan.data->signals[scan.focus].freq),
                    (gint)ceil(signal_level(scan.data->signals[scan.focus].signal)),
-                   signal_level_unit());
+                   signal_unit());
 
         cairo_select_font_face(cr, SCAN_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
         cairo_set_font_size(cr, round(height > 300 ? 20.0 : (2/45.0 * height + 20/3.0)));
@@ -532,17 +699,11 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, gpointer user_dat
 
         /* Fit the label within a spectrum view size */
         if(x_focus <= SCAN_OFFSET_LEFT)
-        {
             x_focus = SCAN_OFFSET_LEFT;
-        }
-        if(x_focus+extents.width > width)
-        {
+        if(x_focus+extents.width > SCAN_OFFSET_LEFT+width)
             x_focus = SCAN_OFFSET_LEFT + width - extents.width;
-        }
         if(y_focus < SCAN_OFFSET_TOP)
-        {
             y_focus += extents.height + 2*(point_radius + SCAN_POINT_WIDTH);
-        }
 
         /* Draw a transparent background for text */
         cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.5);
@@ -563,22 +724,42 @@ gboolean scan_redraw(GtkWidget *widget, GdkEventExpose *event, gpointer user_dat
     return FALSE;
 }
 
-void scan_draw_spectrum(cairo_t* cr, scan_data_t* data, gint width, gint height, gdouble step, gdouble min, gdouble max)
+static void
+scan_draw_spectrum(cairo_t      *cr,
+                   tuner_scan_t *data,
+                   gint          width,
+                   gint          height,
+                   gdouble       step,
+                   gdouble       min,
+                   gdouble       max)
 {
     gdouble x_src, x_control, x_dest;
     gdouble y_src, y_dest;
     gint i;
+    gdouble sample;
+
+    sample = signal_level(data->signals[0].signal);
+    if(sample > max)
+        sample = max;
+    if(sample < min)
+        sample = min;
 
     x_src = 0.0;
     x_dest = 0.0;
-    y_src = height - MAP(data->signals[0].signal, min, max, 0.0, height);
+    y_src = height - MAP(sample, min, max, 0.0, height);
     cairo_move_to(cr, SCAN_OFFSET_LEFT+x_src, SCAN_OFFSET_TOP+y_src);
 
     for(i=1; i<data->len; i++)
     {
+        sample = signal_level(data->signals[i].signal);
+        if(sample > max)
+            sample = max;
+        if(sample < min)
+            sample = min;
+        sample = MAP(sample, min, max, 0.0, height);
         x_dest += step;
         x_control = x_src + (x_dest - x_src) / 2.0;
-        y_dest = height - MAP(data->signals[i].signal, min, max, 0.0, height);
+        y_dest = height - sample;
         cairo_curve_to(cr, SCAN_OFFSET_LEFT+x_control, SCAN_OFFSET_TOP+y_src,
                            SCAN_OFFSET_LEFT+x_control, SCAN_OFFSET_TOP+y_dest,
                            SCAN_OFFSET_LEFT+x_dest, SCAN_OFFSET_TOP+y_dest);
@@ -590,24 +771,83 @@ void scan_draw_spectrum(cairo_t* cr, scan_data_t* data, gint width, gint height,
     cairo_line_to(cr, SCAN_OFFSET_LEFT, SCAN_OFFSET_TOP+height);
 }
 
-void scan_draw_mark(cairo_t* cr, gint width, gint height, gint freq)
+static void
+scan_draw_scale(cairo_t *cr,
+                gint     width,
+                gint     height,
+                gdouble  min,
+                gdouble  max)
+{
+    gint scale_points = ceil(max) - floor(min);
+    gdouble step = height / (gdouble)scale_points;
+    gint current_value = ceil(max);
+    gdouble position = SCAN_OFFSET_TOP+0.5;
+    gdouble last_position = SCAN_FONT_SCALE_SIZE * -1.0;
+    gchar text[16];
+    gdouble x_pos;
+
+    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+    cairo_set_font_size(cr, SCAN_FONT_SCALE_SIZE);
+
+    while(position <= SCAN_OFFSET_TOP+height)
+    {
+        if(last_position + SCAN_FONT_SCALE_SIZE + 1.0 < position)
+        {
+            /* Draw a tick */
+            cairo_move_to(cr, SCAN_OFFSET_LEFT-0.5-SCAN_SCALE_LINE_LENGTH/2.0, position);
+            cairo_line_to(cr, SCAN_OFFSET_LEFT-0.5+SCAN_SCALE_LINE_LENGTH/2.0, position);
+            cairo_stroke(cr);
+
+            /* Draw a grid */
+            cairo_save(cr);
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, SCAN_GRID_ALPHA);
+            cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+            cairo_set_dash(cr, grid_pattern, grid_pattern_len, 0);
+            cairo_move_to(cr, SCAN_OFFSET_LEFT-0.5+SCAN_SCALE_LINE_LENGTH/2.0, position);
+            cairo_line_to(cr, SCAN_OFFSET_LEFT-0.5+width+0.5, position);
+            cairo_stroke(cr);
+            cairo_restore(cr);
+
+            g_snprintf(text, sizeof(text), "%3d", current_value);
+            x_pos = (strlen(text) >= 4 ? -1.0 : 0.0);
+            cairo_move_to(cr, x_pos, position+SCAN_FONT_SCALE_SIZE/2.0-1.0);
+            cairo_show_text(cr, text);
+            last_position = position;
+        }
+        current_value--;
+        position += step;
+    }
+}
+
+static void
+scan_draw_mark(cairo_t *cr,
+               gint     width,
+               gint     height,
+               gint     freq,
+               gboolean current)
 {
     cairo_text_extents_t extents;
-    const gchar* freq_text;
+    const gchar *freq_text;
     gdouble x;
 
     x  = freq - scan.data->signals[0].freq;
     x /= (gdouble)(scan.data->signals[scan.data->len-1].freq - scan.data->signals[0].freq);
     x *= width;
 
+    if(current)
+        cairo_set_line_width(cr, SCAN_MARK_TUNED_WIDTH);
+
     /* Draw a vertical line */
-    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.75);
+    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, SCAN_GRID_ALPHA);
     cairo_move_to(cr, SCAN_OFFSET_LEFT+x, SCAN_OFFSET_TOP);
-    cairo_line_to(cr, SCAN_OFFSET_LEFT+x, SCAN_OFFSET_TOP+height+4.0);
+    cairo_line_to(cr, SCAN_OFFSET_LEFT+x, SCAN_OFFSET_TOP+height+(current?0.0:4.0));
     cairo_stroke(cr);
 
+    if(current)
+        return;
+
     /* Draw a frequency label */
-    cairo_set_font_size(cr, SCAN_OFFSET_BOTTOM-5.0);
+    cairo_set_font_size(cr, SCAN_FONT_SCALE_SIZE);
     freq_text = scan_format_frequency(freq);
     cairo_text_extents(cr, freq_text, &extents);
     cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
@@ -618,7 +858,81 @@ void scan_draw_mark(cairo_t* cr, gint width, gint height, gint freq)
     cairo_stroke(cr);
 }
 
-const gchar* scan_format_frequency(gint freq)
+static gboolean
+scan_click(GtkWidget      *widget,
+           GdkEventButton *event,
+           gpointer        user_data)
+{
+    if(scan.data)
+    {
+        /* Left click */
+        if(event->type == GDK_BUTTON_PRESS && event->button == 1)
+        {
+            scan.motion_tuning = TRUE;
+            if(scan.focus >= 0 && scan.focus < scan.data->len)
+                tuner_set_frequency(scan.data->signals[scan.focus].freq);
+        }
+        else if(event->type == GDK_BUTTON_RELEASE && event->button == 1)
+        {
+            scan.motion_tuning = FALSE;
+        }
+        /* Right click */
+        else if(event->type == GDK_BUTTON_PRESS && event->button == 3 &&
+                scan.focus >= 0 && scan.focus < scan.data->len)
+        {
+            conf_uniq_int_list_toggle(&conf.scan_marks, scan.data->signals[scan.focus].freq);
+            scan_force_redraw();
+        }
+    }
+    return FALSE;
+}
+
+static gboolean
+scan_motion(GtkWidget      *widget,
+            GdkEventMotion *event,
+            gpointer        user_data)
+{
+    gdouble width = widget->allocation.width - SCAN_OFFSET_LEFT - SCAN_OFFSET_RIGHT;
+    gdouble x = event->x - 0.5 - SCAN_OFFSET_LEFT;
+    gint current_focus;
+
+    if(scan.data)
+    {
+        current_focus = round(x/(width/(gdouble)(scan.data->len - 1)));
+        if(current_focus >= 0 && current_focus < scan.data->len)
+        {
+            if(scan.motion_tuning && tuner.freq != scan.data->signals[current_focus].freq)
+                tuner_set_frequency(scan.data->signals[current_focus].freq);
+        }
+        else
+        {
+            current_focus = -1;
+        }
+
+        if(scan.focus != current_focus)
+        {
+            scan.focus = current_focus;
+            scan_force_redraw();
+        }
+    }
+    return TRUE;
+}
+
+static gboolean
+scan_leave(GtkWidget *widget,
+           GdkEvent  *event,
+           gpointer   user_data)
+{
+    if(scan.focus != -1)
+    {
+        scan.focus = -1;
+        scan_force_redraw();
+    }
+    return TRUE;
+}
+
+static const gchar*
+scan_format_frequency(gint freq)
 {
     static gchar buff[10];
     gint length, i;
@@ -629,22 +943,17 @@ const gchar* scan_format_frequency(gint freq)
     for(i=length-1; i>0; i--)
     {
         if(buff[i] == '0' && buff[i-1] != '.')
-        {
             buff[i] = '\0';
-        }
         else
-        {
             break;
-        }
     }
     return buff;
 }
 
-gboolean scan_update(gpointer user_data)
+void
+scan_update(tuner_scan_t *data_new)
 {
-    scan_data_t* data_new = (scan_data_t*)user_data;
     gboolean peakhold = (scan.window && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan.b_peakhold)));
-
     gint i;
 
     if(scan.data)
@@ -655,20 +964,16 @@ gboolean scan_update(gpointer user_data)
            scan.data->signals[scan.data->len-1].freq == data_new->signals[data_new->len-1].freq)
         {
             if(!scan.peak)
-            {
                 scan.peak = scan.data;
-            }
             else
-            {
-                scan_data_free(scan.data);
-            }
+                tuner_scan_free(scan.data);
         }
         else
         {
-            scan_data_free(scan.data);
+            tuner_scan_free(scan.data);
             if(scan.peak)
             {
-                scan_data_free(scan.peak);
+                tuner_scan_free(scan.peak);
                 scan.peak = NULL;
             }
         }
@@ -679,7 +984,7 @@ gboolean scan_update(gpointer user_data)
          scan.hold->signals[0].freq == data_new->signals[0].freq &&
          scan.hold->signals[scan.hold->len-1].freq == data_new->signals[data_new->len-1].freq))
     {
-        scan_data_free(scan.hold);
+        tuner_scan_free(scan.hold);
         scan.hold = NULL;
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scan.b_hold), FALSE);
     }
@@ -687,22 +992,14 @@ gboolean scan_update(gpointer user_data)
     if(scan.peak)
     {
         for(i=0; i<data_new->len; i++)
-        {
             if(data_new->signals[i].signal > scan.peak->signals[i].signal)
-            {
                 scan.peak->signals[i].signal = data_new->signals[i].signal;
-            }
-        }
 
         if(data_new->max > scan.peak->max)
-        {
             scan.peak->max = data_new->max;
-        }
 
         if(data_new->min < scan.peak->min)
-        {
             scan.peak->min = data_new->min;
-        }
     }
 
     scan.active = TRUE;
@@ -711,16 +1008,22 @@ gboolean scan_update(gpointer user_data)
     if(scan.window)
     {
         if(!scan.locked)
-        {
             scan_lock(TRUE);
-        }
-        gtk_widget_queue_draw(scan.view);
+
+        scan_force_redraw();
         gtk_widget_set_sensitive(scan.b_start, TRUE);
     }
-    return FALSE;
 }
 
-void scan_check_finished()
+void
+scan_try_toggle()
+{
+    if(scan.window)
+        gtk_button_clicked(GTK_BUTTON(scan.b_start));
+}
+
+void
+scan_check_finished()
 {
     if(scan.active)
     {
@@ -733,139 +1036,9 @@ void scan_check_finished()
     }
 }
 
-gboolean scan_click(GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+void
+scan_force_redraw()
 {
-    if(scan.data)
-    {
-        /* Left click */
-        if(event->type == GDK_BUTTON_PRESS && event->button == 1)
-        {
-            scan.motion_tuning = TRUE;
-            if(scan.focus >= 0 && scan.focus < scan.data->len)
-            {
-                tuner_set_frequency(scan.data->signals[scan.focus].freq);
-            }
-        }
-        else if(event->type == GDK_BUTTON_RELEASE && event->button == 1)
-        {
-            scan.motion_tuning = FALSE;
-        }
-        /* Right click */
-        else if(event->type == GDK_BUTTON_PRESS && event->button == 3 &&
-                scan.focus >= 0 && scan.focus < scan.data->len)
-        {
-            settings_scan_mark_toggle(scan.data->signals[scan.focus].freq);
-            gtk_widget_queue_draw(scan.view);
-        }
-    }
-    return FALSE;
-}
-
-gboolean scan_motion(GtkWidget *widget, GdkEventMotion *event, gpointer user_data)
-{
-    gdouble width = widget->allocation.width - SCAN_OFFSET_LEFT - SCAN_OFFSET_RIGHT;
-    gdouble x = event->x - 0.5 - SCAN_OFFSET_LEFT;
-    gint current_focus;
-
-    if(scan.data)
-    {
-        current_focus = round(x/(width/(gdouble)(scan.data->len - 1)));
-        if(current_focus >= 0 && current_focus < scan.data->len)
-        {
-            if(scan.motion_tuning && tuner.freq != scan.data->signals[current_focus].freq)
-            {
-                tuner_set_frequency(scan.data->signals[current_focus].freq);
-            }
-        }
-        else
-        {
-            current_focus = -1;
-        }
-
-        if(scan.focus != current_focus)
-        {
-            scan.focus = current_focus;
-            gtk_widget_queue_draw(scan.view);
-        }
-    }
-    return TRUE;
-}
-
-void scan_ccir(GtkWidget *widget, gpointer data)
-{
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 87500.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 108000.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 100.0);
-}
-
-void scan_oirt(GtkWidget *widget, gpointer data)
-{
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 65750.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 74000.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 30.0);
-}
-
-gboolean scan_marks(GtkWidget *widget, GdkEventButton *event)
-{
-    if(event->type == GDK_BUTTON_PRESS)
-    {
-        gtk_menu_popup(GTK_MENU(widget), NULL, NULL, NULL, NULL, event->button, event->time);
-        return TRUE;
-    }
-    return FALSE;
-}
-
-void scan_marks_add(GtkMenuItem *menuitem, gpointer user_data)
-{
-    gint step = GPOINTER_TO_INT(user_data);
-    gint min, max, curr;
-    if(scan.data)
-    {
-        min = ceil(scan.data->signals[0].freq / (gdouble)step)*step;
-        max = floor(scan.data->signals[scan.data->len-1].freq / (gdouble)step)*step;
-        for(curr=min; curr<=max; curr+=step)
-        {
-            settings_scan_mark_add(curr);
-        }
-    }
-    gtk_widget_queue_draw(scan.view);
-}
-
-void scan_marks_clear(GtkMenuItem *menuitem, gpointer user_data)
-{
-    gboolean all = GPOINTER_TO_INT(user_data);
-    if(all)
-    {
-        settings_scan_mark_clear_all();
-    }
-    else if(scan.data)
-    {
-        settings_scan_mark_clear(scan.data->signals[0].freq,
-                                 scan.data->signals[scan.data->len-1].freq);
-    }
-    gtk_widget_queue_draw(scan.view);
-}
-
-scan_data_t* scan_data_copy(scan_data_t* data)
-{
-    scan_data_t* copy;
-    gint i;
-
-    copy = g_new(scan_data_t, 1);
-    copy->len = data->len;
-    copy->max = data->max;
-    copy->min = data->min;
-    copy->signals = g_new(scan_node_t, data->len);
-    for(i=0;i<data->len;i++)
-    {
-        copy->signals[i].freq = data->signals[i].freq;
-        copy->signals[i].signal = data->signals[i].signal;
-    }
-    return copy;
-}
-
-void scan_data_free(scan_data_t* data)
-{
-    free(data->signals);
-    free(data);
+    if(scan.window)
+        gtk_widget_queue_draw(scan.view);
 }

@@ -1,5 +1,5 @@
-#ifndef XDR_CONNECTION_H
-#define XDR_CONNECTION_H
+#ifndef XDR_TUNER_CONN_H
+#define XDR_TUNER_CONN_H
 #include <gtk/gtk.h>
 #ifndef G_OS_WIN32
 #define closesocket(x) close(x)
@@ -37,8 +37,8 @@ typedef struct conn
     gint state;
 } conn_t;
 
-gint open_serial(const gchar*);
-gpointer open_socket(gpointer);
+gint tuner_open_serial(const gchar*, gintptr*);
+gpointer tuner_open_socket(gpointer);
 
 conn_t* conn_new(const gchar*, const gchar* port, const gchar*);
 void conn_free(conn_t*);

@@ -1,89 +1,117 @@
-#include <gtk/gtk.h>
-#include <glib/gprintf.h>
-#include <string.h>
+#include <glib.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
 #include <math.h>
-#include "gui-connect.h"
-#include "gui-update.h"
-#include "gui-tuner.h"
-#include "connection.h"
-#include "tuner.h"
-#include "graph.h"
-#include "settings.h"
-#include "scan.h"
-#include "gui.h"
-#include "rdsspy.h"
-#include "sig.h"
-#include "version.h"
+#include <unistd.h>
 #ifdef G_OS_WIN32
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #endif
 
-#define DEFAULT_RDS_TIMER 2
+#include "tuner.h"
+#include "log.h"
+#include "tuner-callbacks.h"
+#include "ui-tuner-update.h"
 
-gint filters[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 29, 2, 28, 1, 26, 0, 24, 23, 22, 21, 20, 19, 18, 17, 16, 31, -1};
-gint filters_bw[][FILTERS_N] =
-{
-    {309000, 298000, 281000, 263000, 246000, 229000, 211000, 194000, 177000, 159000, 142000, 125000, 108000, 95000, 90000, 83000, 73000, 63000, 55000, 48000, 42000, 36000, 32000, 27000, 24000, 20000, 17000, 15000, 9000, -1},
-    {38600, 37300, 35100, 32900, 30800, 28600, 26400, 24300, 22100, 19900, 17800, 15600, 13500, 11800, 11300, 10400, 9100, 7900, 6900, 6000, 5200, 4600, 3900, 3400, 2900, 2500, 2200, 1900, 1100, 0}
-};
+#define DEBUG_READ  0
+#define DEBUG_WRITE 1
 
-gpointer tuner_read(gpointer nothing)
+#define SERIAL_BUFFER 10000
+
+typedef struct tuner_thread
 {
-    gchar c, buffer[SERIAL_BUFFER];
-    gint n, pos = 0;
-    fd_set input;
+    gintptr fd;
+    gint type;  /* TUNER_THREAD_SERIAL or TUNER_THREAD_SOCKET */
+    volatile gboolean canceled;
+} tuner_thread_t;
+
+static gpointer tuner_thread(gpointer);
+static gboolean tuner_parse(gchar, gchar*);
+static void tuner_restart(gintptr);
+static gboolean tuner_write_serial(gintptr, gchar*, int);
+
+gpointer
+tuner_thread_new(gint    type,
+                 gintptr fd)
+{
+    tuner_thread_t *thread = g_malloc(sizeof(tuner_thread_t));
+    g_assert(type == TUNER_THREAD_SERIAL ||
+             type == TUNER_THREAD_SOCKET);
+
+    thread->fd = fd;
+    thread->type = type;
+    thread->canceled = FALSE;
+
+    g_thread_unref(g_thread_new("tuner", tuner_thread, (gpointer)thread));
+    return thread;
+}
+
+void
+tuner_thread_cancel(gpointer thread)
+{
+    ((tuner_thread_t*)thread)->canceled = TRUE;
+}
+
+static gpointer
+tuner_thread(gpointer data)
+{
+    tuner_thread_t *thread = (tuner_thread_t*)data;
+    gchar buffer[SERIAL_BUFFER];
+    gint pos = 0;
+
     struct timeval timeout;
+    fd_set input;
+    gint n;
+
+    g_print("thread start: %p\n", data);
 
 #ifdef G_OS_WIN32
     DWORD len_in = 0;
     BOOL fWaitingOnRead = FALSE;
     DWORD state;
     OVERLAPPED osReader = {0};
-    if (tuner.socket == INVALID_SOCKET)
+    if(thread->type == TUNER_THREAD_SERIAL)
     {
         osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-        if (osReader.hEvent == NULL)
-        {
-            tuner.thread = FALSE;
-        }
+        if(osReader.hEvent == NULL)
+            goto tuner_thread_cleanup;
     }
 #endif
-    if(tuner.thread)
-    {
-        g_usleep(1750000); // arduino may restart during port opening
-        tuner_write("x");
-        g_usleep(50000);
-    }
 
-    while(tuner.thread)
+    /* Arduino may restart during port opening */
+    if(thread->type == TUNER_THREAD_SERIAL)
+        g_usleep(1750 * 1000);
+
+    if(thread->canceled)
+        goto tuner_thread_cleanup;
+
+    tuner_write(thread, "x");
+
+    while(!thread->canceled)
     {
 #ifdef G_OS_WIN32
-        if (tuner.socket != INVALID_SOCKET)
+        if(thread->type == TUNER_THREAD_SOCKET)
         {
             FD_ZERO(&input);
-            FD_SET(tuner.socket, &input);
+            FD_SET(thread->fd, &input);
             timeout.tv_sec  = 0;
             timeout.tv_usec = 50000;
-            if(! (n = select(tuner.socket+1, &input, NULL, NULL, &timeout)))
-            {
+            n = select(thread->fd+1, &input, NULL, NULL, &timeout);
+            if(!n)
                 continue;
-            }
-            if(n < 0 || recv(tuner.socket, &c, 1, 0) <= 0)
-            {
+            if(n < 0 || recv(thread->fd, &buffer[pos], 1, 0) <= 0)
                 break;
-            }
         }
         else
         {
             if (!fWaitingOnRead)
             {
-                if (!ReadFile(tuner.serial, &c, 1, &len_in, &osReader))
+                if (!ReadFile((HANDLE)thread->fd, &buffer[pos], 1, &len_in, &osReader))
                 {
                     if (GetLastError() != ERROR_IO_PENDING)
                     {
@@ -110,7 +138,7 @@ gpointer tuner_read(gpointer nothing)
                     break;
                 }
 
-                if (!GetOverlappedResult(tuner.serial, &osReader, &len_in, FALSE))
+                if (!GetOverlappedResult((HANDLE)thread->fd, &osReader, &len_in, FALSE))
                 {
                     CloseHandle(osReader.hEvent);
                     break;
@@ -125,21 +153,21 @@ gpointer tuner_read(gpointer nothing)
         }
 #else
         FD_ZERO(&input);
-        FD_SET(tuner.serial, &input);
+        FD_SET(thread->fd, &input);
         timeout.tv_sec  = 0;
         timeout.tv_usec = 50000;
-        if(!(n = select(tuner.serial+1, &input, NULL, NULL, &timeout)))
-        {
+        n = select(thread->fd+1, &input, NULL, NULL, &timeout);
+        if(!n)
             continue;
-        }
-        if(n < 0 || read(tuner.serial, &c, 1) <= 0)
-        {
+        if(n < 0 || read(thread->fd, &buffer[pos], 1) <= 0)
             break;
-        }
 #endif
-        if(c != '\n' && pos != SERIAL_BUFFER-1)
+        /* If this command is too long to
+         * fit into a buffer, clip it */
+        if(buffer[pos] != '\n')
         {
-            buffer[pos++] = c;
+            if(pos != SERIAL_BUFFER-1)
+                pos++;
             continue;
         }
         buffer[pos] = 0;
@@ -148,507 +176,388 @@ gpointer tuner_read(gpointer nothing)
 #if DEBUG_READ
         g_print("read: %s\n", buffer);
 #endif
-
-        if(buffer[0] == 'O' && buffer[1] == 'K') // OK
-        {
-            tuner.ready = TRUE;
-        }
-        else if(buffer[0] == 'X')
-        {
+        if(!tuner_parse(buffer[0], buffer+1))
             break;
-        }
-        else if(buffer[0] == 'a') // socket auth
-        {
-            gint auth = atoi(buffer+1);
-            if(!auth)
-            {
-                g_idle_add(connection_socket_auth_fail, NULL);
-                break;
-            }
-            else if(auth == 1)
-            {
-                tuner.ready = TRUE;
-                tuner.guest = TRUE;
-            }
-        }
-        else
-        {
-            tuner_parse(buffer[0], buffer+1);
-        }
     }
 
-// restart Arduino using RTS & DTR lines
-#ifdef G_OS_WIN32
-    if(tuner.socket != INVALID_SOCKET)
+tuner_thread_cleanup:
+    if(thread->type == TUNER_THREAD_SOCKET)
     {
-        closesocket(tuner.socket);
+#ifdef G_OS_WIN32
+        shutdown(thread->fd, 2);
+        closesocket(thread->fd);
+#else
+        shutdown(thread->fd, 2);
+        close(thread->fd);
+#endif
     }
     else
     {
-        EscapeCommFunction(tuner.serial, CLRDTR);
-        EscapeCommFunction(tuner.serial, CLRRTS);
-        g_usleep(10000);
-        EscapeCommFunction(tuner.serial, SETDTR);
-        EscapeCommFunction(tuner.serial, SETRTS);
-        CloseHandle(tuner.serial);
-    }
+        tuner_restart(thread->fd);
+#ifdef G_OS_WIN32
+        CloseHandle((HANDLE)thread->fd);
 #else
-    // is this really a serial port?
-    if(ioctl(tuner.serial, TIOCMGET, &n) != -1)
-    {
-        n &= ~(TIOCM_DTR | TIOCM_RTS);
-        ioctl(tuner.serial, TIOCMSET, &n);
-        g_usleep(10000);
-        n |=  (TIOCM_DTR | TIOCM_RTS);
-        ioctl(tuner.serial, TIOCMSET, &n);
+        close(thread->fd);
+#endif
     }
 
-    close(tuner.serial);
-#endif
-    tuner.online = 0;
-    tuner.guest = FALSE;
-    tuner.thread = FALSE;
-    g_idle_add(gui_clear_power_off, NULL);
+    g_idle_add(tuner_disconnect, thread);
+    g_print("thread stop: %p\n", data);
     return NULL;
 }
 
-void tuner_parse(gchar c, gchar msg[])
+static gboolean
+tuner_parse(gchar  c,
+            gchar *msg)
 {
-    if(c == 'S') // signal level + stereo/mono
+    if(c == 'O' && msg[0] == 'K')
     {
-        s_data_t* data = g_new(s_data_t, 1);
-        sscanf(msg+1, "%f", &data->value);
-        data->stereo = (msg[0]=='s');
-        data->rds = tuner.rds_timer;
-        if(tuner.rds_timer)
-        {
-            tuner.rds_timer--;
-        }
-        g_idle_add(gui_update_signal, data);
+        /* Tuner startup */
+        g_idle_add(tuner_ready, NULL);
     }
-    else if(c == 'T') // tuned frequency
+    else if(c == 'X')
     {
-        gint newfreq = atoi(msg);
-        if(newfreq != tuner.freq)
-        {
-            tuner.prevfreq = tuner.freq;
-        }
-        tuner.freq = newfreq;
-        rdsspy_reset();
-
-        g_idle_add(gui_update_freq, GINT_TO_POINTER(newfreq));
+        /* Tuner shutdown */
+        return FALSE;
     }
-    else if(c == 'V') // alignment data
+    else if(c == 'T')
     {
-        g_idle_add(gui_update_alignment, GINT_TO_POINTER(atoi(msg)));
+        /* Tuned frequency */
+        g_idle_add(tuner_freq, GINT_TO_POINTER(atoi(msg)));
     }
-    else if(c == 'P') // PI code
+    else if(c == 'V')
     {
-        guint pi = strtoul(msg, NULL, 16);
-        gboolean checked = !(strlen(msg) > 4 && msg[4] == '?');
-        gint value;
-
-        tuner.rds_timer = DEFAULT_RDS_TIMER;
-        if(conf.rds_reset)
-        {
-            s.rds_reset_timer = g_get_real_time();
-        }
-
-
-        if(tuner.pi != pi || tuner.pi_checked != checked)
-        {
-            tuner.pi = pi;
-            tuner.pi_checked = checked;
-            value = pi | ((!checked) << 16);
-            g_idle_add(gui_update_pi, GUINT_TO_POINTER(value));
-        }
+        /* DAA tuning voltage */
+        g_idle_add(tuner_daa, GINT_TO_POINTER(atoi(msg)));
     }
-    else if(c == 'R') // RDS data
+    else if(c == 'S' && strlen(msg) >= 2)
     {
-        guint data[3], errors, i;
-
-        for(i=0; i<3; i++)
+        /* Signal strength and quality indicators */
+        tuner_signal_t *data = g_malloc(sizeof(tuner_signal_t));
+        gchar *ptr;
+        switch(msg[0])
         {
-            gchar hex[5];
-            strncpy(hex, msg+i*4, 4);
-            hex[4] = 0;
-            sscanf(hex, "%x", &data[i]);
+            case 's':
+                data->stereo = SIGNAL_STEREO;
+                break;
+            case 'S':
+                data->stereo = SIGNAL_STEREO | SIGNAL_FORCED_MONO;
+                break;
+            case 'M':
+                data->stereo = SIGNAL_FORCED_MONO;
+                break;
+            default:
+                data->stereo = SIGNAL_MONO;
+                break;
         }
-        sscanf(msg+12, "%x", &errors);
+        data->value = g_ascii_strtod(msg+1, NULL);
+        g_idle_add(tuner_signal, data);
 
-        if(tuner.pi >= 0)
+        if((ptr = strchr(msg, ',')))
         {
-            guchar group = (data[BLOCK_B] & 0xF000) >> 12;
-            gboolean flag = (data[BLOCK_B] & 0x0800) >> 11;
-            guchar err[] = { (errors&3), ((errors&12)>>2), ((errors&48)>>4) };
-
-            rdsspy_send((tuner.rds_timer?(tuner.pi&0xFFFF):-1), msg, errors);
-
-            // PTY, TP, TA, MS, AF, ECC: error-free blocks
-            if(!err[BLOCK_B])
+            g_idle_add(tuner_cci, GINT_TO_POINTER(atoi(ptr+1)));
+            if((ptr = strchr(ptr+1, ',')))
             {
-                gchar pty = (data[BLOCK_B] & 0x03E0) >> 5;
-                gchar tp = (data[BLOCK_B] & 0x400) >> 10;
-                if(tuner.pty != pty)
-                {
-                    tuner.pty = pty;
-                    g_idle_add(gui_update_pty, GINT_TO_POINTER(pty));
-                }
-
-                if(tuner.tp != tp)
-                {
-                    tuner.tp = tp;
-                    g_idle_add(gui_update_tp, GINT_TO_POINTER(tp));
-                }
-
-                if(group == 0)
-                {
-                    gchar ta = (data[BLOCK_B] & 0x10) >> 4;
-                    gchar ms = (data[BLOCK_B] & 0x8) >> 3;
-                    if(tuner.ta != ta)
-                    {
-                        tuner.ta = ta;
-                        g_idle_add(gui_update_ta, GINT_TO_POINTER(ta));
-                    }
-                    if(tuner.ms != ms)
-                    {
-                        tuner.ms = ms;
-                        g_idle_add(gui_update_ms, GINT_TO_POINTER(ms));
-                    }
-
-                    // AF
-                    if(!err[BLOCK_C] && !flag)
-                    {
-                        guchar af[] = { data[BLOCK_C] >> 8, data[BLOCK_C] & 0xFF };
-                        for(i=0; i<2; i++)
-                        {
-                            if(af[i]>0 && af[i]<205)
-                            {
-                                g_idle_add(gui_update_af, GINT_TO_POINTER(af[i]));
-                            }
-                        }
-                    }
-                }
-
-                // ECC
-                if(group == 1 && !flag && !err[BLOCK_C])
-                {
-                    if(!(data[BLOCK_C] >> 12))
-                    {
-                        guchar ecc = data[BLOCK_C] & 255;
-                        if(tuner.ecc != ecc)
-                        {
-                            tuner.ecc = ecc;
-                            g_idle_add(gui_update_ecc, GINT_TO_POINTER(ecc));
-                        }
-                    }
-                }
-            }
-
-            // PS: user-defined error correction
-            if(conf.rds_ps_progressive || err[BLOCK_B] <= conf.ps_info_error)
-            {
-                if(err[BLOCK_B] < 3 && err[BLOCK_D] < 3 && group == 0 && (conf.rds_ps_progressive || (err[BLOCK_D] <= conf.ps_data_error)))
-                {
-                    gchar pos = data[BLOCK_B] & 3;
-                    gchar ps[] = { data[BLOCK_D] >> 8, data[BLOCK_D] & 0xFF };
-                    gboolean changed = FALSE;
-                    guchar e = 2*err[BLOCK_B] + 3*err[BLOCK_D];
-
-                    for(i=0; i<2; i++)
-                    {
-                        // only ASCII printable characters
-                        if(ps[i] >= 32 && ps[i] < 127)
-                        {
-                            gint p = pos*2+i;
-                            if(!conf.rds_ps_progressive || tuner.ps_err[p] >= e)
-                            {
-                                if(tuner.ps[p] != ps[i] || tuner.ps_err[p] > e)
-                                {
-                                    tuner.ps[p] = ps[i];
-                                    tuner.ps_err[p] = e;
-                                    changed = TRUE;
-                                }
-                            }
-                        }
-                    }
-
-                    if(changed)
-                    {
-                        tuner.ps_avail = TRUE;
-                        g_idle_add(gui_update_ps, NULL);
-                    }
-                }
-            }
-
-            // RT: user-defined error correction
-            if(err[BLOCK_B] <= conf.rt_info_error)
-            {
-                if(group == 2)
-                {
-                    short pos  = (data[BLOCK_B] & 15);
-                    gboolean flag = (data[BLOCK_B] & 16) >> 4;
-                    gchar rt[] = { data[BLOCK_C]>>8, data[BLOCK_C]&0xFF, data[BLOCK_D]>>8, data[BLOCK_D]&0xFF };
-                    gboolean changed = FALSE;
-
-                    for(i=0; i<4; i++)
-                    {
-                        if(tuner.rt[flag][pos*4+i] == rt[i])
-                            continue;
-
-                        if(rt[i] == 0x0D) // end of the RadioText message
-                        {
-                            if ((i <= 1 && (errors&15) == 0) || (i >= 2 && (errors&51) == 0))
-                            {
-                                tuner.rt[flag][pos*4+i] = 0;
-                                changed = TRUE;
-                            }
-                        }
-                        // only ASCII printable characters
-                        else if(rt[i] >= 32 && rt[i] < 127)
-                        {
-                            if( (i <= 1 && ((errors&12)>>2) <= conf.rt_data_error) || (i >= 2 && ((errors&48)>>4) <= conf.rt_data_error) )
-                            {
-                                tuner.rt[flag][pos*4+i] = rt[i];
-                                changed = TRUE;
-                            }
-                        }
-                    }
-
-                    if(changed)
-                    {
-                        g_idle_add(gui_update_rt, GINT_TO_POINTER(flag));
-                    }
-                }
+                g_idle_add(tuner_aci, GINT_TO_POINTER(atoi(ptr+1)));
             }
         }
     }
-    else if(c == 'U') // Spectral Scan
+    else if(c == 'P' && strlen(msg) >= 4)
     {
-        gchar tmp[10];
-        gint i, j = 0, k = 0, n = 0;
-        for(i=0; i<strlen(msg); i++)
-            if(msg[i] == ',')
-                n++;
-        if(n)
+        /* PI code */
+        guint pi = strtoul(msg, NULL, 16) | ((msg[4]!='?') << 16);
+        g_idle_add(tuner_pi, GUINT_TO_POINTER(pi));
+    }
+    else if(c == 'R' && strlen(msg) == 14)
+    {
+        /* RDS data */
+        g_idle_add(tuner_rds, g_strdup(msg));
+    }
+    else if(c == 'U')
+    {
+        /* Spectral scan */
+        tuner_scan_t *scan = tuner_scan_parse(msg);
+        if(scan)
+            g_idle_add(tuner_scan, (gpointer)scan);
+    }
+    else if(c == 'N')
+    {
+        /* Stereo pilot injection level estimation */
+        g_idle_add(tuner_pilot, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'Y')
+    {
+        /* Sound volume control */
+        g_idle_add(tuner_volume, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'A')
+    {
+        /* RF AGC threshold */
+        g_idle_add(tuner_agc, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'D')
+    {
+        /* De-emphasis */
+        g_idle_add(tuner_deemphasis, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'Z')
+    {
+        /* Antenna switch */
+        g_idle_add(tuner_antenna, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'G')
+    {
+        /* RF & IF gain setting */
+        g_idle_add(tuner_gain, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'M')
+    {
+        /* FM / AM mode */
+        g_idle_add(tuner_mode, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'F')
+    {
+        /* Filter */
+        g_idle_add(tuner_filter, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'Q')
+    {
+        /* Squelch */
+        g_idle_add(tuner_squelch, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == 'C')
+    {
+        /* Rotator control */
+        g_idle_add(tuner_rotator, GINT_TO_POINTER(atoi(msg)));
+    }
+    else if(c == '!')
+    {
+        /* External event */
+        g_idle_add(tuner_event, NULL);
+    }
+    else if(c == 'o')
+    {
+        /* Online users (network) */
+        gchar *ptr;
+        g_idle_add(tuner_online, GINT_TO_POINTER(atoi(msg)));
+        if((ptr = strchr(msg, ',')))
+            g_idle_add(tuner_online_guests, GINT_TO_POINTER(atoi(ptr+1)));
+    }
+    else if(c == 'a')
+    {
+        /* Authorization (network) */
+        gint auth = atoi(msg);
+        if(!auth)
         {
-            scan_data_t* data = g_new(scan_data_t, 1);
-            data->len = n;
-            data->min = G_MAXINT;
-            data->max = G_MININT;
-            data->signals = g_new(scan_node_t, data->len);
-            for(i=0; i<strlen(msg); i++)
-            {
-                if(msg[i] == '=')
-                {
-                    tmp[j] = 0;
-                    data->signals[k].freq = atoi(tmp);
-                    j = 0;
-                }
-                else if(msg[i] == ',')
-                {
-                    tmp[j] = 0;
-                    sscanf(tmp, "%f", &data->signals[k].signal);
-                    j = 0;
-                    if(data->signals[k].signal > data->max)
-                        data->max = ceil(data->signals[k].signal);
-                    if(data->signals[k].signal < data->min)
-                        data->min = floor(data->signals[k].signal);
-                    k++;
-                }
-                else
-                    tmp[j++] = msg[i];
-            }
-            g_idle_add(scan_update, (gpointer)data);
+            g_idle_add(tuner_unauthorized, NULL);
+            return FALSE;
+        }
+        else if(auth == 1)
+        {
+            g_idle_add(tuner_ready, GINT_TO_POINTER(TRUE));
         }
     }
-    else if(c == 'N') // stereo pilot level test
-    {
-        g_idle_add(gui_update_pilot, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'Y')  // Sound volume control (network)
-    {
-        g_idle_add(gui_update_volume, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'A') // RF AGC threshold (network)
-    {
-        g_idle_add(gui_update_agc, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'D') // De-emphasis (network)
-    {
-        g_idle_add(gui_update_deemphasis, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'Z') // Antenna switch (network)
-    {
-        g_idle_add(gui_update_ant, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'z') // RDS data reset after antenna switching
-    {
-        if(conf.ant_clear_rds)
-        {
-            g_idle_add(gui_clear_rds, NULL);
-            rdsspy_reset();
-        }
-    }
-    else if(c == '!') // RDS data reset after antenna switching
-    {
-        g_idle_add(gui_external_event, NULL);
-    }
-    else if(c == 'G') // RF/IF Gain (network)
-    {
-        g_idle_add(gui_update_gain, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'M') // FM/AM mode (network)
-    {
-        g_idle_add(((msg[0] == '0') ? gui_mode_FM : gui_mode_AM), NULL);
-    }
-    else if(c == 'F') // Filter (network)
-    {
-        g_idle_add(gui_update_filter, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'Q') // Squelch (network)
-    {
-        g_idle_add(gui_update_squelch, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'C') // Rotator control (network + serial)
-    {
-        g_idle_add(gui_update_rotator, GINT_TO_POINTER(atoi(msg)));
-    }
-    else if(c == 'o') // On-line users (network)
-    {
-        tuner.online = atoi(msg);
-    }
+    return TRUE;
 }
 
-void tuner_write(gchar* command)
+static void
+tuner_restart(gintptr fd)
 {
+#ifdef G_OS_WIN32
+    EscapeCommFunction((HANDLE)fd, CLRDTR);
+    EscapeCommFunction((HANDLE)fd, CLRRTS);
+    g_usleep(10000);
+    EscapeCommFunction((HANDLE)fd, SETDTR);
+    EscapeCommFunction((HANDLE)fd, SETRTS);
+#else
+    gint n;
+    if(ioctl(fd, TIOCMGET, &n) == -1)
+        return;
+    n &= ~(TIOCM_DTR | TIOCM_RTS);
+    ioctl(fd, TIOCMSET, &n);
+    g_usleep(10000);
+    n |=  (TIOCM_DTR | TIOCM_RTS);
+    ioctl(fd, TIOCMSET, &n);
+#endif
+}
+
+void
+tuner_write(gpointer  ptr,
+            gchar    *command)
+{
+    tuner_thread_t *thread;
     gchar *msg;
     gint len;
+    gboolean ret;
 
-    if(tuner.thread)
-    {
-        msg = g_strdup(command);
-        len = strlen(command);
-        msg[len++] = '\n';
+    if(!ptr)
+        return;
 
-#ifdef G_OS_WIN32
-        if(tuner.socket == INVALID_SOCKET)
-        {
-            // serial connection
-            OVERLAPPED osWrite = {0};
-            DWORD dwWritten;
-            osWrite.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-            if(osWrite.hEvent == NULL)
-            {
-                g_free(msg);
-                return;
-            }
-            if (!WriteFile(tuner.serial, msg, len, &dwWritten, &osWrite))
-            {
-                if (GetLastError() == ERROR_IO_PENDING)
-                {
-                    if(WaitForSingleObject(osWrite.hEvent, INFINITE) == WAIT_OBJECT_0)
-                    {
-                        GetOverlappedResult(tuner.serial, &osWrite, &dwWritten, FALSE);
-                    }
-                }
-            }
-            CloseHandle(osWrite.hEvent);
-        }
-        else
-        {
-            tuner_write_socket(tuner.socket, msg, len);
-        }
-#else
-        tuner_write_socket(tuner.serial, msg, len);
-#endif
-        g_free(msg);
+    thread = (tuner_thread_t*)ptr;
+    msg = g_strdup(command);
+    len = strlen(command);
+    msg[len++] = '\n';
+
+    if(thread->type == TUNER_THREAD_SERIAL)
+        ret = tuner_write_serial(thread->fd, msg, len);
+    else
+        ret = tuner_write_socket(thread->fd, msg, len);
+
+    g_free(msg);
 #if DEBUG_WRITE
-        g_print("write: %s\n", command);
+    g_print("write%s: %s\n",
+            (!ret ? " ERROR" : ""),
+            command);
 #endif
-    }
 }
 
-gboolean tuner_write_socket(int fd, gchar* msg, int len)
+#ifdef G_OS_WIN32
+static gboolean
+tuner_write_serial(gintptr  fd,
+                   gchar   *msg,
+                   gint     len)
 {
-    // writes to a socket on WIN32
-    // or socket/serial on *UNIX
-    gint sent, n;
-    sent = 0;
+    OVERLAPPED osWrite = {0};
+    DWORD dwWritten;
+    osWrite.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if(osWrite.hEvent == NULL)
+        return FALSE;
+    if (!WriteFile((HANDLE)fd, msg, len, &dwWritten, &osWrite))
+        if (GetLastError() == ERROR_IO_PENDING)
+            if(WaitForSingleObject(osWrite.hEvent, INFINITE) == WAIT_OBJECT_0)
+                GetOverlappedResult((HANDLE)fd, &osWrite, &dwWritten, FALSE);
+    CloseHandle(osWrite.hEvent);
+    return TRUE;
+}
+#else
+static gboolean
+tuner_write_serial(gintptr  fd,
+                   gchar   *msg,
+                   gint     len)
+{
+    gint sent = 0;
+    gint n;
+    do
+    {
+        n = write(fd, msg+sent, len-sent);
+        if(n < 0)
+            return FALSE;
+        sent += n;
+    }
+    while(sent < len);
+    return TRUE;
+}
+#endif
+
+gboolean
+tuner_write_socket(gintptr  fd,
+                   gchar   *msg,
+                   gint     len)
+{
+    gint sent = 0;
+    gint n;
+
     do
     {
 #ifdef G_OS_WIN32
         n = send(fd, msg+sent, len-sent, 0);
 #else
-        n = write(fd, msg+sent, len-sent);
+        n = send(fd, msg+sent, len-sent, MSG_NOSIGNAL);
 #endif
         if(n < 0)
         {
-            closesocket(fd);
+            shutdown(fd, 2);
             return FALSE;
         }
         sent += n;
     }
-    while(sent<len);
+    while(sent < len);
     return TRUE;
 }
 
-void tuner_poweroff()
+void tuner_clear_all()
 {
-    tuner_write("X");
+    log_cleanup();
+
+    tuner.freq = 0;
+    tuner.prevfreq = 0;
+    ui_update_freq();
+
+    tuner.signal = NAN;
+    tuner.forced_mono = FALSE;
+    tuner_clear_signal();
+    ui_update_signal();
+
+    tuner.cci = -1;
+    ui_update_cci();
+    tuner.aci = -1;
+    ui_update_aci();
+
+    tuner_clear_rds();
+
+    tuner.ready = FALSE;
+    tuner.ready_tuned = FALSE;
+    tuner.guest = FALSE;
+    tuner.online = 0;
+    tuner.online_guests = 0;
+    tuner.send_settings = FALSE;
+    tuner.thread = NULL;
+
+    tuner.rotator = 0;
+    ui_update_rotator();
+
+    ui_update_disconnected();
 }
 
-void tuner_modify_frequency(guint mode)
+void tuner_clear_signal()
 {
-    if(tuner.freq <= 300)
-    {
-        tuner_modify_frequency_full(99, 9, mode);
-    }
-    else if(tuner.freq <= 1900)
-    {
-        tuner_modify_frequency_full((conf.amstep?100:99), (conf.amstep?10:9), mode);
-    }
-    else if(tuner.freq <= 30000)
-    {
-        tuner_modify_frequency_full(1900, 10, mode);
-    }
-    else if(tuner.freq >= 65750 && tuner.freq <= 74000)
-    {
-        tuner_modify_frequency_full(65750, 30, mode);
-    }
-    else
-    {
-        tuner_modify_frequency_full(0, 100, mode);
-    }
+    tuner.signal_max = NAN;
+    tuner.signal_sum = 0.0;
+    tuner.signal_samples = 0;
+
+    tuner.stereo = FALSE;
+    ui_update_stereo_flag();
 }
 
-void tuner_modify_frequency_full(guint base_freq, guint step, guint mode)
+void tuner_clear_rds()
 {
-    if(((tuner.freq-base_freq) % step) == 0)
-    {
-        if(mode == FREQ_MODIFY_UP)
-        {
-            tuner_set_frequency(tuner.freq+step);
-        }
-        else if(mode == FREQ_MODIFY_DOWN)
-        {
-            tuner_set_frequency(tuner.freq-step);
-        }
-        else if(mode == FREQ_MODIFY_RESET)
-        {
-            tuner_set_frequency(tuner.freq);
-        }
-    }
-    else
-    {
-        gint m = (tuner.freq-base_freq) % step;
-        if(mode == FREQ_MODIFY_UP || (mode == FREQ_MODIFY_RESET && m >= (step/2)))
-        {
-            tuner_set_frequency(base_freq+((tuner.freq-base_freq)/step*step)+step);
-        }
-        else if(mode == FREQ_MODIFY_DOWN || (mode == FREQ_MODIFY_RESET && m < (step/2)))
-        {
-            tuner_set_frequency(base_freq+((tuner.freq-base_freq)/step*step));
-        }
-    }
+    gint i;
+
+    tuner.rds = 0;
+    ui_update_rds_flag();
+    tuner.rds_reset_timer = 0;
+
+    tuner.rds_pi = -1;
+    tuner.rds_pi_checked = FALSE;
+    ui_update_pi();
+
+    tuner.rds_tp = -1;
+    ui_update_tp();
+
+    tuner.rds_ta = -1;
+    ui_update_ta();
+
+    tuner.rds_ms = -1;
+    ui_update_ms();
+
+    tuner.rds_pty = -1;
+    ui_update_pty();
+
+    tuner.rds_ecc = -1;
+    ui_update_ecc();
+
+    sprintf(tuner.rds_ps, "%8s", "");
+    for(i=0; i<8; i++)
+        tuner.rds_ps_err[i] = 0xFF;
+    tuner.rds_ps_avail = FALSE;
+    ui_update_ps(FALSE);
+
+    sprintf(tuner.rds_rt[0], "%64s", "");
+    tuner.rds_rt_avail[0] = FALSE;
+    ui_update_rt(0);
+    sprintf(tuner.rds_rt[1], "%64s", "");
+    tuner.rds_rt_avail[1] = FALSE;
+    ui_update_rt(1);
+
+    ui_clear_af();
 }

@@ -4,8 +4,5 @@
 void scheduler_toggle();
 void scheduler_start();
 void scheduler_stop();
-gboolean scheduler_switch(gpointer);
-void scheduler_toggle_button(gboolean);
+
 #endif
-
-

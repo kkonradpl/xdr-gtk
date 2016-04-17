@@ -4,79 +4,95 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
-#include "gui.h"
+#include "ui.h"
 #include "win32.h"
 
 #define WIN32_FONT_FILE "DejaVuSansMono.ttf"
 gint win32_font;
 
-void win32_init()
+void
+win32_init()
 {
-    win32_font = AddFontResourceEx(WIN32_FONT_FILE, FR_PRIVATE, NULL);
     WSADATA wsaData;
+    win32_font = AddFontResourceEx(WIN32_FONT_FILE, FR_PRIVATE, NULL);
     if(WSAStartup(MAKEWORD(2,2), &wsaData))
-    {
-        dialog_error("Error", "Unable to initialize Winsock");
-    }
+        ui_dialog(NULL,
+                  GTK_MESSAGE_ERROR,
+                  "Error", "Unable to initialize Winsock");
 }
 
-void win32_cleanup()
+void
+win32_cleanup()
 {
     if(win32_font)
-    {
         RemoveFontResourceEx(WIN32_FONT_FILE, FR_PRIVATE, NULL);
-    }
     WSACleanup();
 }
 
-char *strsep(char **sp, char *sep)
-{
-    char *p, *s;
-    if (sp == NULL || *sp == NULL || **sp == '\0') return(NULL);
-    s = *sp;
-    p = s + strcspn(s, sep);
-    if (*p != '\0') *p++ = '\0';
-    *sp = p;
-    return(s);
-}
-
-gboolean win32_uri(GtkWidget *label, gchar *uri, gpointer user_data)
+gboolean
+win32_uri(GtkWidget *label,
+          gchar     *uri,
+          gpointer   user_data)
 {
     ShellExecute(0, "open", uri, NULL, NULL, 1);
     return TRUE;
 }
 
-gint win32_dialog_workaround(GtkDialog *dialog)
+gint
+win32_dialog_workaround(GtkDialog *dialog)
 {
-    // keep dialog over main window
-    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gui.b_ontop)))
-    {
+    /* Always keep a dialog over the main window */
+    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.b_ontop)))
         gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
-    }
     return gtk_dialog_run(dialog);
 }
 
-void win32_grab_focus(GtkWindow* window)
+void
+win32_grab_focus(GtkWindow* window)
 {
-    if(!gtk_window_is_active(window))
+    HWND handle;
+    gint fg;
+    gint app;
+
+    if(gtk_window_is_active(window))
+        return;
+
+    handle = gdk_win32_drawable_get_handle(gtk_widget_get_window(ui.window));
+    fg = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+    app = GetCurrentThreadId();
+
+    if(IsIconic(handle))
     {
-        HWND handle = gdk_win32_drawable_get_handle(gtk_widget_get_window(gui.window));
-        int fg = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
-        int app = GetCurrentThreadId();
-        if(IsIconic(handle))
-        {
-            ShowWindow(handle, SW_RESTORE);
-        }
-        else if(fg != app)
-        {
-            AttachThreadInput(fg, app, TRUE);
-            BringWindowToTop(handle);
-            ShowWindow(handle, SW_SHOW);
-            AttachThreadInput(fg, app, FALSE);
-        }
-        else
-        {
-            gtk_window_present(window);
-        }
+        ShowWindow(handle, SW_RESTORE);
     }
+    else if(fg != app)
+    {
+        AttachThreadInput(fg, app, TRUE);
+        BringWindowToTop(handle);
+        ShowWindow(handle, SW_SHOW);
+        AttachThreadInput(fg, app, FALSE);
+    }
+    else
+    {
+        gtk_window_present(window);
+    }
+}
+
+gchar*
+strsep(gchar **string,
+       gchar  *del)
+{
+    gchar *start = *string;
+    gchar *p = (start ? strpbrk(start, del) : NULL);
+
+    if(!p)
+    {
+        *string = NULL;
+    }
+    else
+    {
+        *p = '\0';
+        *string = p + 1;
+    }
+    return start;
 }

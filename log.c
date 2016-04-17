@@ -6,25 +6,23 @@
 #include <string.h>
 #include "log.h"
 #include "tuner.h"
-#include "settings.h"
-#include "gui.h"
+#include "conf.h"
+#include "ui.h"
 
-#ifdef G_OS_WIN32
-#define LOG_NL "\r\n"
-#else
-#define LOG_NL "\n"
-#endif
+static FILE *logfp = NULL;
+static gchar ps_buff[9];
+static gchar rt_buff[2][65];
+static gboolean ps_buff_error;
+static gchar *default_log_path = "." PATH_SEP "logs";
 
-FILE *logfp = NULL;
-gchar ps_buff[9];
-gchar rt_buff[2][65];
-gboolean ps_buff_error;
-gchar* default_log_path = "./logs";
+static gboolean log_prepare();
+static void log_timestamp();
 
-gboolean log_prepare()
+static gboolean
+log_prepare()
 {
     gchar t[16], t2[16], path[100];
-    gchar* directory;
+    gchar *directory;
     time_t tt;
 
     if(!conf.rds_logging)
@@ -45,27 +43,26 @@ gboolean log_prepare()
     g_sprintf(rt_buff[1], "%64s", "");
     ps_buff_error = TRUE;
 
-    g_snprintf(path, sizeof(path), "%s/", directory);
+    g_snprintf(path, sizeof(path), "%s" PATH_SEP, directory);
     g_mkdir(path, 0755);
 
     tt = time(NULL);
     strftime(t, sizeof(t), "%Y-%m-%d", (conf.utc)?gmtime(&tt):localtime(&tt));
     strftime(t2, sizeof(t2), "%H%M%S", (conf.utc)?gmtime(&tt):localtime(&tt));
-    g_snprintf(path, sizeof(path), "%s/%s/", directory, t);
+    g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP, directory, t);
     g_mkdir(path, 0755);
 
-    g_snprintf(path, sizeof(path), "%s/%s/%d-%s.txt", directory, t, tuner.freq, t2);
+    g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP "%d-%s.txt", directory, t, tuner.freq, t2);
     logfp = fopen(path, "w");
 
     if(!logfp)
-    {
-        gui_status(2000, "<b>Failed to create a log. Check logging directory in settings.</b>");
-    }
+        ui_status(2000, "<b>Failed to create a log. Check logging directory in settings.</b>");
 
     return GPOINTER_TO_INT(logfp);
 }
 
-void log_timestamp()
+static void
+log_timestamp()
 {
     gchar t[32];
     time_t tt;
@@ -78,7 +75,8 @@ void log_timestamp()
     }
 }
 
-void log_cleanup()
+void
+log_cleanup()
 {
     if(logfp)
     {
@@ -87,7 +85,9 @@ void log_cleanup()
     }
 }
 
-void log_pi(gint pi, gboolean unsure)
+void
+log_pi(gint     pi,
+       gboolean checked)
 {
     if(!log_prepare())
         return;
@@ -95,21 +95,25 @@ void log_pi(gint pi, gboolean unsure)
     log_timestamp();
     fprintf(logfp, "PI\t%04X%s%s",
             pi,
-            (unsure ? "\t?" : ""),
+            (!checked ? "\t?" : ""),
             LOG_NL);
 }
 
-void log_af(const gchar* af)
+void
+log_af(const gchar *af)
 {
     if(!log_prepare())
         return;
+
     log_timestamp();
     fprintf(logfp, "AF\t%s%s", af, LOG_NL);
 }
 
-void log_ps(const gchar* ps, const guchar* err)
+void
+log_ps(const gchar  *ps,
+       const guchar *err)
 {
-    gchar* tmp;
+    gchar *tmp;
     gboolean error;
 
     if(!log_prepare())
@@ -119,9 +123,8 @@ void log_ps(const gchar* ps, const guchar* err)
 
     /* Check whether the PS string is different from a last saved one */
     if(!strcmp(ps, ps_buff) && error == ps_buff_error)
-    {
         return;
-    }
+
     strcpy(ps_buff, ps);
     ps_buff_error = error;
 
@@ -139,26 +142,24 @@ void log_ps(const gchar* ps, const guchar* err)
     }
 
     if(error)
-    {
         fprintf(logfp, "\t?%s", LOG_NL);
-    }
     else
-    {
         fprintf(logfp, "%s", LOG_NL);
-    }
 }
 
-void log_rt(guint8 i, const gchar* rt)
+void
+log_rt(guint8       i,
+       const gchar *rt)
 {
-    gchar* tmp;
+    gchar *tmp;
+
     if(!log_prepare())
         return;
 
     /* Check whether the RT string is different from a last saved one */
     if(!strcmp(rt, rt_buff[i]))
-    {
         return;
-    }
+
     strcpy(rt_buff[i], rt);
 
     log_timestamp();
@@ -175,7 +176,8 @@ void log_rt(guint8 i, const gchar* rt)
     }
 }
 
-void log_pty(const gchar* pty)
+void
+log_pty(const gchar *pty)
 {
     if(!log_prepare())
         return;
@@ -184,32 +186,27 @@ void log_pty(const gchar* pty)
     fprintf(logfp, "PTY\t%s%s", pty, LOG_NL);
 }
 
-void log_ecc(const gchar* ecc, guint ecc_raw)
+void
+log_ecc(const gchar *ecc,
+        guint        ecc_raw)
 {
     if(!log_prepare())
         return;
 
     log_timestamp();
     if(!strcmp(ecc, "??"))
-    {
         fprintf(logfp, "ECC\t?? (%02X)%s", ecc_raw, LOG_NL);
-    }
     else
-    {
         fprintf(logfp, "ECC\t%s%s", ecc, LOG_NL);
-    }
 }
 
-gchar* replace_spaces(const gchar* str)
+gchar*
+replace_spaces(const gchar *str)
 {
-    gchar* new_str = g_strdup(str);
+    gchar *new_str = g_strdup(str);
     size_t i;
     for(i=0; i<strlen(new_str); i++)
-    {
         if(new_str[i] == ' ')
-        {
             new_str[i] = '_';
-        }
-    }
     return new_str;
 }
