@@ -182,10 +182,11 @@ tuner_modify_frequency(guint mode)
 }
 
 static void
-tuner_modify_frequency_full(guint base_freq, guint step, guint mode)
+tuner_modify_frequency_full(guint base_freq,
+                            guint step,
+                            guint mode)
 {
     gint m;
-
     if(((tuner.freq-base_freq) % step) == 0)
     {
         if(mode == TUNER_FREQ_MODIFY_UP)

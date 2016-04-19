@@ -741,11 +741,12 @@ ui_dialog(GtkWidget      *window,
     va_start(args, format);
     msg = g_markup_vprintf_escaped(format, args);
     va_end(args);
-    dialog = gtk_message_dialog_new_with_markup(GTK_WINDOW(window),
-                                                GTK_DIALOG_MODAL,
-                                                icon,
-                                                GTK_BUTTONS_CLOSE,
-                                                msg);
+    dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+                                    GTK_DIALOG_MODAL,
+                                    icon,
+                                    GTK_BUTTONS_CLOSE,
+                                    NULL);
+    gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dialog), msg);
     gtk_window_set_title(GTK_WINDOW(dialog), title);
     if(!window)
         gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
@@ -832,7 +833,7 @@ ui_antenna_showhide()
     if(conf.ant_count == 1)
     {
         gtk_widget_hide(ui.c_ant);
-        gtk_label_set_text(GTK_LABEL(ui.l_deemph), "De-emphasis");
+        gtk_label_set_text(GTK_LABEL(ui.l_deemph), "De-emphasis:");
         gtk_widget_show(ui.l_deemph);
     }
     else

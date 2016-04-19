@@ -411,6 +411,7 @@ scan_toggle(GtkWidget *widget,
                    "Sa%d\nSb%d\nSc%d\nSf%d\nS%s",
                    start, stop, step, tuner_filter_from_index(bw), (continuous?"m":""));
 
+        ui_antenna_switch(start);
         tuner_write(tuner.thread, buff);
         scan_lock(TRUE);
         gtk_widget_set_sensitive(scan.b_start, FALSE);
@@ -1033,6 +1034,7 @@ scan_check_finished()
             gtk_widget_set_sensitive(scan.b_start, TRUE);
             scan_lock(FALSE);
         }
+        ui_antenna_switch(tuner.freq);
     }
 }
 

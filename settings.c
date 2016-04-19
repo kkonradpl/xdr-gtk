@@ -57,8 +57,8 @@ static GtkWidget *l_rdsspy_port, *s_rdsspy_port;
 static GtkWidget *x_rdsspy_auto, *x_rdsspy_run, *c_rdsspy_command;
 static GtkWidget *x_stationlist, *l_stationlist_port, *s_stationlist_port;
 static GtkWidget *x_rds_logging, *x_replace;
-static GtkWidget *l_log_dir, *c_log_dir;
-static GtkWidget *l_screen_dir, *c_screen_dir;
+static GtkWidget *l_log_dir, *c_log_dir_dialog, *c_log_dir;
+static GtkWidget *l_screen_dir, *c_screen_dir_dialog, *c_screen_dir;
 
 /* Keyboard page */
 static GtkWidget *page_key, *table_key, *page_key_viewport;
@@ -131,7 +131,7 @@ settings_dialog()
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
 
     notebook = gtk_notebook_new();
-    gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), TRUE);
+    gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_LEFT);
     gtk_notebook_popup_enable(GTK_NOTEBOOK(notebook));
     gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), notebook);
 
@@ -480,7 +480,7 @@ settings_dialog()
     gtk_container_set_border_width(GTK_CONTAINER(page_logs), 4);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_logs, gtk_label_new("Logs"));
 
-    table_logs = gtk_table_new(12, 2, FALSE);
+    table_logs = gtk_table_new(14, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_logs), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_logs), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_logs), 4);
@@ -537,6 +537,9 @@ settings_dialog()
     gtk_table_attach(GTK_TABLE(table_logs), c_rdsspy_command, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
+    gtk_table_attach(GTK_TABLE(table_logs), gtk_hseparator_new(), 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
     x_stationlist = gtk_check_button_new_with_label("Enable SRCP (StationList)");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_stationlist), conf.srcp);
     gtk_table_attach(GTK_TABLE(table_logs), x_stationlist, 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
@@ -547,6 +550,9 @@ settings_dialog()
     gtk_table_attach(GTK_TABLE(table_logs), l_stationlist_port, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     s_stationlist_port = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.srcp_port, 1025.0, 65535.0, 1.0, 10.0, 0.0)), 0, 0);
     gtk_table_attach(GTK_TABLE(table_logs), s_stationlist_port, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    gtk_table_attach(GTK_TABLE(table_logs), gtk_hseparator_new(), 0, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     x_rds_logging = gtk_check_button_new_with_label("Enable simple RDS logging");
@@ -562,24 +568,32 @@ settings_dialog()
     l_log_dir = gtk_label_new("Log directory:");
     gtk_misc_set_alignment(GTK_MISC(l_log_dir), 0.0, 0.5);
     gtk_table_attach(GTK_TABLE(table_logs), l_log_dir, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-    c_log_dir = gtk_file_chooser_button_new("Log directory", GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
-    gtk_widget_set_size_request(c_log_dir, 125, -1);
+    c_log_dir_dialog = gtk_file_chooser_dialog_new("Log directory", NULL,
+                                                   GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
+    gtk_window_set_keep_above(GTK_WINDOW(c_log_dir_dialog), gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.b_ontop)));
+    c_log_dir = gtk_file_chooser_button_new_with_dialog(c_log_dir_dialog);
     if(strlen(conf.log_dir))
-    {
         gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(c_log_dir), conf.log_dir);
-    }
+    gtk_file_chooser_set_action(GTK_FILE_CHOOSER(c_log_dir_dialog), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER); /* HACK */
     gtk_table_attach(GTK_TABLE(table_logs), c_log_dir, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     l_screen_dir = gtk_label_new("Screenshot directory:");
     gtk_misc_set_alignment(GTK_MISC(l_screen_dir), 0.0, 0.5);
     gtk_table_attach(GTK_TABLE(table_logs), l_screen_dir, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-    c_screen_dir = gtk_file_chooser_button_new("Screenshot directory", GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
-    gtk_widget_set_size_request(c_screen_dir, 125, -1);
+    c_screen_dir_dialog = gtk_file_chooser_dialog_new("Screenshot directory", NULL,
+                                                      GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                      NULL);
+    gtk_window_set_keep_above(GTK_WINDOW(c_screen_dir_dialog), gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.b_ontop)));
+    c_screen_dir = gtk_file_chooser_button_new_with_dialog(c_screen_dir_dialog);
     if(strlen(conf.screen_dir))
-    {
         gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(c_screen_dir), conf.screen_dir);
-    }
+    gtk_file_chooser_set_action(GTK_FILE_CHOOSER(c_screen_dir_dialog), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER); /* HACK */
     gtk_table_attach(GTK_TABLE(table_logs), c_screen_dir, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     /* Keyboard page */
