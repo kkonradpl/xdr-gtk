@@ -392,6 +392,7 @@ connection_dialog_connected(gint mode,
         {
             connection_dialog_unlock(TRUE);
             connection_dialog_status("Connection has been unexpectedly closed.");
+            wait_for_tuner = FALSE;
         }
         successfully_connected = FALSE;
         return;
@@ -494,5 +495,6 @@ connection_socket_auth_fail()
     {
         connection_dialog_status("Incorrect password.");
         connection_dialog_unlock(TRUE);
+        wait_for_tuner = FALSE;
     }
 }
