@@ -153,7 +153,9 @@ typedef struct settings
     gint scheduler_default_timeout;
 
     /* Pattern */
+    gint pattern_color;
     gint pattern_size;
+    gboolean pattern_inv;
     gboolean pattern_fill;
     gboolean pattern_avg;
 

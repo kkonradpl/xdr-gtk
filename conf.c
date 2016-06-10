@@ -99,7 +99,9 @@ static const gchar *key_presets            = "presets";
 static const gchar *key_freqs              = "freqs";
 static const gchar *key_timeouts           = "timeouts";
 static const gchar *key_default_timeout    = "default_timeout";
+static const gchar *key_color              = "color";
 static const gchar *key_size               = "size";
+static const gchar *key_inv                = "inv";
 static const gchar *key_fill               = "fill";
 static const gchar *key_width              = "width";
 static const gchar *key_start              = "start";
@@ -280,9 +282,11 @@ conf_read()
     conf.scheduler_default_timeout = conf_read_integer(keyfile, group_scheduler, key_default_timeout, CONF_SCHEDULER_TIMEOUT);
 
     /* Pattern */
-    conf.pattern_size = conf_read_integer(keyfile, group_pattern, key_size, CONF_PATTERN_SIZE);
-    conf.pattern_fill = conf_read_boolean(keyfile, group_pattern, key_fill, CONF_PATTERN_FILL);
-    conf.pattern_avg  = conf_read_boolean(keyfile, group_pattern, key_avg,  CONF_PATTERN_AVG);
+    conf.pattern_color = conf_read_integer(keyfile, group_pattern, key_color, CONF_PATTERN_COLOR);
+    conf.pattern_size  = conf_read_integer(keyfile, group_pattern, key_size,  CONF_PATTERN_SIZE);
+    conf.pattern_inv   = conf_read_boolean(keyfile, group_pattern, key_inv,   CONF_PATTERN_INV);
+    conf.pattern_fill  = conf_read_boolean(keyfile, group_pattern, key_fill,  CONF_PATTERN_FILL);
+    conf.pattern_avg   = conf_read_boolean(keyfile, group_pattern, key_avg,   CONF_PATTERN_AVG);
 
     /* Spectral scan */
     conf.scan_x          = conf_read_integer(keyfile, group_scan, key_x,          CONF_SCAN_X);
@@ -421,9 +425,11 @@ conf_write()
     g_key_file_set_integer(keyfile, group_scheduler, key_default_timeout, conf.scheduler_default_timeout);
 
     /* Pattern */
-    g_key_file_set_integer(keyfile, group_pattern, key_size, conf.pattern_size);
-    g_key_file_set_boolean(keyfile, group_pattern, key_fill, conf.pattern_fill);
-    g_key_file_set_boolean(keyfile, group_pattern, key_avg,  conf.pattern_avg);
+    g_key_file_set_integer(keyfile, group_pattern, key_color, conf.pattern_color);
+    g_key_file_set_integer(keyfile, group_pattern, key_size,  conf.pattern_size);
+    g_key_file_set_boolean(keyfile, group_pattern, key_inv,   conf.pattern_inv);
+    g_key_file_set_boolean(keyfile, group_pattern, key_fill,  conf.pattern_fill);
+    g_key_file_set_boolean(keyfile, group_pattern, key_avg,   conf.pattern_avg);
 
     /* Spectral scan */
     g_key_file_set_integer(keyfile, group_scan, key_x,          conf.scan_x);

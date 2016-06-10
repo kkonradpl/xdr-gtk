@@ -114,9 +114,11 @@
 #define CONF_SCHEDULER_TIMEOUT 30
 
 /* Pattern */
-#define CONF_PATTERN_SIZE 600
-#define CONF_PATTERN_FILL TRUE
-#define CONF_PATTERN_AVG  FALSE
+#define CONF_PATTERN_COLOR 3
+#define CONF_PATTERN_SIZE  600
+#define CONF_PATTERN_INV   FALSE
+#define CONF_PATTERN_FILL  TRUE
+#define CONF_PATTERN_AVG   FALSE
 
 /* Spectral scan */
 #define CONF_SCAN_X          -1
