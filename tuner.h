@@ -89,6 +89,7 @@ typedef struct tuner
     gint64 last_set_gain;
     gint64 last_set_daa;
     gint64 last_set_rotator;
+    gint64 last_set_pilot;
 } tuner_t;
 
 tuner_t tuner;

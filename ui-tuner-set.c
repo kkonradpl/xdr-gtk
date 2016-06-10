@@ -164,6 +164,7 @@ void
 tuner_set_stereo_test()
 {
     tuner_write(tuner.thread, "N");
+    tuner.last_set_pilot = g_get_real_time() / 1000;
 }
 
 void

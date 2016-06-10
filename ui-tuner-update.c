@@ -523,6 +523,9 @@ ui_update_disconnected()
 void
 ui_update_pilot(gint pilot)
 {
+    if(!tuner.last_set_pilot)
+        return;
+
     if(pilot)
     {
         ui_dialog(ui.window,
@@ -538,6 +541,8 @@ ui_update_pilot(gint pilot)
                   "Stereo pilot subcarrier",
                   "The stereo subcarrier is not present or the injection level is too low.");
     }
+
+    tuner.last_set_pilot = 0;
 }
 
 void
@@ -580,6 +585,7 @@ ui_update_service()
     tuner.last_set_gain = 0;
     tuner.last_set_daa = 0;
     tuner.last_set_rotator = 0;
+    tuner.last_set_pilot = 0;
     g_timeout_add(100, (GSourceFunc)update_service, NULL);
 }
 
