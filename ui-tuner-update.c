@@ -525,6 +525,7 @@ ui_update_pilot(gint pilot)
 {
     if(!tuner.last_set_pilot)
         return;
+    tuner.last_set_pilot = 0;
 
     if(pilot)
     {
@@ -541,8 +542,6 @@ ui_update_pilot(gint pilot)
                   "Stereo pilot subcarrier",
                   "The stereo subcarrier is not present or the injection level is too low.");
     }
-
-    tuner.last_set_pilot = 0;
 }
 
 void
