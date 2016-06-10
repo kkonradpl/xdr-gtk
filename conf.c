@@ -43,6 +43,7 @@ static const gchar *key_hide_decorations   = "hide_decorations";
 static const gchar *key_hide_interference  = "hide_interference";
 static const gchar *key_hide_statusbar     = "hide_statusbar";
 static const gchar *key_restore_position   = "restore_position";
+static const gchar *key_grab_focus         = "grab_focus";
 static const gchar *key_unit               = "unit";
 static const gchar *key_display            = "display";
 static const gchar *key_mode               = "mode";
@@ -209,6 +210,7 @@ conf_read()
     conf.hide_interference  = conf_read_boolean(keyfile, group_interface, key_hide_interference,  CONF_INTERFACE_HIDE_INTERFERENCE);
     conf.hide_statusbar     = conf_read_boolean(keyfile, group_interface, key_hide_statusbar,     CONF_INTERFACE_HIDE_STATUSBAR);
     conf.restore_position   = conf_read_boolean(keyfile, group_interface, key_restore_position,   CONF_INTERFACE_RESTORE_POSITION);
+    conf.grab_focus         = conf_read_boolean(keyfile, group_interface, key_grab_focus,         CONF_INTERFACE_GRAB_FOCUS);
 
     /* Graph */
     conf.signal_unit    = conf_read_integer(keyfile, group_signal, key_unit,     CONF_SIGNAL_UNIT);
@@ -345,6 +347,7 @@ conf_write()
     g_key_file_set_boolean(keyfile, group_interface, key_hide_interference,  conf.hide_interference);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_statusbar,     conf.hide_statusbar);
     g_key_file_set_boolean(keyfile, group_interface, key_restore_position,   conf.restore_position);
+    g_key_file_set_boolean(keyfile, group_interface, key_grab_focus,         conf.grab_focus);
 
     /* Signal */
     g_key_file_set_integer(keyfile, group_signal, key_unit,    conf.signal_unit);

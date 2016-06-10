@@ -74,12 +74,12 @@ typedef struct settings
     gboolean mw_10k_steps;
     gboolean disconnect_confirm;
     gboolean auto_reconnect;
-    gboolean grab_focus;
     enum Action event_action;
     gboolean hide_decorations;
     gboolean hide_interference;
     gboolean hide_statusbar;
     gboolean restore_position;
+    gboolean grab_focus;
 
     /* Graph */
     gdouble signal_offset;

@@ -30,6 +30,9 @@ ui_update_freq()
         if(conf.signal_mode == GRAPH_RESET)
             signal_clear();
 
+        if(conf.grab_focus)
+            ui_activate();
+
         tuner_clear_signal();
         stationlist_freq(tuner.freq);
         log_cleanup();

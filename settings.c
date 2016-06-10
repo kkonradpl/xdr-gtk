@@ -25,7 +25,7 @@ static GtkWidget *page_interface, *table_interface;
 static GtkWidget *l_init_freq, *s_init_freq, *l_init_freq_unit;
 static GtkWidget *l_event, *c_event;
 static GtkWidget *x_utc, *x_autoconnect, *x_amstep, *x_disconnect_confirm, *x_auto_reconnect;
-static GtkWidget *x_hide_decorations, *x_hide_interference, *x_hide_status, *x_restore_pos;
+static GtkWidget *x_hide_decorations, *x_hide_interference, *x_hide_status, *x_restore_pos, *x_grab_focus;
 
 /* Signal page */
 static GtkWidget *page_signal, *table_signal;
@@ -141,7 +141,7 @@ settings_dialog()
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_interface, gtk_label_new("Interface"));
     gtk_container_child_set(GTK_CONTAINER(notebook), page_interface, "tab-expand", FALSE, "tab-fill", FALSE, NULL);
 
-    table_interface = gtk_table_new(11, 3, TRUE);
+    table_interface = gtk_table_new(12, 3, TRUE);
     gtk_table_set_homogeneous(GTK_TABLE(table_interface), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_interface), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_interface), 4);
@@ -213,6 +213,11 @@ settings_dialog()
     x_restore_pos = gtk_check_button_new_with_label("Restore window position");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_restore_pos), conf.restore_position);
     gtk_table_attach(GTK_TABLE(table_interface), x_restore_pos, 0, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    x_grab_focus = gtk_check_button_new_with_label("Grab focus on frequency change");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_grab_focus), conf.grab_focus);
+    gtk_table_attach(GTK_TABLE(table_interface), x_grab_focus, 0, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     /* Signal page */
     page_signal = gtk_vbox_new(FALSE, 5);
@@ -916,6 +921,7 @@ settings_dialog()
     else
         gtk_widget_show(ui.l_status);
     conf.restore_position = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_restore_pos));
+    conf.grab_focus = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_grab_focus));
 
     /* Signal page */
     conf.signal_unit = gtk_combo_box_get_active(GTK_COMBO_BOX(c_unit));
