@@ -918,10 +918,6 @@ ui_screenshot()
     else
     {
         filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner.freq);
-        filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner.freq);
-        filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner.freq);
-        filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner.freq);
-        filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner.freq);
     }
 
     /* HACK: refresh window to avoid icons disappearing */
