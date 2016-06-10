@@ -111,7 +111,7 @@ keyboard_press(GtkWidget   *widget,
 
     if(current == conf.key_scan_toggle)
     {
-        scan_try_toggle();
+        scan_try_toggle(shift_pressed);
         return TRUE;
     }
 

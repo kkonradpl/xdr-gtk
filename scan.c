@@ -34,6 +34,8 @@
 #define SCAN_GRID_ALPHA          0.50
 #define SCAN_MARK_TUNED_WIDTH     3.0
 
+#define SCAN_REDRAW_DELAY         500
+
 typedef struct scan
 {
     GtkWidget *window;
@@ -78,6 +80,8 @@ typedef struct scan
     tuner_scan_t *data;
     tuner_scan_t *peak;
     tuner_scan_t *hold;
+    gint64 last_redraw;
+    gint queue_redraw;
 } scan_t;
 
 static scan_t scan;
@@ -106,6 +110,7 @@ static gboolean scan_click(GtkWidget*, GdkEventButton*, gpointer);
 static gboolean scan_motion(GtkWidget*, GdkEventMotion*, gpointer);
 static gboolean scan_leave(GtkWidget*, GdkEvent*, gpointer);
 static const gchar* scan_format_frequency(gint);
+static gboolean scan_timeout_redraw(gpointer);
 
 void
 scan_init()
@@ -118,6 +123,8 @@ scan_init()
     scan.data = NULL;
     scan.peak = NULL;
     scan.hold = NULL;
+    scan.last_redraw = 0;
+    scan.queue_redraw = 0;
 }
 
 void
@@ -308,7 +315,7 @@ scan_lock(gboolean value)
     gtk_widget_set_sensitive(scan.b_ccir, sensitive);
     gtk_widget_set_sensitive(scan.b_oirt, sensitive);
     gtk_button_set_image(GTK_BUTTON(scan.b_start),
-                         gtk_image_new_from_stock((value?GTK_STOCK_MEDIA_STOP:GTK_STOCK_MEDIA_PLAY), GTK_ICON_SIZE_BUTTON));
+    gtk_image_new_from_stock((value?GTK_STOCK_MEDIA_STOP:GTK_STOCK_MEDIA_PLAY), GTK_ICON_SIZE_BUTTON));
     scan.locked = value;
 }
 
@@ -573,7 +580,7 @@ scan_redraw(GtkWidget      *widget,
     {
         if(scan.peak && scan.hold)
         {
-            min = MIN(signal_level(scan.data->min), signal_level(scan.hold->min));
+            min = MIN(signal_level(scan.peak->min), signal_level(scan.hold->min));
             max = MAX(signal_level(scan.peak->max), signal_level(scan.hold->max));
         }
         else if(scan.peak)
@@ -597,7 +604,6 @@ scan_redraw(GtkWidget      *widget,
         min = signal_level(SCAN_DEFAULT_MIN_LEVEL);
         max = signal_level(SCAN_DEFAULT_MAX_LEVEL);
     }
-
 
     /* Draw left vertical and bottom horizontal line  */
     cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
@@ -681,10 +687,13 @@ scan_redraw(GtkWidget      *widget,
         y_focus = SCAN_OFFSET_TOP+height - MAP(signal_level(scan.data->signals[scan.focus].signal), min, max, 0.0, height);
         point_radius = (height > 200 ? 5.0 : height / 40.0);
 
-        cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+        cairo_save(cr);
+        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.95);
         cairo_set_line_width(cr, SCAN_POINT_WIDTH);
+        cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
         cairo_arc(cr, x_focus, y_focus, point_radius, 0.0, 2.0 * M_PI);
         cairo_stroke(cr);
+        cairo_restore(cr);
 
         /* Show selected frequency and signal */
         g_snprintf(text, sizeof(text), "%s %d%s",
@@ -722,6 +731,12 @@ scan_redraw(GtkWidget      *widget,
     }
 
     cairo_destroy(cr);
+    scan.last_redraw = g_get_monotonic_time() / 1000;
+    if(scan.queue_redraw)
+    {
+        g_source_remove(scan.queue_redraw);
+        scan.queue_redraw = 0;
+    }
     return FALSE;
 }
 
@@ -787,6 +802,8 @@ scan_draw_scale(cairo_t *cr,
     gchar text[16];
     gdouble x_pos;
 
+    cairo_save(cr);
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
     cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
     cairo_set_font_size(cr, SCAN_FONT_SCALE_SIZE);
 
@@ -802,7 +819,6 @@ scan_draw_scale(cairo_t *cr,
             /* Draw a grid */
             cairo_save(cr);
             cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, SCAN_GRID_ALPHA);
-            cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
             cairo_set_dash(cr, grid_pattern, grid_pattern_len, 0);
             cairo_move_to(cr, SCAN_OFFSET_LEFT-0.5+SCAN_SCALE_LINE_LENGTH/2.0, position);
             cairo_line_to(cr, SCAN_OFFSET_LEFT-0.5+width+0.5, position);
@@ -818,6 +834,7 @@ scan_draw_scale(cairo_t *cr,
         current_value--;
         position += step;
     }
+    cairo_restore(cr);
 }
 
 static void
@@ -957,6 +974,8 @@ scan_update(tuner_scan_t *data_new)
     gboolean peakhold = (scan.window && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan.b_peakhold)));
     gint i;
 
+    scan.active = TRUE;
+
     if(scan.data)
     {
         if(peakhold &&
@@ -979,6 +998,8 @@ scan_update(tuner_scan_t *data_new)
             }
         }
     }
+
+    scan.data = data_new;
 
     if(scan.hold &&
        !(scan.hold->len == data_new->len &&
@@ -1003,9 +1024,6 @@ scan_update(tuner_scan_t *data_new)
             scan.peak->min = data_new->min;
     }
 
-    scan.active = TRUE;
-    scan.data = data_new;
-
     if(scan.window)
     {
         if(!scan.locked)
@@ -1017,15 +1035,12 @@ scan_update(tuner_scan_t *data_new)
 }
 
 void
-scan_try_toggle()
+scan_update_value(gint   freq,
+                  gfloat val)
 {
-    if(scan.window)
-        gtk_button_clicked(GTK_BUTTON(scan.b_start));
-}
+    gint found = -1;
+    gint i;
 
-void
-scan_check_finished()
-{
     if(scan.active)
     {
         scan.active = FALSE;
@@ -1036,6 +1051,72 @@ scan_check_finished()
         }
         ui_antenna_switch(tuner.freq);
     }
+
+    if(!scan.window || !scan.data)
+        return;
+
+    for(i=0; i<scan.data->len; i++)
+    {
+        if(scan.data->signals[i].freq == freq)
+        {
+            scan.data->signals[i].signal = val;
+            found = i;
+            if(val > scan.data->max)
+                scan.data->max = ceil(val);
+            if(val < scan.data->min)
+                scan.data->min = floor(val);
+            break;
+        }
+    }
+
+    if(found == -1)
+        return;
+
+    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan.b_peakhold)) &&
+       !scan.peak)
+    {
+        scan.peak = tuner_scan_copy(scan.data);
+    }
+
+    if(scan.peak)
+    {
+        if(scan.peak->signals[found].signal < val)
+        {
+            scan.peak->signals[found].signal = val;
+            if(val > scan.peak->max)
+                scan.peak->max = ceil(val);
+        }
+        if(val < scan.peak->min)
+            scan.peak->min = floor(val);
+    }
+
+    /* Queue plot redraw */
+    if(scan.queue_redraw)
+        return;
+
+    i = g_get_monotonic_time() / 1000 - scan.last_redraw;
+    if(i >= SCAN_REDRAW_DELAY)
+        scan_force_redraw();
+    else
+        scan.queue_redraw = g_timeout_add(SCAN_REDRAW_DELAY-i, scan_timeout_redraw, NULL);
+}
+
+void
+scan_try_toggle(gboolean continous)
+{
+    gboolean continous_pressed;
+    if(!scan.window)
+        return;
+    if(!gtk_widget_get_sensitive(scan.b_start))
+        return;
+    if(!scan.active)
+    {
+        continous_pressed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scan.b_continuous));
+        if((continous && !continous_pressed) ||
+           (!continous && continous_pressed))
+           gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scan.b_continuous), continous);
+    }
+    gtk_button_clicked(GTK_BUTTON(scan.b_start));
 }
 
 void
@@ -1043,4 +1124,12 @@ scan_force_redraw()
 {
     if(scan.window)
         gtk_widget_queue_draw(scan.view);
+}
+
+static gboolean
+scan_timeout_redraw(gpointer data)
+{
+    scan.queue_redraw = 0;
+    scan_force_redraw();
+    return FALSE;
 }

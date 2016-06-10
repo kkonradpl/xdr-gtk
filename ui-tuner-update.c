@@ -105,7 +105,7 @@ ui_update_signal()
     gint signal_curr;
     gchar *str;
 
-    scan_check_finished();
+    scan_update_value(tuner.freq, tuner.signal);
 
     if(isnan(tuner.signal))
     {
