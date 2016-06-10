@@ -101,7 +101,7 @@ static gboolean scan_marks(GtkWidget*, GdkEventButton*);
 static void scan_marks_tuned_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_marks_add(GtkMenuItem*, gpointer);
 static void scan_marks_clear(GtkMenuItem*, gpointer);
-
+static void scan_clear(GtkCheckMenuItem*, gpointer);
 static gboolean scan_redraw(GtkWidget*, GdkEventExpose*, gpointer);
 static void scan_draw_spectrum(cairo_t*, tuner_scan_t*, gint, gint, gdouble, gdouble, gdouble);
 static void scan_draw_scale(cairo_t*, gint, gint, gdouble, gdouble);
@@ -251,7 +251,7 @@ scan_dialog()
     g_signal_connect(scan.b_oirt, "clicked", G_CALLBACK(scan_oirt), NULL);
 
     scan.marks_menu = scan_dialog_menu();
-    scan.b_marks = gtk_button_new_with_label(" M ");
+    scan.b_marks = gtk_button_new_with_label(" ... ");
     gtk_widget_set_name(scan.b_marks, "small-button");
     gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_marks, FALSE, FALSE, 0);
     g_signal_connect_swapped(scan.b_marks, "event", G_CALLBACK(scan_marks), scan.marks_menu);
@@ -328,8 +328,7 @@ scan_dialog_menu()
     gtk_widget_set_sensitive(title, FALSE);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), title);
 
-    GtkWidget *sep = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
 
     GtkWidget *mark_tuned = gtk_check_menu_item_new_with_label("Mark tuned frequency");
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(mark_tuned), conf.scan_mark_tuned);
@@ -365,6 +364,14 @@ scan_dialog_menu()
                                   GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_all);
     g_signal_connect(clear_all, "activate", G_CALLBACK(scan_marks_clear), GINT_TO_POINTER(TRUE));
+
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
+
+    GtkWidget *clear_graph = gtk_image_menu_item_new_with_label("Clear the scan");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_graph),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_graph);
+    g_signal_connect(clear_graph, "activate", G_CALLBACK(scan_clear), NULL);
 
     gtk_widget_show_all(menu);
     return menu;
@@ -543,6 +550,31 @@ scan_marks_clear(GtkMenuItem *menuitem,
                                        scan.data->signals[scan.data->len-1].freq);
     }
     scan_force_redraw();
+}
+
+static void
+scan_clear(GtkCheckMenuItem *item,
+           gpointer          user_data)
+{
+    if(scan.data)
+    {
+        tuner_scan_free(scan.data);
+        scan.data = NULL;
+        if(scan.hold)
+        {
+            tuner_scan_free(scan.hold);
+            scan.hold = NULL;
+            g_signal_handlers_block_by_func(G_OBJECT(scan.b_hold), GINT_TO_POINTER(scan_hold), NULL);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scan.b_hold), FALSE);
+            g_signal_handlers_unblock_by_func(G_OBJECT(scan.b_hold), GINT_TO_POINTER(scan_hold), NULL);
+        }
+        if(scan.peak)
+        {
+            tuner_scan_free(scan.peak);
+            scan.peak = NULL;
+        }
+        scan_force_redraw();
+    }
 }
 
 static gboolean
