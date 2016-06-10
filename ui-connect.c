@@ -400,7 +400,7 @@ connection_dialog_connected(gint mode,
 
     successfully_connected = TRUE;
 
-    if(mode == MODE_SERIAL || tuner.send_settings)
+    if(tuner.send_settings)
     {
         tuner_set_volume();
         tuner_set_squelch();

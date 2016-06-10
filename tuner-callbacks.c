@@ -124,7 +124,7 @@ tuner_pi(gpointer data)
     {
         tuner.rds_pi = pi;
         tuner.rds_pi_checked = checked;
-        ui_update_pi(pi, checked);
+        ui_update_pi();
     }
     return FALSE;
 }
@@ -405,8 +405,8 @@ gboolean
 tuner_online(gpointer data)
 {
     tuner.online = GPOINTER_TO_INT(data);
-    if(!tuner.ready && tuner.online == 1)
-        tuner.send_settings = TRUE;
+    if(!tuner.ready && tuner.online > 1)
+        tuner.send_settings = FALSE;
     return FALSE;
 }
 

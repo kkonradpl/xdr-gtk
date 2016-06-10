@@ -257,9 +257,7 @@ tuner_parse(gchar  c,
         {
             g_idle_add(tuner_cci, GINT_TO_POINTER(atoi(ptr+1)));
             if((ptr = strchr(ptr+1, ',')))
-            {
                 g_idle_add(tuner_aci, GINT_TO_POINTER(atoi(ptr+1)));
-            }
         }
     }
     else if(c == 'P' && strlen(msg) >= 4)
@@ -500,7 +498,7 @@ void tuner_clear_all()
     tuner.guest = FALSE;
     tuner.online = 0;
     tuner.online_guests = 0;
-    tuner.send_settings = FALSE;
+    tuner.send_settings = TRUE;
     tuner.thread = NULL;
 
     tuner.rotator = 0;
