@@ -172,6 +172,7 @@ typedef struct settings
     gboolean scan_relative;
     gboolean scan_peakhold;
     gboolean scan_mark_tuned;
+    gboolean scan_update;
     GList *scan_marks;
 } settings_t;
 

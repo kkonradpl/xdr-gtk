@@ -113,6 +113,7 @@ static const gchar *key_continuous         = "continuous";
 static const gchar *key_relative           = "relative";
 static const gchar *key_peak_hold          = "peak_hold";
 static const gchar *key_mark_tuned         = "mark_tuned";
+static const gchar *key_update             = "update";
 static const gchar *key_marks              = "marks";
 
 static const gint default_presets[PRESETS] =
@@ -303,6 +304,7 @@ conf_read()
     conf.scan_relative   = conf_read_boolean(keyfile, group_scan, key_relative,   CONF_SCAN_RELATIVE);
     conf.scan_peakhold   = conf_read_boolean(keyfile, group_scan, key_peak_hold,  CONF_SCAN_PEAKHOLD);
     conf.scan_mark_tuned = conf_read_boolean(keyfile, group_scan, key_mark_tuned, CONF_SCAN_MARK_TUNED);
+    conf.scan_update     = conf_read_boolean(keyfile, group_scan, key_update,     CONF_SCAN_UPDATE);
     conf.scan_marks      = conf_uniq_int_list_read(keyfile, group_scan, key_marks);
 
     if(!file_exists)
@@ -447,6 +449,7 @@ conf_write()
     g_key_file_set_boolean(keyfile, group_scan, key_relative,   conf.scan_relative);
     g_key_file_set_boolean(keyfile, group_scan, key_peak_hold,  conf.scan_peakhold);
     g_key_file_set_boolean(keyfile, group_scan, key_mark_tuned, conf.scan_mark_tuned);
+    g_key_file_set_boolean(keyfile, group_scan, key_update,     conf.scan_update);
     conf_uniq_int_list_save(keyfile, group_scan, key_marks,     conf.scan_marks);
 
     if(!(configuration = g_key_file_to_data(keyfile, &length, &err)))
