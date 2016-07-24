@@ -114,16 +114,22 @@ gboolean
 tuner_pi(gpointer data)
 {
     gint pi = GPOINTER_TO_INT(data) & 0xFFFF;
-    gboolean checked = GPOINTER_TO_INT(data) & 0x10000;
+    gint err_level = (GPOINTER_TO_INT(data) & 0x30000) >> 16;
+
+    if(err_level > tuner.rds_pi_err_level &&
+       tuner.rds_pi_err_level != -1 &&
+       tuner.rds_pi != pi)
+        return FALSE;
 
     tuner.rds = RDS_DEFAULT_TIMER;
     tuner.rds_reset_timer = g_get_real_time();
 
     if(tuner.rds_pi != pi ||
-       tuner.rds_pi_checked != checked)
+       tuner.rds_pi_err_level != err_level)
     {
         tuner.rds_pi = pi;
-        tuner.rds_pi_checked = checked;
+        if(err_level < tuner.rds_pi_err_level || tuner.rds_pi_err_level == -1)
+            tuner.rds_pi_err_level = err_level;
         ui_update_pi();
     }
     return FALSE;

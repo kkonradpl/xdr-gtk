@@ -86,17 +86,19 @@ log_cleanup()
 }
 
 void
-log_pi(gint     pi,
-       gboolean checked)
+log_pi(gint pi,
+       gint err_level)
 {
     if(!log_prepare())
         return;
 
     log_timestamp();
-    fprintf(logfp, "PI\t%04X%s%s",
-            pi,
-            (!checked ? "\t?" : ""),
-            LOG_NL);
+    fprintf(logfp, "PI\t%04X", pi);
+    if(err_level)
+        fprintf(logfp, "\t");
+    while(err_level--)
+        fprintf(logfp, "?");
+    fprintf(logfp, "%s", LOG_NL);
 }
 
 void

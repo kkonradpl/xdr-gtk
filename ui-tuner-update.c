@@ -277,16 +277,29 @@ ui_update_aci()
 void
 ui_update_pi()
 {
-    gchar buffer[6];
+    gchar buffer[50];
     if(tuner.rds_pi >= 0)
     {
-        g_snprintf(buffer, sizeof(buffer),
-                   "%04X%s",
-                   tuner.rds_pi,
-                   (tuner.rds_pi_checked ? "" : "?"));
-        gtk_label_set_text(GTK_LABEL(ui.l_pi), buffer);
+        if(tuner.rds_pi_err_level >= 3)
+            g_snprintf(buffer, sizeof(buffer),
+                       "%04X<span color=\"#777777\">\342\201\207</span>",
+                       tuner.rds_pi);
+        else if(tuner.rds_pi_err_level == 2)
+            g_snprintf(buffer, sizeof(buffer),
+                       "%04X<span color=\"#777777\">?</span>",
+                       tuner.rds_pi);
+        else if(tuner.rds_pi_err_level == 1)
+            g_snprintf(buffer, sizeof(buffer),
+                       "%04X<span color=\"#AAAAAA\">?</span>",
+                       tuner.rds_pi);
+        else
+            g_snprintf(buffer, sizeof(buffer),
+                       "%04X",
+                       tuner.rds_pi);
+
+        gtk_label_set_markup(GTK_LABEL(ui.l_pi), buffer);
         stationlist_pi(tuner.rds_pi);
-        log_pi(tuner.rds_pi, tuner.rds_pi_checked);
+        log_pi(tuner.rds_pi, tuner.rds_pi_err_level);
     }
     else
     {

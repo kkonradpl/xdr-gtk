@@ -47,7 +47,7 @@ typedef struct tuner
     gint     rds;
     gint64   rds_reset_timer;
     gint     rds_pi;
-    gboolean rds_pi_checked;
+    gboolean rds_pi_err_level;
     gint     rds_tp;
     gint     rds_ta;
     gint     rds_ms;

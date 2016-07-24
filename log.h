@@ -2,7 +2,7 @@
 #define XDR_LOG_H_
 
 void log_cleanup();
-void log_pi(gint, gboolean);
+void log_pi(gint, gint);
 void log_af(const gchar*);
 void log_ps(const gchar*, const guchar*);
 void log_rt(guint8, const gchar*);

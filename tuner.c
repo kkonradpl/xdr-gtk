@@ -263,7 +263,15 @@ tuner_parse(gchar  c,
     else if(c == 'P' && strlen(msg) >= 4)
     {
         /* PI code */
-        guint pi = strtoul(msg, NULL, 16) | ((msg[4]!='?') << 16);
+        guint pi = strtoul(msg, NULL, 16);
+        guint8 err = 0;
+        gchar *ptr;
+
+        for(ptr = msg+4; *ptr; ptr++)
+            if(*ptr == '?')
+                err++;
+        pi |= (((err > 3) ? 3 : err) << 16);
+
         g_idle_add(tuner_pi, GUINT_TO_POINTER(pi));
     }
     else if(c == 'R' && strlen(msg) == 14)
@@ -526,7 +534,7 @@ void tuner_clear_rds()
     tuner.rds_reset_timer = 0;
 
     tuner.rds_pi = -1;
-    tuner.rds_pi_checked = FALSE;
+    tuner.rds_pi_err_level = -1;
     ui_update_pi();
 
     tuner.rds_tp = -1;
