@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gtk/gtk.h>
+#include <glib/gstdio.h>
 #include "ui.h"
 #include "conf.h"
 #include "pattern.h"
@@ -530,7 +531,7 @@ pattern_load(GtkWidget *widget,
     if(!filename)
         return;
 
-    if((f = fopen(filename, "r")))
+    if((f = g_fopen(filename, "r")))
     {
         fgets(buff, sizeof(buff), f);
         if(!sscanf(buff, "%d", &freq))
@@ -601,7 +602,7 @@ pattern_save(GtkWidget *widget,
     if(!filename)
         return;
 
-    if((f = fopen(filename, "w")))
+    if((f = g_fopen(filename, "w")))
     {
         g_snprintf(buffer, sizeof(buffer), "%d\n", tuner.freq);
         fwrite(buffer, 1, strlen(buffer), f);

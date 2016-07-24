@@ -463,7 +463,7 @@ conf_write()
         err = NULL;
     }
 
-    if((fp = fopen(path, "w")) == NULL)
+    if((fp = g_fopen(path, "w")) == NULL)
     {
         ui_dialog(NULL,
                   GTK_MESSAGE_ERROR,

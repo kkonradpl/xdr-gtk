@@ -53,12 +53,12 @@ log_prepare()
     g_mkdir(path, 0755);
 
     g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP "%d-%s.txt", directory, t, tuner.freq, t2);
-    logfp = fopen(path, "w");
+    logfp = g_fopen(path, "w");
 
     if(!logfp)
         ui_status(2000, "<b>Failed to create a log. Check logging directory in settings.</b>");
 
-    return GPOINTER_TO_INT(logfp);
+    return (logfp != NULL);
 }
 
 static void
