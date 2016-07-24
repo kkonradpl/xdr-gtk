@@ -23,6 +23,13 @@
 #include "win32.h"
 #endif
 
+#define COLOR_BACKGROUND  "#FFFFFF"
+#define COLOR_FOREGROUND  "#000000"
+#define COLOR_INSENSITIVE "#C8C8C8"
+#define COLOR_STEREO      "#EE4000"
+#define COLOR_ACTION      "#FF9999"
+#define COLOR_ACTION2     "#FFCF99"
+
 static const char rc_string[] = "style \"small-button-style\"\n"
                                 "{\n"
                                     "GtkWidget::focus-padding = 0\n"
@@ -59,12 +66,12 @@ void
 ui_init()
 {
     gtk_rc_parse_string(rc_string);
-    gdk_color_parse("#FFFFFF", &ui.colors.background);
-    gdk_color_parse("#000000", &ui.colors.foreground);
-    gdk_color_parse("#DDDDDD", &ui.colors.insensitive);
-    gdk_color_parse("#EE4000", &ui.colors.stereo);
-    gdk_color_parse("#FF9999", &ui.colors.lightred);
-    gdk_color_parse("#FFCF99", &ui.colors.lightorange);
+    gdk_color_parse(COLOR_BACKGROUND, &ui.colors.background);
+    gdk_color_parse(COLOR_FOREGROUND, &ui.colors.foreground);
+    gdk_color_parse(COLOR_INSENSITIVE, &ui.colors.insensitive);
+    gdk_color_parse(COLOR_STEREO, &ui.colors.stereo);
+    gdk_color_parse(COLOR_ACTION, &ui.colors.lightred);
+    gdk_color_parse(COLOR_ACTION2, &ui.colors.lightorange);
     ui.click_cursor = gdk_cursor_new(GDK_HAND2);
 
     ui.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -99,9 +106,9 @@ ui_init()
     ui.box_ui = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(ui.box), ui.box_ui);
     ui.box_left = gtk_vbox_new(FALSE, 2);
-    gtk_container_add(GTK_CONTAINER(ui.box_ui), ui.box_left);
+    gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_left, TRUE, TRUE, 0);
     ui.box_right = gtk_vbox_new(FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(ui.box_ui), ui.box_right);
+    gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_right, FALSE, FALSE, 0);
 
     // ----------------
     ui.volume = volume_init(conf.volume);
@@ -236,7 +243,6 @@ ui_init()
 
     ui.box_left_indicators = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(ui.box_left), ui.box_left_indicators, FALSE, FALSE, 0);
-    //gtk_container_add(GTK_CONTAINER(ui.box_left), ui.box_left_indicators);
 
     ui.event_st = gtk_event_box_new();
     ui.l_st = gtk_label_new("ST");
@@ -446,6 +452,7 @@ ui_init()
     gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, "FREQ", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
     gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(view), AF_LIST_STORE_ID), FALSE);
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(view), FALSE);
+    gtk_widget_modify_base(view, GTK_STATE_NORMAL, &ui.colors.background);
     gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(ui.af));
     g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)), "changed", G_CALLBACK(tune_ui_af), NULL);
     ui.autoscroll = FALSE;

@@ -379,11 +379,10 @@ connection_dialog_connected(gint mode,
 
     while(!tuner.ready && tuner.thread)
     {
-        while(gtk_events_pending())
-        {
+        if(gtk_events_pending())
             gtk_main_iteration();
-        }
-        g_usleep(33000);
+        if(!gtk_events_pending())
+            g_usleep(10000);
     }
 
     if(!tuner.thread)
