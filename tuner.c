@@ -534,7 +534,7 @@ void tuner_clear_rds()
     tuner.rds_reset_timer = 0;
 
     tuner.rds_pi = -1;
-    tuner.rds_pi_err_level = -1;
+    tuner.rds_pi_err_level = G_MAXINT;
     ui_update_pi();
 
     tuner.rds_tp = -1;

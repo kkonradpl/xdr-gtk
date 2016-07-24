@@ -277,7 +277,16 @@ ui_update_aci()
 void
 ui_update_pi()
 {
+    static gint last_pi = G_MININT;
+    static gint last_err_level = G_MININT;
     gchar buffer[50];
+
+    if(last_pi == tuner.rds_pi &&
+       last_err_level == tuner.rds_pi_err_level)
+        return;
+    last_pi = tuner.rds_pi;
+    last_err_level = tuner.rds_pi_err_level;
+
     if(tuner.rds_pi >= 0)
     {
         if(tuner.rds_pi_err_level >= 3)
