@@ -21,11 +21,19 @@ static void service_update_rotator();
 void
 ui_update_freq()
 {
+    static gint last_freq = G_MININT;
     gchar buffer[8];
+
+    if(conf.scan_mark_tuned)
+        scan_force_redraw();
+
     if(tuner.freq > 0)
     {
-        g_snprintf(buffer, sizeof(buffer), "%.3f", tuner.freq/1000.0);
-        gtk_label_set_text(GTK_LABEL(ui.l_freq), buffer);
+        if(last_freq != tuner.freq)
+        {
+            g_snprintf(buffer, sizeof(buffer), "%.3f", tuner.freq/1000.0);
+            gtk_label_set_text(GTK_LABEL(ui.l_freq), buffer);
+        }
 
         if(conf.signal_mode == GRAPH_RESET)
             signal_clear();
@@ -42,8 +50,8 @@ ui_update_freq()
         gtk_label_set_text(GTK_LABEL(ui.l_freq), " ");
         signal_clear();
     }
-    if(conf.scan_mark_tuned)
-        scan_force_redraw();
+
+    last_freq = tuner.freq;
 }
 
 void
@@ -90,10 +98,12 @@ ui_update_stereo_flag()
 void
 ui_update_rds_flag()
 {
-    static gboolean flag = FALSE;
-    if(flag != (gboolean)tuner.rds)
+    static gboolean last_flag = FALSE;
+    gboolean flag = (tuner.rds > 0);
+
+    if(last_flag != flag)
     {
-        flag = tuner.rds;
+        last_flag = flag;
         gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds),
                              GTK_STATE_NORMAL,
                              flag ? &conf.color_rds : &ui.colors.insensitive);
@@ -103,79 +113,105 @@ ui_update_rds_flag()
 void
 ui_update_signal()
 {
-    static gint slowdown = 0;
+    static gfloat samples[PEAK_HOLD_SAMPLES] = {-1};
+    static gint pos = 0;
+    static gint last_signal_max = G_MININT;
+    static gint last_signal_curr = G_MININT;
+    gfloat peak = -1;
     gint signal_max;
     gint signal_curr;
     gchar *str;
-
-    scan_update_value(tuner.freq, tuner.signal);
+    gint i;
 
     if(isnan(tuner.signal))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_sig), " ");
         signal_clear();
+
+        if(conf.signal_display == SIGNAL_GRAPH)
+            gtk_widget_queue_draw(ui.graph);
+        else if(conf.signal_display == SIGNAL_BAR)
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui.p_signal), 0.0);
+
+        last_signal_curr = G_MININT;
+        return;
     }
-    else
+
+    signal_push(tuner.signal, tuner.stereo, tuner.rds, tuner.freq);
+    scan_update_value(tuner.freq, tuner.signal);
+    pattern_push(tuner.signal);
+    stationlist_rcvlevel(lround(tuner.signal));
+
+    /* Add new sample to the buffer */
+    samples[pos] = tuner.signal;
+
+    for(i=0; i<PEAK_HOLD_SAMPLES; i++)
+       if(samples[i] > peak)
+           peak = samples[i];
+
+    signal_max = lround(signal_level(tuner.signal_max));
+    signal_curr = lround(signal_level(peak));
+
+    if(signal_max < signal_curr)
     {
-        signal_push(tuner.signal, tuner.stereo, tuner.rds, tuner.freq);
-        pattern_push(tuner.signal);
-        stationlist_rcvlevel(lround(tuner.signal));
-
-        signal_max = lround(signal_level(tuner.signal_max));
+        /* Clear all buffered samples */
+        for(i=0; i<PEAK_HOLD_SAMPLES; i++)
+            samples[i] = -1;
+        pos = 0;
+        samples[pos] = tuner.signal;
         signal_curr = lround(signal_level(tuner.signal));
+    }
 
-        if(slowdown++ == 0)
+    if(pos == 0 &&
+       (last_signal_max != signal_max || last_signal_curr != signal_curr))
+     {
+        last_signal_max = signal_max;
+        last_signal_curr = signal_curr;
+        if(tuner.mode == MODE_FM)
         {
-            if(tuner.mode == MODE_FM)
+            switch(conf.signal_unit)
             {
-                switch(conf.signal_unit)
-                {
-                case UNIT_DBM:
-                    str = g_markup_printf_escaped("<span color=\"#777777\">%4d%s</span>%4ddBm",
-                                                  signal_max,
-                                                  ((fabs(conf.signal_offset) < 0.01) ? "↑" : "↥"),
-                                                  signal_curr);
-                    break;
+            case UNIT_DBM:
+                str = g_markup_printf_escaped("<span color=\"#777777\">%4d%s</span>%4ddBm",
+                                              signal_max,
+                                              ((fabs(conf.signal_offset) < 0.01) ? "↑" : "↥"),
+                                              signal_curr);
+                break;
 
-                case UNIT_DBUV:
-                    str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span>%3d dBµV",
-                                                  signal_max,
-                                                  ((fabs(conf.signal_offset) < 0.01) ? "↑" : "↥"),
-                                                  signal_curr);
-                    break;
+            case UNIT_DBUV:
+                str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span>%3d dBµV",
+                                              signal_max,
+                                              ((fabs(conf.signal_offset) < 0.01) ? "↑" : "↥"),
+                                              signal_curr);
+                break;
 
-                case UNIT_DBF:
-                default:
-                    str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span>%3d dBf",
-                                                  signal_max,
-                                                  ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
-                                                  signal_curr);
-                    break;
-                }
-            }
-            else
-            {
-                str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span> %3d",
+            case UNIT_DBF:
+            default:
+                str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span>%3d dBf",
                                               signal_max,
                                               ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
                                               signal_curr);
+                break;
             }
-            gtk_label_set_markup(GTK_LABEL(ui.l_sig), str);
-            g_free(str);
         }
-        slowdown %= PEAK_HOLD_SAMPLES;
+        else
+        {
+            str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span> %3d",
+                                          signal_max,
+                                          ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
+                                          signal_curr);
+        }
+        gtk_label_set_markup(GTK_LABEL(ui.l_sig), str);
+        g_free(str);
     }
+    pos = (pos+1)%PEAK_HOLD_SAMPLES;
+
 
     if(conf.signal_display == SIGNAL_GRAPH)
         gtk_widget_queue_draw(ui.graph);
     else if(conf.signal_display == SIGNAL_BAR)
-    {
-        if(isnan(tuner.signal))
-            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui.p_signal), 0.0);
-        else
-            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui.p_signal),
-                                          ((tuner.signal >= 80)? 1.0 : tuner.signal/80.0));
-    }
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui.p_signal),
+                                      ((tuner.signal >= 80)? 1.0 : tuner.signal/80.0));
 }
 
 void
@@ -319,6 +355,12 @@ ui_update_pi()
 void
 ui_update_tp()
 {
+    static gint last_tp = -1;
+
+    if(last_tp == tuner.rds_tp)
+        return;
+    last_tp = tuner.rds_tp;
+
     switch(tuner.rds_tp)
     {
     case 0:
@@ -338,6 +380,12 @@ ui_update_tp()
 void
 ui_update_ta()
 {
+    static gint last_ta = G_MININT;
+
+    if(last_ta == tuner.rds_ta)
+        return;
+    last_ta = tuner.rds_ta;
+
     switch(tuner.rds_ta)
     {
     case 0:
@@ -357,13 +405,19 @@ ui_update_ta()
 void
 ui_update_ms()
 {
+    static gint last_ms = G_MININT;
+
+    if(last_ms == tuner.rds_ms)
+        return;
+    last_ms = tuner.rds_ms;
+
     switch(tuner.rds_ms)
     {
     case 0:
-        gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"#DDDDDD\">M</span>S");
+        gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
         break;
     case 1:
-        gtk_label_set_markup(GTK_LABEL(ui.l_ms), "M<span color=\"#DDDDDD\">S</span>");
+        gtk_label_set_markup(GTK_LABEL(ui.l_ms), "M<span color=\"" UI_COLOR_INSENSITIVE "\">S</span>");
         break;
     default:
         gtk_label_set_text(GTK_LABEL(ui.l_ms), "  ");
@@ -379,6 +433,11 @@ ui_update_pty()
         { "None", "News", "Affairs", "Info", "Sport", "Educate", "Drama", "Culture", "Science", "Varied", "Pop M", "Rock M", "Easy M", "Light M", "Classics", "Other M", "Weather", "Finance", "Children", "Social", "Religion", "Phone In", "Travel", "Leisure", "Jazz", "Country", "Nation M", "Oldies", "Folk M", "Document", "TEST", "Alarm !" },
         { "None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!" }
     };
+    static gint last_pty = G_MININT;
+
+    if(last_pty == tuner.rds_pty)
+        return;
+    last_pty = tuner.rds_pty;
 
     if(tuner.rds_pty >= 0 && tuner.rds_pty < 32)
     {
@@ -415,9 +474,15 @@ ui_update_ecc()
 void
 ui_update_ps(gboolean new_data)
 {
+    static gint last_ps_avail = G_MININT;
     guchar c[8];
     gint i;
     gchar *m;
+
+    if(last_ps_avail == (gint)tuner.rds_ps_avail &&
+       tuner.rds_ps_avail != TRUE)
+        return;
+    last_ps_avail = tuner.rds_ps_avail;
 
     if(!tuner.rds_ps_avail)
     {
@@ -428,7 +493,7 @@ ui_update_ps(gboolean new_data)
     for(i=0; i<8; i++)
         c[i] = (tuner.rds_ps_err[i] ? 110+(tuner.rds_ps_err[i] * 12) : 0);
 
-    m = g_markup_printf_escaped("<span color=\"#C8C8C8\">%c</span>"
+    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">%c</span>"
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
@@ -437,7 +502,7 @@ ui_update_ps(gboolean new_data)
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#C8C8C8\">%c</span>",
+                                "<span color=\"" UI_COLOR_INSENSITIVE "\">%c</span>",
                                 (conf.rds_ps_progressive?'(':'['),
                                 c[0], c[0], c[0], tuner.rds_ps[0],
                                 c[1], c[1], c[1], tuner.rds_ps[1],
@@ -461,7 +526,13 @@ ui_update_ps(gboolean new_data)
 void
 ui_update_rt(gboolean flag)
 {
+    static gint last_rt_avail[2] = {G_MININT, G_MININT};
     gchar *m;
+
+    if(!tuner.rds_rt_avail[flag] && !last_rt_avail[flag])
+        return;
+
+    last_rt_avail[flag] = tuner.rds_rt_avail[flag];
 
     if(!tuner.rds_rt_avail[flag])
     {
@@ -469,9 +540,9 @@ ui_update_rt(gboolean flag)
         return;
     }
 
-    m = g_markup_printf_escaped("<span color=\"#C8C8C8\">[</span>"
+    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">[</span>"
                                 "%s"
-                                "<span color=\"#C8C8C8\">]</span>",
+                                "<span color=\"" UI_COLOR_INSENSITIVE "\">]</span>",
                                 tuner.rds_rt[flag]);
 
     gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), m);
@@ -524,7 +595,7 @@ ui_update_filter()
 void
 ui_update_rotator()
 {
-    const GdkColor *color = (tuner.rotator_waiting ? &ui.colors.lightorange : &ui.colors.lightred);
+    const GdkColor *color = (tuner.rotator_waiting ? &ui.colors.action2 : &ui.colors.action);
     gtk_widget_modify_bg(ui.b_cw,  GTK_STATE_ACTIVE,   (tuner.rotator == 1 ? color : NULL));
     gtk_widget_modify_bg(ui.b_cw,  GTK_STATE_PRELIGHT, (tuner.rotator == 1 ? color : NULL));
     gtk_widget_modify_bg(ui.b_ccw, GTK_STATE_ACTIVE,   (tuner.rotator == 2 ? color : NULL));
