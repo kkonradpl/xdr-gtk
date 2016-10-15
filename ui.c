@@ -23,13 +23,6 @@
 #include "win32.h"
 #endif
 
-#define COLOR_BACKGROUND  "#FFFFFF"
-#define COLOR_FOREGROUND  "#000000"
-#define COLOR_INSENSITIVE "#C8C8C8"
-#define COLOR_STEREO      "#EE4000"
-#define COLOR_ACTION      "#FF9999"
-#define COLOR_ACTION2     "#FFCF99"
-
 static const char rc_string[] = "style \"small-button-style\"\n"
                                 "{\n"
                                     "GtkWidget::focus-padding = 0\n"
@@ -66,12 +59,12 @@ void
 ui_init()
 {
     gtk_rc_parse_string(rc_string);
-    gdk_color_parse(COLOR_BACKGROUND, &ui.colors.background);
-    gdk_color_parse(COLOR_FOREGROUND, &ui.colors.foreground);
-    gdk_color_parse(COLOR_INSENSITIVE, &ui.colors.insensitive);
-    gdk_color_parse(COLOR_STEREO, &ui.colors.stereo);
-    gdk_color_parse(COLOR_ACTION, &ui.colors.lightred);
-    gdk_color_parse(COLOR_ACTION2, &ui.colors.lightorange);
+    gdk_color_parse(UI_COLOR_BACKGROUND, &ui.colors.background);
+    gdk_color_parse(UI_COLOR_FOREGROUND, &ui.colors.foreground);
+    gdk_color_parse(UI_COLOR_INSENSITIVE, &ui.colors.insensitive);
+    gdk_color_parse(UI_COLOR_STEREO, &ui.colors.stereo);
+    gdk_color_parse(UI_COLOR_ACTION, &ui.colors.action);
+    gdk_color_parse(UI_COLOR_ACTION2, &ui.colors.action2);
     ui.click_cursor = gdk_cursor_new(GDK_HAND2);
 
     ui.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -218,13 +211,13 @@ ui_init()
 
     ui.p_cci = gtk_progress_bar_new();
     gtk_widget_set_name(ui.p_cci, "ci-progress");
-    gtk_widget_modify_bg(ui.p_cci, GTK_STATE_PRELIGHT, &ui.colors.lightred);
+    gtk_widget_modify_bg(ui.p_cci, GTK_STATE_PRELIGHT, &ui.colors.action);
     gtk_widget_modify_fg(ui.p_cci, GTK_STATE_PRELIGHT, &ui.colors.foreground);
     gtk_box_pack_start(GTK_BOX(ui.box_left_interference), ui.p_cci, TRUE, TRUE, 0);
 
     ui.p_aci = gtk_progress_bar_new();
     gtk_widget_set_name(ui.p_aci, "ci-progress");
-    gtk_widget_modify_bg(ui.p_aci, GTK_STATE_PRELIGHT, &ui.colors.lightorange);
+    gtk_widget_modify_bg(ui.p_aci, GTK_STATE_PRELIGHT, &ui.colors.action2);
     gtk_widget_modify_fg(ui.p_aci, GTK_STATE_PRELIGHT, &ui.colors.foreground);
     gtk_box_pack_start(GTK_BOX(ui.box_left_interference), ui.p_aci, TRUE, TRUE, 0);
 

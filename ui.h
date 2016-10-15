@@ -13,14 +13,21 @@
 #define AF_LIST_STORE_ID   0
 #define AF_LIST_STORE_FREQ 1
 
+#define UI_COLOR_BACKGROUND  "#FFFFFF"
+#define UI_COLOR_FOREGROUND  "#000000"
+#define UI_COLOR_INSENSITIVE "#C8C8C8"
+#define UI_COLOR_STEREO      "#EE4000"
+#define UI_COLOR_ACTION      "#FF9999"
+#define UI_COLOR_ACTION2     "#FFCF99"
+
 typedef struct ui_colors
 {
     GdkColor background;
     GdkColor foreground;
     GdkColor insensitive;
     GdkColor stereo;
-    GdkColor lightred;
-    GdkColor lightorange;
+    GdkColor action;
+    GdkColor action2;
 } ui_colors_t;
 
 typedef struct ui
