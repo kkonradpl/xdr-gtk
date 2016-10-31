@@ -71,7 +71,10 @@ typedef struct scan
     GtkWidget *b_marks;
     GtkWidget *marks_menu;
 
-    GtkWidget *view;
+    GtkWidget *b_view;
+    GtkWidget *l_view;
+
+    GtkWidget *canvas;
 
     gboolean active;
     gboolean locked;
@@ -103,6 +106,7 @@ static void scan_menu_clear(GtkCheckMenuItem*, gpointer);
 static void scan_menu_tuned_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_menu_marks_add(GtkMenuItem*, gpointer);
 static void scan_menu_marks_clear(GtkMenuItem*, gpointer);
+static void scan_view(GtkWidget*, gpointer);
 static gboolean scan_redraw(GtkWidget*, GdkEventExpose*, gpointer);
 static void scan_draw_spectrum(cairo_t*, tuner_scan_t*, gint, gint, gdouble, gdouble, gdouble);
 static void scan_draw_scale(cairo_t*, gint, gint, gdouble, gdouble);
@@ -148,7 +152,7 @@ scan_dialog()
     if(conf.restore_position && conf.scan_x >= 0 && conf.scan_y >= 0)
         gtk_window_move(GTK_WINDOW(scan.window), conf.scan_x, conf.scan_y);
 
-    scan.box = gtk_hbox_new(FALSE, 2);
+    scan.box = gtk_hbox_new(FALSE, 1);
     gtk_container_add(GTK_CONTAINER(scan.window), scan.box);
 
     scan.box_settings = gtk_vbox_new(FALSE, 1);
@@ -257,17 +261,25 @@ scan_dialog()
     gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_marks, FALSE, FALSE, 0);
     g_signal_connect_swapped(scan.b_marks, "event", G_CALLBACK(scan_menu), scan.marks_menu);
 
-    scan.view = gtk_drawing_area_new();
-    gtk_widget_add_events(scan.view, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
-    gtk_widget_set_size_request(scan.view, 640, -1);
-    gtk_box_pack_start(GTK_BOX(scan.box), scan.view, TRUE, TRUE, 0);
+    scan.b_view = gtk_button_new();
+    scan.l_view = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(scan.l_view), "<span size=\"x-small\">&lt;</span>");
+    gtk_widget_set_name(scan.b_view, "smaller-button");
+    gtk_container_add(GTK_CONTAINER(scan.b_view), scan.l_view);
+    gtk_box_pack_start(GTK_BOX(scan.box), scan.b_view, FALSE, FALSE, 0);
+    g_signal_connect(scan.b_view, "clicked", G_CALLBACK(scan_view), NULL);
 
-    g_signal_connect(scan.view, "expose-event", G_CALLBACK(scan_redraw), NULL);
-    g_signal_connect_swapped(scan.b_relative, "clicked", G_CALLBACK(gtk_widget_queue_draw), scan.view);
-    g_signal_connect(scan.view, "button-press-event", G_CALLBACK(scan_click), NULL);
-    g_signal_connect(scan.view, "button-release-event", G_CALLBACK(scan_click), NULL);
-    g_signal_connect(scan.view, "motion-notify-event", G_CALLBACK(scan_motion), NULL);
-    g_signal_connect(scan.view, "leave-notify-event", G_CALLBACK(scan_leave), NULL);
+    scan.canvas = gtk_drawing_area_new();
+    gtk_widget_add_events(scan.canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
+    gtk_widget_set_size_request(scan.canvas, 640, -1);
+    gtk_box_pack_start(GTK_BOX(scan.box), scan.canvas, TRUE, TRUE, 0);
+
+    g_signal_connect(scan.canvas, "expose-event", G_CALLBACK(scan_redraw), NULL);
+    g_signal_connect_swapped(scan.b_relative, "clicked", G_CALLBACK(gtk_widget_queue_draw), scan.canvas);
+    g_signal_connect(scan.canvas, "button-press-event", G_CALLBACK(scan_click), NULL);
+    g_signal_connect(scan.canvas, "button-release-event", G_CALLBACK(scan_click), NULL);
+    g_signal_connect(scan.canvas, "motion-notify-event", G_CALLBACK(scan_motion), NULL);
+    g_signal_connect(scan.canvas, "leave-notify-event", G_CALLBACK(scan_leave), NULL);
     g_signal_connect(scan.window, "configure-event", G_CALLBACK(scan_window_event), NULL);
     g_signal_connect(scan.window, "key-press-event", G_CALLBACK(keyboard_press), GINT_TO_POINTER(TRUE));
     g_signal_connect(scan.window, "key-release-event", G_CALLBACK(keyboard_release), NULL);
@@ -589,6 +601,17 @@ scan_menu_marks_clear(GtkMenuItem *menuitem,
                                        scan.data->signals[scan.data->len-1].freq);
     }
     scan_force_redraw();
+}
+
+static void
+scan_view(GtkWidget *widget,
+          gpointer   data)
+{
+    GtkWidget *label = gtk_bin_get_child(GTK_BIN(widget));
+    gboolean visible = gtk_widget_get_visible(scan.box_settings);
+    gtk_label_set_markup(GTK_LABEL(label),
+                         visible ? "<span size=\"x-small\">&gt;</span>" : "<span size=\"x-small\">&lt;</span>");
+    gtk_widget_set_visible(scan.box_settings, !visible);
 }
 
 static gboolean
@@ -1169,7 +1192,7 @@ void
 scan_force_redraw()
 {
     if(scan.window)
-        gtk_widget_queue_draw(scan.view);
+        gtk_widget_queue_draw(scan.canvas);
 }
 
 static gboolean
