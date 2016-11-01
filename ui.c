@@ -65,6 +65,9 @@ static void ui_af_autoscroll(GtkWidget*, GtkAllocation*, gpointer);
 void
 ui_init()
 {
+    GtkListStore *model;
+    GtkCellRenderer *renderer;
+
     gtk_rc_parse_string(rc_string);
     gdk_color_parse(UI_COLOR_BACKGROUND, &ui.colors.background);
     gdk_color_parse(UI_COLOR_FOREGROUND, &ui.colors.foreground);
@@ -397,7 +400,7 @@ ui_init()
     gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER(filter), 1);
 
     ui.c_ant = gtk_combo_box_new_with_model(filter);
-    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+    renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(ui.c_ant), renderer, TRUE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(ui.c_ant), renderer, "text", 0, NULL);
     gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_ant), 0);
@@ -430,7 +433,7 @@ ui_init()
     gtk_widget_set_tooltip_text(ui.l_bw, "FIR digital filter -3dB bandwidth");
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.l_bw, TRUE, TRUE, 0);
 
-    ui.c_bw = gtk_combo_box_new_text();
+    ui.c_bw = ui_bandwidth_new();
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.c_bw, TRUE, TRUE, 0);
     gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(ui.c_bw), FALSE);
     g_signal_connect(G_OBJECT(ui.c_bw), "changed", G_CALLBACK(tuner_set_bandwidth), NULL);
@@ -446,24 +449,24 @@ ui_init()
     gtk_widget_modify_font(ui.l_af, font_af);
     gtk_box_pack_start(GTK_BOX(ui.box_right), ui.l_af, FALSE, FALSE, 3);
 
-    ui.af = gtk_list_store_new(2, G_TYPE_INT, G_TYPE_STRING);
-    GtkWidget *view = gtk_tree_view_new();
-    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, "ID", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
-    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, "FREQ", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
-    gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(view), AF_LIST_STORE_ID), FALSE);
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(view), FALSE);
-    gtk_widget_modify_base(view, GTK_STATE_NORMAL, &ui.colors.background);
-    gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(ui.af));
-    g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)), "changed", G_CALLBACK(tune_ui_af), NULL);
+    model = gtk_list_store_new(2, G_TYPE_INT, G_TYPE_STRING);
+    ui.af_list = gtk_tree_view_new();
+    gtk_tree_view_set_model(GTK_TREE_VIEW(ui.af_list), GTK_TREE_MODEL(model));
+    g_object_unref(model);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_list), -1, "ID", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
+    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_list), -1, "FREQ", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
+    gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(ui.af_list), AF_LIST_STORE_ID), FALSE);
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(ui.af_list), FALSE);
+    gtk_widget_modify_base(ui.af_list, GTK_STATE_NORMAL, &ui.colors.background);
+    g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(ui.af_list)), "changed", G_CALLBACK(tune_ui_af), NULL);
     ui.autoscroll = FALSE;
-    g_signal_connect(GTK_TREE_VIEW(view), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
-    gtk_widget_set_can_focus(GTK_WIDGET(view), FALSE);
-    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(ui.af), AF_LIST_STORE_ID, GTK_SORT_ASCENDING);
-    g_object_unref(ui.af);
+    g_signal_connect(GTK_TREE_VIEW(ui.af_list), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
+    gtk_widget_set_can_focus(GTK_WIDGET(ui.af_list), FALSE);
+    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), AF_LIST_STORE_ID, GTK_SORT_ASCENDING);
 
     ui.af_box = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_box), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_container_add(GTK_CONTAINER(ui.af_box), view);
+    gtk_container_add(GTK_CONTAINER(ui.af_box), ui.af_list);
     gtk_box_pack_start(GTK_BOX(ui.box_right), ui.af_box, TRUE, TRUE, 0);
 
     // ----------------
@@ -587,33 +590,60 @@ ui_window_event(GtkWidget *widget,
     return FALSE;
 }
 
-void
-ui_fill_bandwidths(GtkWidget *combo,
-                   gboolean   auto_mode)
+GtkWidget*
+ui_bandwidth_new()
 {
-    GtkTreeModel *store = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
-    gtk_list_store_clear(GTK_LIST_STORE(store));
+    GtkListStore *model;
+    GtkCellRenderer *renderer;
+    GtkWidget *widget;
+
+    model = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+    widget = gtk_combo_box_new_with_model(GTK_TREE_MODEL(model));
+    renderer = gtk_cell_renderer_text_new();
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(widget), renderer, TRUE);
+    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(widget), renderer,
+                                   "text", 0,
+                                   "sensitive", 1,
+                                   NULL);
+    return widget;
+}
+
+void
+ui_bandwidth_fill(GtkWidget *widget,
+                  gboolean   auto_mode)
+{
+    GtkListStore *store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(widget)));
+    GtkTreeIter iter;
     gchar str[10];
     gint i;
+
+    gtk_list_store_clear(GTK_LIST_STORE(store));
 
     for(i=0; i<tuner_filter_count()-1; i++)
     {
         if(tuner.mode == MODE_FM)
         {
             g_snprintf(str, sizeof(str), "%d kHz", tuner_filter_bw_from_index(i)/1000);
-            gtk_combo_box_append_text(GTK_COMBO_BOX(combo), str);
         }
         else if(tuner.mode == MODE_AM)
         {
             g_snprintf(str, sizeof(str), "%.1f%skHz",
                      tuner_filter_bw_from_index(i)/1000.0,
                      (tuner_filter_bw_from_index(i)/1000.0 < 10.0) ? " " : "");
-            gtk_combo_box_append_text(GTK_COMBO_BOX(combo), str);
         }
+
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, 0, str, 1, TRUE, -1);
     }
 
     if(auto_mode)
-        gtk_combo_box_append_text(GTK_COMBO_BOX(combo), "auto");
+    {
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter,
+                           0, (tuner.mode == MODE_FM ? "auto" : "default"),
+                           1, (tuner.mode == MODE_FM),
+                           -1);
+    }
 }
 
 static void

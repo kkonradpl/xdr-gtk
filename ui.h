@@ -105,7 +105,7 @@ typedef struct ui
     GtkWidget *l_status;
 
     GtkWidget *l_af;
-    GtkListStore *af;
+    GtkWidget *af_list;
     GtkWidget *af_box;
 
     gboolean autoscroll;
@@ -115,7 +115,9 @@ ui_t ui;
 
 void ui_init();
 
-void ui_fill_bandwidths(GtkWidget*, gboolean);
+GtkWidget* ui_bandwidth_new();
+void ui_bandwidth_fill(GtkWidget*, gboolean);
+
 void ui_dialog(GtkWidget*, GtkMessageType, gchar*, gchar*, ...);
 void connect_button(gboolean);
 void ui_antenna_switch(gint);

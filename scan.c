@@ -234,8 +234,8 @@ scan_dialog()
 
     scan.l_bw = gtk_label_new("BW:");
     gtk_misc_set_alignment(GTK_MISC(scan.l_bw), 0.0, 0.5);
-    scan.d_bw = gtk_combo_box_new_text();
-    ui_fill_bandwidths(scan.d_bw, FALSE);
+    scan.d_bw = ui_bandwidth_new();
+    ui_bandwidth_fill(scan.d_bw, FALSE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(scan.d_bw), 13);
     gtk_box_pack_start(GTK_BOX(scan.box_bw), scan.l_bw, TRUE, TRUE, 2);
     gtk_box_pack_start(GTK_BOX(scan.box_bw), scan.d_bw, FALSE, FALSE, 0);

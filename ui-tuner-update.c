@@ -64,7 +64,7 @@ ui_update_mode()
         gtk_label_set_text(GTK_LABEL(ui.l_band), (mode == MODE_FM ? "FM" : "AM"));
         gtk_widget_set_sensitive(ui.c_deemph, (tuner.mode == MODE_FM));
         g_signal_handlers_block_by_func(G_OBJECT(ui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
-        ui_fill_bandwidths(ui.c_bw, (mode == MODE_FM));
+        ui_bandwidth_fill(ui.c_bw, TRUE);
         g_signal_handlers_unblock_by_func(G_OBJECT(ui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
         tuner_clear_signal();
         tuner_clear_rds();
@@ -554,16 +554,18 @@ ui_update_rt(gboolean flag)
 void
 ui_update_af(gint af)
 {
+    GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(ui.af_list));
     GtkTreeIter iter;
+
     // if new frequency is found on the AF list, ui_update_af_check() will set the pointer to NULL
-    gtk_tree_model_foreach(GTK_TREE_MODEL(ui.af), (GtkTreeModelForeachFunc)ui_update_af_check, &af);
+    gtk_tree_model_foreach(model, (GtkTreeModelForeachFunc)ui_update_af_check, &af);
     if(af)
     {
         GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ui.af_box));
         ui.autoscroll = (gtk_adjustment_get_value(adj) == gtk_adjustment_get_lower(adj));
-        gtk_list_store_append(ui.af, &iter);
+        gtk_list_store_append(GTK_LIST_STORE(model), &iter);
         gchar *af_new_freq = g_strdup_printf("%.1f", ((87500+af*100)/1000.0));
-        gtk_list_store_set(ui.af, &iter, 0, af, 1, af_new_freq, -1);
+        gtk_list_store_set(GTK_LIST_STORE(model), &iter, 0, af, 1, af_new_freq, -1);
         stationlist_af(af);
         log_af(af_new_freq);
         g_free(af_new_freq);
@@ -665,7 +667,8 @@ ui_unauthorized()
 void
 ui_clear_af()
 {
-    gtk_list_store_clear(GTK_LIST_STORE(ui.af));
+    GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(ui.af_list));
+    gtk_list_store_clear(GTK_LIST_STORE(model));
 }
 
 void

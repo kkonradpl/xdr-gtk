@@ -135,7 +135,8 @@ keyboard_press(GtkWidget   *widget,
     if(current == conf.key_bw_down)
     {
         gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw));
-        if(current != gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(ui.c_bw))), NULL)-1)
+        gint offset = (gint)(tuner.mode == MODE_AM); /* don't set the 'default' option in AM mode */
+        if(current != gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(ui.c_bw))), NULL)-1-offset)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw), current+1);
         }
