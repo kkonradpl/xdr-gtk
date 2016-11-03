@@ -146,6 +146,7 @@ static gchar**  conf_read_hosts(GKeyFile*, const gchar*, const gchar*, const gch
 static void     conf_read_integers(GKeyFile*, const gchar*, const gchar*, gint, const gint*, gint*);
 static GList*   conf_uniq_int_list_read(GKeyFile*, const gchar*, const gchar*);
 static void     conf_uniq_int_list_save(GKeyFile*, const gchar*, const gchar*, GList*);
+static gint     conf_uniq_int_list_cmp(gconstpointer, gconstpointer);
 
 
 void
@@ -682,7 +683,7 @@ conf_uniq_int_list_add(GList **list,
 {
     gpointer value = GINT_TO_POINTER(intval);
     if(!g_list_find(*list, value))
-        *list = g_list_prepend(*list, value);
+        *list = g_list_insert_sorted(*list, value, conf_uniq_int_list_cmp);
 }
 
 void
@@ -694,7 +695,14 @@ conf_uniq_int_list_toggle(GList **list,
     if(ptr)
         *list = g_list_delete_link(*list, ptr);
     else
-        *list = g_list_prepend(*list, value);
+        *list = g_list_insert_sorted(*list, value, conf_uniq_int_list_cmp);
+}
+
+static gint
+conf_uniq_int_list_cmp(gconstpointer a,
+                       gconstpointer b)
+{
+    return a-b;
 }
 
 void

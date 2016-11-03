@@ -66,10 +66,10 @@ typedef struct scan
     GtkWidget *d_bw;
 
     GtkWidget *box_other;
-    GtkWidget *b_ccir;
-    GtkWidget *b_oirt;
-    GtkWidget *b_marks;
-    GtkWidget *marks_menu;
+    GtkWidget *b_prev;
+    GtkWidget *b_next;
+    GtkWidget *b_menu_presets;
+    GtkWidget *b_menu_main;
 
     GtkWidget *b_view;
     GtkWidget *l_view;
@@ -94,18 +94,21 @@ static const gint grid_pattern_len = 2;
 static void scan_destroy(GtkWidget*, gpointer);
 static gboolean scan_window_event(GtkWidget*, gpointer);
 static void scan_lock(gboolean);
-static GtkWidget* scan_dialog_menu();
+static GtkWidget* scan_menu_main();
+static GtkWidget* scan_menu_presets();
 static void scan_toggle(GtkWidget*, gpointer);
 static void scan_peakhold(GtkWidget*, gpointer);
 static void scan_hold(GtkWidget*, gpointer);
-static void scan_ccir(GtkWidget*, gpointer);
-static void scan_oirt(GtkWidget*, gpointer);
+static void scan_prev(GtkWidget*, gpointer);
+static void scan_next(GtkWidget*, gpointer);
 static gboolean scan_menu(GtkWidget*, GdkEventButton*);
 static void scan_menu_update_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_menu_clear(GtkCheckMenuItem*, gpointer);
 static void scan_menu_tuned_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_menu_marks_add(GtkMenuItem*, gpointer);
 static void scan_menu_marks_clear(GtkMenuItem*, gpointer);
+static void scan_menu_preset_ccir(GtkMenuItem*, gpointer);
+static void scan_menu_preset_oirt(GtkMenuItem*, gpointer);
 static void scan_view(GtkWidget*, gpointer);
 static gboolean scan_redraw(GtkWidget*, GdkEventExpose*, gpointer);
 static void scan_draw_spectrum(cairo_t*, tuner_scan_t*, gint, gint, gdouble, gdouble, gdouble);
@@ -245,21 +248,27 @@ scan_dialog()
     scan.box_other = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(scan.box_settings), scan.box_other, FALSE, FALSE, 0);
 
-    scan.b_ccir = gtk_button_new_with_label("CCIR");
-    gtk_widget_set_name(scan.b_ccir, "small-button");
-    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_ccir, TRUE, TRUE, 0);
-    g_signal_connect(scan.b_ccir, "clicked", G_CALLBACK(scan_ccir), NULL);
+    scan.b_prev = gtk_button_new();
+    gtk_container_add(GTK_CONTAINER(scan.b_prev), gtk_arrow_new(GTK_ARROW_LEFT, GTK_SHADOW_NONE));
+    gtk_widget_set_name(scan.b_prev, "small-button");
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_prev, TRUE, TRUE, 0);
+    g_signal_connect(scan.b_prev, "clicked", G_CALLBACK(scan_prev), NULL);
 
-    scan.b_oirt = gtk_button_new_with_label("OIRT");
-    gtk_widget_set_name(scan.b_oirt, "small-button");
-    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_oirt, TRUE, TRUE, 0);
-    g_signal_connect(scan.b_oirt, "clicked", G_CALLBACK(scan_oirt), NULL);
+    scan.b_next = gtk_button_new();
+    gtk_container_add(GTK_CONTAINER(scan.b_next), gtk_arrow_new(GTK_ARROW_RIGHT, GTK_SHADOW_NONE));
+    gtk_widget_set_name(scan.b_next, "small-button");
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_next, TRUE, TRUE, 0);
+    g_signal_connect(scan.b_next, "clicked", G_CALLBACK(scan_next), NULL);
 
-    scan.marks_menu = scan_dialog_menu();
-    scan.b_marks = gtk_button_new_with_label(" ... ");
-    gtk_widget_set_name(scan.b_marks, "small-button");
-    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_marks, FALSE, FALSE, 0);
-    g_signal_connect_swapped(scan.b_marks, "event", G_CALLBACK(scan_menu), scan.marks_menu);
+    scan.b_menu_presets = gtk_button_new_with_label(" P ");
+    gtk_widget_set_name(scan.b_menu_presets, "small-button");
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_menu_presets, FALSE, FALSE, 0);
+    g_signal_connect_swapped(scan.b_menu_presets, "event", G_CALLBACK(scan_menu), scan_menu_presets());
+
+    scan.b_menu_main = gtk_button_new_with_label(" ... ");
+    gtk_widget_set_name(scan.b_menu_main, "small-button");
+    gtk_box_pack_start(GTK_BOX(scan.box_other), scan.b_menu_main, FALSE, FALSE, 0);
+    g_signal_connect_swapped(scan.b_menu_main, "event", G_CALLBACK(scan_menu), scan_menu_main());
 
     scan.b_view = gtk_button_new();
     scan.l_view = gtk_label_new(NULL);
@@ -325,15 +334,16 @@ scan_lock(gboolean value)
     gtk_widget_set_sensitive(scan.s_end, sensitive);
     gtk_widget_set_sensitive(scan.s_step, sensitive);
     gtk_widget_set_sensitive(scan.d_bw, sensitive);
-    gtk_widget_set_sensitive(scan.b_ccir, sensitive);
-    gtk_widget_set_sensitive(scan.b_oirt, sensitive);
+    gtk_widget_set_sensitive(scan.b_prev, sensitive);
+    gtk_widget_set_sensitive(scan.b_next, sensitive);
+    gtk_widget_set_sensitive(scan.b_menu_presets, sensitive);
     gtk_button_set_image(GTK_BUTTON(scan.b_start),
-    gtk_image_new_from_stock((value?GTK_STOCK_MEDIA_STOP:GTK_STOCK_MEDIA_PLAY), GTK_ICON_SIZE_BUTTON));
+                         gtk_image_new_from_stock((value?GTK_STOCK_MEDIA_STOP:GTK_STOCK_MEDIA_PLAY), GTK_ICON_SIZE_BUTTON));
     scan.locked = value;
 }
 
 static GtkWidget*
-scan_dialog_menu()
+scan_menu_main()
 {
     GtkWidget *menu = gtk_menu_new();
 
@@ -391,6 +401,27 @@ scan_dialog_menu()
                                   GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_CLEAR, GTK_ICON_SIZE_MENU)));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), clear_all);
     g_signal_connect(clear_all, "activate", G_CALLBACK(scan_menu_marks_clear), GINT_TO_POINTER(TRUE));
+
+    gtk_widget_show_all(menu);
+    return menu;
+}
+
+static GtkWidget*
+scan_menu_presets()
+{
+    GtkWidget *menu = gtk_menu_new();
+
+    GtkWidget *title_presets = gtk_menu_item_new_with_label("Presets");
+    gtk_widget_set_sensitive(title_presets, FALSE);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), title_presets);
+
+    GtkWidget *preset_ccir = gtk_menu_item_new_with_label("CCIR (87500 - 108000 / 100)");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), preset_ccir);
+    g_signal_connect(preset_ccir, "activate", G_CALLBACK(scan_menu_preset_ccir), NULL);
+
+    GtkWidget *preset_oirt = gtk_menu_item_new_with_label("OIRT (65750 - 74000 / 30)");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), preset_oirt);
+    g_signal_connect(preset_oirt, "activate", G_CALLBACK(scan_menu_preset_oirt), NULL);
 
     gtk_widget_show_all(menu);
     return menu;
@@ -500,21 +531,74 @@ scan_hold(GtkWidget *widget,
 }
 
 static void
-scan_ccir(GtkWidget *widget,
+scan_prev(GtkWidget *widget,
           gpointer   data)
 {
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 87500.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 108000.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 100.0);
+    GList *ptr;
+    gint freq_min, freq_max, freq_curr;
+    gint prev, last, value;
+
+    if(!scan.data)
+        return;
+
+    freq_min = scan.data->signals[0].freq;
+    freq_max = scan.data->signals[scan.data->len-1].freq;
+    freq_curr = tuner.freq;
+    prev = 0;
+    last = 0;
+
+    for(ptr = conf.scan_marks; ptr; ptr = ptr->next)
+    {
+        value = GPOINTER_TO_INT(ptr->data);
+        if(value < freq_curr && value >= freq_min)
+            prev = value;
+        else if(value >= freq_curr && value <= freq_max)
+        {
+            if(prev)
+                break;
+            last = value;
+        }
+    }
+
+    if(prev)
+        tuner_set_frequency(prev);
+    else if(last)
+        tuner_set_frequency(last);
 }
 
 static void
-scan_oirt(GtkWidget *widget,
+scan_next(GtkWidget *widget,
           gpointer   data)
 {
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 65750.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 74000.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 30.0);
+    GList *ptr;
+    gint freq_min, freq_max, freq_curr;
+    gint next, first, value;
+
+    if(!scan.data)
+        return;
+
+    freq_min = scan.data->signals[0].freq;
+    freq_max = scan.data->signals[scan.data->len-1].freq;
+    freq_curr = tuner.freq;
+    next = 0;
+    first = 0;
+
+    for(ptr = conf.scan_marks; ptr; ptr=ptr->next)
+    {
+        value = GPOINTER_TO_INT(ptr->data);
+        if(value >= freq_min && !first)
+            first = value;
+        if(value > freq_curr && value <= freq_max)
+        {
+            next = value;
+            break;
+        }
+    }
+
+    if(next)
+        tuner_set_frequency(next);
+    else if(first)
+        tuner_set_frequency(first);
 }
 
 static gboolean
@@ -601,6 +685,24 @@ scan_menu_marks_clear(GtkMenuItem *menuitem,
                                        scan.data->signals[scan.data->len-1].freq);
     }
     scan_force_redraw();
+}
+
+static void
+scan_menu_preset_ccir(GtkMenuItem *menuitem,
+                      gpointer     user_data)
+{
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 87500.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 108000.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 100.0);
+}
+
+static void
+scan_menu_preset_oirt(GtkMenuItem *menuitem,
+                      gpointer     user_data)
+{
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 65750.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 74000.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 30.0);
 }
 
 static void
