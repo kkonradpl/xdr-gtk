@@ -550,13 +550,16 @@ scan_prev(GtkWidget *widget,
     for(ptr = conf.scan_marks; ptr; ptr = ptr->next)
     {
         value = GPOINTER_TO_INT(ptr->data);
-        if(value < freq_curr && value >= freq_min)
-            prev = value;
-        else if(value >= freq_curr && value <= freq_max)
+        if(value >= freq_min && value <= freq_max)
         {
-            if(prev)
-                break;
-            last = value;
+            if(value < freq_curr)
+                prev = value;
+            else
+            {
+                if(prev)
+                    break;
+                last = value;
+            }
         }
     }
 
@@ -586,12 +589,15 @@ scan_next(GtkWidget *widget,
     for(ptr = conf.scan_marks; ptr; ptr=ptr->next)
     {
         value = GPOINTER_TO_INT(ptr->data);
-        if(value >= freq_min && !first)
-            first = value;
-        if(value > freq_curr && value <= freq_max)
+        if(value >= freq_min && value <= freq_max)
         {
-            next = value;
-            break;
+            if(!first)
+                first = value;
+            if(value > freq_curr)
+            {
+                next = value;
+                break;
+            }
         }
     }
 
