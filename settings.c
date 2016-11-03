@@ -1077,8 +1077,14 @@ settings_key_press(GtkWidget   *widget,
                    GdkEventKey *event,
                    gpointer     button)
 {
+    /* Ignore shift key */
+    if(event->keyval == GDK_KEY_Shift_L ||
+       event->keyval == GDK_KEY_Shift_R)
+        return TRUE;
+
     gtk_button_set_label(GTK_BUTTON(button),
                          gdk_keyval_name(gdk_keyval_to_upper(event->keyval)));
+
     gtk_widget_destroy(widget);
     return TRUE;
 }
