@@ -106,9 +106,12 @@ static void scan_menu_update_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_menu_clear(GtkCheckMenuItem*, gpointer);
 static void scan_menu_tuned_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_menu_marks_add(GtkMenuItem*, gpointer);
+static void scan_menu_marks_add_custom(GtkMenuItem*, gpointer);
+static gboolean scan_menu_marks_add_custom_key(GtkWidget*, GdkEventKey*, gpointer);
 static void scan_menu_marks_clear(GtkMenuItem*, gpointer);
 static void scan_menu_preset_ccir(GtkMenuItem*, gpointer);
 static void scan_menu_preset_oirt(GtkMenuItem*, gpointer);
+static void scan_marks_add(gint);
 static void scan_view(GtkWidget*, gpointer);
 static gboolean scan_redraw(GtkWidget*, GdkEventExpose*, gpointer);
 static void scan_draw_spectrum(cairo_t*, tuner_scan_t*, gint, gint, gdouble, gdouble, gdouble);
@@ -384,11 +387,11 @@ scan_menu_main()
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_1M);
     g_signal_connect(add_1M, "activate", G_CALLBACK(scan_menu_marks_add), GINT_TO_POINTER(1000));
 
-    GtkWidget *add_2M = gtk_image_menu_item_new_with_label("Add every 2 MHz");
-    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_2M),
+    GtkWidget *add_custom = gtk_image_menu_item_new_with_label("Add every ...");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(add_custom),
                                   GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_2M);
-    g_signal_connect(add_2M, "activate", G_CALLBACK(scan_menu_marks_add), GINT_TO_POINTER(2000));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_custom);
+    g_signal_connect(add_custom, "activate", G_CALLBACK(scan_menu_marks_add_custom), NULL);
 
     GtkWidget *clear_visible = gtk_image_menu_item_new_with_label("Clear visible marks");
     gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_visible),
@@ -664,15 +667,48 @@ scan_menu_marks_add(GtkMenuItem *menuitem,
                     gpointer     user_data)
 {
     gint step = GPOINTER_TO_INT(user_data);
-    gint min, max, curr;
-    if(scan.data)
+    scan_marks_add(step);
+}
+
+static void
+scan_menu_marks_add_custom(GtkMenuItem *menuitem,
+                           gpointer     user_data)
+{
+    GtkWidget *dialog, *spin_button;
+    gint step;
+
+    dialog = gtk_message_dialog_new(NULL,
+                                    GTK_DIALOG_MODAL,
+                                    GTK_MESSAGE_QUESTION,
+                                    GTK_BUTTONS_OK_CANCEL,
+                                    "Custom step [kHz]:");
+    gtk_window_set_title(GTK_WINDOW(dialog), "Frequency marks");
+    spin_button = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(2000.0, 5.0, 100000.0, 1.0, 2.0, 0.0)), 0, 0);
+    gtk_container_add(GTK_CONTAINER(gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(dialog))), spin_button);
+    g_signal_connect(dialog, "key-press-event", G_CALLBACK(scan_menu_marks_add_custom_key), spin_button);
+
+    gtk_widget_show_all(dialog);
+    if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK)
     {
-        min = ceil(scan.data->signals[0].freq / (gdouble)step)*step;
-        max = floor(scan.data->signals[scan.data->len-1].freq / (gdouble)step)*step;
-        for(curr=min; curr<=max; curr+=step)
-            conf_uniq_int_list_add(&conf.scan_marks, curr);
-        scan_force_redraw();
+        step = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_button));
+        scan_marks_add(step);
     }
+    gtk_widget_destroy(dialog);
+}
+
+static gboolean
+scan_menu_marks_add_custom_key(GtkWidget   *widget,
+                               GdkEventKey *event,
+                               gpointer     button)
+{
+    guint current = gdk_keyval_to_upper(event->keyval);
+    if(current == GDK_Return)
+    {
+        gtk_spin_button_update(GTK_SPIN_BUTTON(button));
+        gtk_dialog_response(GTK_DIALOG(widget), GTK_RESPONSE_OK);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 static void
@@ -709,6 +745,21 @@ scan_menu_preset_oirt(GtkMenuItem *menuitem,
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_start), 65750.0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_end), 74000.0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(scan.s_step), 30.0);
+}
+
+static void
+scan_marks_add(gint step)
+{
+    gint min, max, curr;
+    printf("step:%d\n", step);
+    if(scan.data)
+    {
+        min = ceil(scan.data->signals[0].freq / (gdouble)step)*step;
+        max = floor(scan.data->signals[scan.data->len-1].freq / (gdouble)step)*step;
+        for(curr=min; curr<=max; curr+=step)
+            conf_uniq_int_list_add(&conf.scan_marks, curr);
+        scan_force_redraw();
+    }
 }
 
 static void
