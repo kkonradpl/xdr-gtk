@@ -9,6 +9,8 @@ void scan_update(tuner_scan_t*);
 void scan_update_value(gint, gfloat);
 
 void scan_try_toggle(gboolean);
+void scan_try_prev();
+void scan_try_next();
 void scan_force_redraw();
 
 #endif

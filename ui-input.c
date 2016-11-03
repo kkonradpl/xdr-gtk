@@ -115,6 +115,18 @@ keyboard_press(GtkWidget   *widget,
         return TRUE;
     }
 
+    if(current == conf.key_scan_prev)
+    {
+        scan_try_prev();
+        return TRUE;
+    }
+
+    if(current == conf.key_scan_next)
+    {
+        scan_try_next();
+        return TRUE;
+    }
+
     // presets
     if(event->keyval >= GDK_F1 && event->keyval <= GDK_F12)
     {

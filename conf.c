@@ -96,6 +96,8 @@ static const gchar *key_rotate_ccw         = "rotate_ccw";
 static const gchar *key_switch_antenna     = "switch_antenna";
 static const gchar *key_rds_ps_mode        = "rds_ps_mode";
 static const gchar *key_scan_toggle        = "scan_toggle";
+static const gchar *key_scan_prev          = "scan_prev";
+static const gchar *key_scan_next          = "scan_next";
 static const gchar *key_presets            = "presets";
 static const gchar *key_freqs              = "freqs";
 static const gchar *key_timeouts           = "timeouts";
@@ -275,6 +277,8 @@ conf_read()
     conf.key_switch_antenna = conf_read_integer(keyfile, group_keyboard, key_switch_antenna, CONF_KEY_SWITCH_ANTENNA);
     conf.key_rds_ps_mode    = conf_read_integer(keyfile, group_keyboard, key_rds_ps_mode,    CONF_KEY_RDS_PS_MODE);
     conf.key_scan_toggle    = conf_read_integer(keyfile, group_keyboard, key_scan_toggle,    CONF_KEY_SCAN_TOGGLE);
+    conf.key_scan_prev      = conf_read_integer(keyfile, group_keyboard, key_scan_prev,      CONF_KEY_SCAN_PREV);
+    conf.key_scan_next      = conf_read_integer(keyfile, group_keyboard, key_scan_next,      CONF_KEY_SCAN_NEXT);
 
     /* Presets */
     conf_read_integers(keyfile, group_presets, key_presets, PRESETS, default_presets, conf.presets);
@@ -413,6 +417,8 @@ conf_write()
     g_key_file_set_integer(keyfile, group_keyboard, key_switch_antenna, conf.key_switch_antenna);
     g_key_file_set_integer(keyfile, group_keyboard, key_rds_ps_mode,    conf.key_rds_ps_mode);
     g_key_file_set_integer(keyfile, group_keyboard, key_scan_toggle,    conf.key_scan_toggle);
+    g_key_file_set_integer(keyfile, group_keyboard, key_scan_prev,      conf.key_scan_prev);
+    g_key_file_set_integer(keyfile, group_keyboard, key_scan_next,      conf.key_scan_next);
 
     /* Presets */
     g_key_file_set_integer_list(keyfile, group_presets, key_presets, conf.presets, PRESETS);

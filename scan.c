@@ -1291,6 +1291,26 @@ scan_try_toggle(gboolean continous)
 }
 
 void
+scan_try_prev()
+{
+    if(!scan.window)
+        return;
+    if(!gtk_widget_get_sensitive(scan.b_prev))
+        return;
+    gtk_button_clicked(GTK_BUTTON(scan.b_prev));
+}
+
+void
+scan_try_next()
+{
+    if(!scan.window)
+        return;
+    if(!gtk_widget_get_sensitive(scan.b_next))
+        return;
+    gtk_button_clicked(GTK_BUTTON(scan.b_next));
+}
+
+void
 scan_force_redraw()
 {
     if(scan.window)

@@ -142,6 +142,8 @@ typedef struct settings
     guint key_switch_antenna;
     guint key_rds_ps_mode;
     guint key_scan_toggle;
+    guint key_scan_prev;
+    guint key_scan_next;
 
     /* Presets */
     gint presets[PRESETS];

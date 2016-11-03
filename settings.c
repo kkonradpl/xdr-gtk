@@ -78,7 +78,9 @@ static GtkWidget *l_rotate_cw, *b_rotate_cw;
 static GtkWidget *l_rotate_ccw, *b_rotate_ccw;
 static GtkWidget *l_switch_ant, *b_switch_ant;
 static GtkWidget *l_key_ps_mode, *b_key_ps_mode;
-static GtkWidget *l_spectral_toggle, *b_key_spectral_toggle;
+static GtkWidget *l_scan_toggle, *b_key_scan_toggle;
+static GtkWidget *l_scan_prev, *b_key_scan_prev;
+static GtkWidget *l_scan_next, *b_key_scan_next;
 
 /* Presets page */
 static GtkWidget *page_presets, *presets_wrapper, *table_presets;
@@ -744,12 +746,28 @@ settings_dialog()
     gtk_table_attach(GTK_TABLE(table_key), b_key_ps_mode, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    l_spectral_toggle = gtk_label_new("Start/stop spectral scan");
-    gtk_misc_set_alignment(GTK_MISC(l_spectral_toggle), 0.0, 0.5);
-    gtk_table_attach(GTK_TABLE(table_key), l_spectral_toggle, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-    b_key_spectral_toggle = gtk_button_new_with_label(gdk_keyval_name(conf.key_scan_toggle));
-    g_signal_connect(b_key_spectral_toggle, "clicked", G_CALLBACK(settings_key), NULL);
-    gtk_table_attach(GTK_TABLE(table_key), b_key_spectral_toggle, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    l_scan_toggle = gtk_label_new("Toggle spectral scan");
+    gtk_misc_set_alignment(GTK_MISC(l_scan_toggle), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_scan_toggle, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    b_key_scan_toggle = gtk_button_new_with_label(gdk_keyval_name(conf.key_scan_toggle));
+    g_signal_connect(b_key_scan_toggle, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_key_scan_toggle, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    l_scan_prev = gtk_label_new("Switch to previous scan mark");
+    gtk_misc_set_alignment(GTK_MISC(l_scan_prev), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_scan_prev, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    b_key_scan_prev = gtk_button_new_with_label(gdk_keyval_name(conf.key_scan_prev));
+    g_signal_connect(b_key_scan_prev, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_key_scan_prev, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    l_scan_next = gtk_label_new("Switch to next scan mark");
+    gtk_misc_set_alignment(GTK_MISC(l_scan_next), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_scan_next, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    b_key_scan_next = gtk_button_new_with_label(gdk_keyval_name(conf.key_scan_next));
+    g_signal_connect(b_key_scan_next, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_key_scan_next, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
 
     /* Presets page */
@@ -1003,7 +1021,9 @@ settings_dialog()
     conf.key_rotate_ccw = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_rotate_ccw)));
     conf.key_switch_antenna = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_switch_ant)));
     conf.key_rds_ps_mode = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_ps_mode)));
-    conf.key_scan_toggle = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_spectral_toggle)));
+    conf.key_scan_toggle = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_scan_toggle)));
+    conf.key_scan_prev = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_scan_prev)));
+    conf.key_scan_next = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_scan_next)));
 
     /* Presets page */
     for(i=0; i<PRESETS; i++)

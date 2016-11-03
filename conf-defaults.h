@@ -96,6 +96,8 @@
 #define CONF_KEY_SWITCH_ANTENNA GDK_KEY_Delete
 #define CONF_KEY_RDS_PS_MODE    GDK_KEY_grave
 #define CONF_KEY_SCAN_TOGGLE    GDK_KEY_Q
+#define CONF_KEY_SCAN_PREV      GDK_KEY_less
+#define CONF_KEY_SCAN_NEXT      GDK_KEY_greater
 
 /* Presets */
 #define CONF_PRESET_1   87600
