@@ -107,7 +107,7 @@ connection_dialog(gboolean auto_connect)
 #ifdef __APPLE__
             if(!strncmp(dir->d_name, "cu.usbserial", 12))
 #else
-            if(!strncmp(dir->d_name, "ttyUSB", 6) || !strncmp(dir->d_name, "ttyACM", 6) || !strncmp(dir->d_name, "ttyS", 4))
+            if(!strncmp(dir->d_name, "ttyUSB", 6) || !strncmp(dir->d_name, "ttyACM", 6) || !strncmp(dir->d_name, "ttyS", 4) || !strncmp(dir->d_name, "rfcomm", 6))
 #endif
             {
                 gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_serial), dir->d_name);
