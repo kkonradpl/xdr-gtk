@@ -116,7 +116,7 @@ static gboolean settings_scheduler_add_key_idle(gpointer);
 
 
 void
-settings_dialog()
+settings_dialog(gint tab_num)
 {
     gint row, i;
     gchar tmp[10];
@@ -608,7 +608,7 @@ settings_dialog()
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(page_key), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_key, gtk_label_new("Keyboard"));
 
-    table_key = gtk_table_new(17, 2, FALSE);
+    table_key = gtk_table_new(19, 2, FALSE);
     gtk_container_set_border_width(GTK_CONTAINER(table_key), 4);
     gtk_table_set_homogeneous(GTK_TABLE(table_key), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_key), 1);
@@ -902,11 +902,13 @@ settings_dialog()
 #endif
     gtk_box_pack_start(GTK_BOX(page_about), xdr_gtk_link, TRUE, FALSE, 10);
 
+
     /* HACK: the same background color in the Keyboard page */
     gtk_widget_realize(notebook);
     gtk_widget_modify_bg(page_key_viewport, GTK_STATE_NORMAL, &gtk_widget_get_style(notebook)->bg[GTK_STATE_NORMAL]);
 
     gtk_widget_show_all(dialog);
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook), tab_num);
 #ifdef G_OS_WIN32
     i = win32_dialog_workaround(GTK_DIALOG(dialog));
 #else

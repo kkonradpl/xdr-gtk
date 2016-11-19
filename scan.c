@@ -10,6 +10,8 @@
 #include "scan.h"
 #include "ui-signal.h"
 #include "tuner.h"
+#include "settings.h"
+#include "scheduler.h"
 
 #define MAP(val, in_min, in_max, out_min, out_max) ((val - in_min) * (out_max - out_min) / (gdouble)(in_max - in_min) + out_min)
 #define SCAN_ADD_COLOR(x, y, z, a) cairo_pattern_add_color_stop_rgba(x, y, (((z) & 0xFF0000) >> 16) / 255.0, (((z) & 0xFF00) >> 8) / 255.0, ((z) & 0xFF) / 255.0, (a))
@@ -108,6 +110,8 @@ static void scan_menu_tuned_toggled(GtkCheckMenuItem*, gpointer);
 static void scan_menu_marks_add(GtkMenuItem*, gpointer);
 static void scan_menu_marks_add_custom(GtkMenuItem*, gpointer);
 static gboolean scan_menu_marks_add_custom_key(GtkWidget*, GdkEventKey*, gpointer);
+static void scan_menu_marks_scheduler(GtkMenuItem*, gpointer);
+static gboolean scan_menu_marks_scheduler_key(GtkWidget*, GdkEventKey*, gpointer);
 static void scan_menu_marks_clear(GtkMenuItem*, gpointer);
 static void scan_menu_preset_ccir(GtkMenuItem*, gpointer);
 static void scan_menu_preset_oirt(GtkMenuItem*, gpointer);
@@ -283,7 +287,7 @@ scan_dialog()
 
     scan.canvas = gtk_drawing_area_new();
     gtk_widget_add_events(scan.canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
-    gtk_widget_set_size_request(scan.canvas, 640, -1);
+    gtk_widget_set_size_request(scan.canvas, 500, 100);
     gtk_box_pack_start(GTK_BOX(scan.box), scan.canvas, TRUE, TRUE, 0);
 
     g_signal_connect(scan.canvas, "expose-event", G_CALLBACK(scan_redraw), NULL);
@@ -392,6 +396,12 @@ scan_menu_main()
                                   GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU)));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), add_custom);
     g_signal_connect(add_custom, "activate", G_CALLBACK(scan_menu_marks_add_custom), NULL);
+
+    GtkWidget *append_scheduler = gtk_image_menu_item_new_with_label("Add marks to scheduler");
+    gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(append_scheduler),
+                                  GTK_WIDGET(gtk_image_new_from_stock(GTK_STOCK_GO_FORWARD, GTK_ICON_SIZE_MENU)));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), append_scheduler);
+    g_signal_connect(append_scheduler, "activate", G_CALLBACK(scan_menu_marks_scheduler), NULL);
 
     GtkWidget *clear_visible = gtk_image_menu_item_new_with_label("Clear visible marks");
     gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(clear_visible),
@@ -712,6 +722,93 @@ scan_menu_marks_add_custom_key(GtkWidget   *widget,
 }
 
 static void
+scan_menu_marks_scheduler(GtkMenuItem *menuitem,
+                          gpointer     user_data)
+{
+    GtkWidget *dialog, *spin_button;
+    GList *ptr;
+    gint freq_min;
+    gint freq_max;
+    gint value;
+    gint count;
+    gint freq_time;
+
+    if(!scan.data)
+        goto nothing_to_do;
+
+    freq_min = scan.data->signals[0].freq;
+    freq_max = scan.data->signals[scan.data->len-1].freq;
+    count = 0;
+
+    for(ptr = conf.scan_marks; ptr; ptr = ptr->next)
+    {
+        value = GPOINTER_TO_INT(ptr->data);
+        if(value >= freq_min && value <= freq_max)
+            count++;
+    }
+
+    if(!count)
+        goto nothing_to_do;
+
+    dialog = gtk_message_dialog_new(NULL,
+                                    GTK_DIALOG_MODAL,
+                                    GTK_MESSAGE_QUESTION,
+                                    GTK_BUTTONS_OK_CANCEL,
+                                    "Time for each frequency [s]:");
+    gtk_window_set_title(GTK_WINDOW(dialog), "Scheduler");
+    spin_button = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.scheduler_default_timeout, 1.0, 99999.0, 1.0, 2.0, 0.0)), 0, 0);
+    gtk_container_add(GTK_CONTAINER(gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(dialog))), spin_button);
+    g_signal_connect(dialog, "key-press-event", G_CALLBACK(scan_menu_marks_scheduler_key), spin_button);
+
+    gtk_widget_show_all(dialog);
+    if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK)
+    {
+        freq_time = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_button));
+        scheduler_stop();
+        conf.scheduler_freqs = g_realloc_n(conf.scheduler_freqs, sizeof(gint), conf.scheduler_n+count);
+        conf.scheduler_timeouts = g_realloc_n(conf.scheduler_timeouts, sizeof(gint), conf.scheduler_n+count);
+
+        for(ptr = conf.scan_marks; ptr; ptr = ptr->next)
+        {
+            value = GPOINTER_TO_INT(ptr->data);
+            if(value >= freq_min && value <= freq_max)
+            {
+                conf.scheduler_freqs[conf.scheduler_n] = value;
+                conf.scheduler_timeouts[conf.scheduler_n] = freq_time;
+                conf.scheduler_n++;
+            }
+        }
+
+        gtk_widget_destroy(dialog);
+        settings_dialog(SETTINGS_TAB_SCHEDULER);
+    }
+    else
+    {
+        gtk_widget_destroy(dialog);
+    }
+    return;
+
+    nothing_to_do:
+        ui_dialog(scan.window, GTK_MESSAGE_INFO, "Spectral scan", "There are no visible marks that can be added to the scheduler.");
+}
+
+static gboolean
+scan_menu_marks_scheduler_key(GtkWidget   *widget,
+                              GdkEventKey *event,
+                              gpointer     button)
+{
+    guint current = gdk_keyval_to_upper(event->keyval);
+    if(current == GDK_Return)
+    {
+        gtk_spin_button_update(GTK_SPIN_BUTTON(button));
+        gtk_dialog_response(GTK_DIALOG(widget), GTK_RESPONSE_OK);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+
+static void
 scan_menu_marks_clear(GtkMenuItem *menuitem,
                       gpointer     user_data)
 {
@@ -751,7 +848,6 @@ static void
 scan_marks_add(gint step)
 {
     gint min, max, curr;
-    printf("step:%d\n", step);
     if(scan.data)
     {
         min = ceil(scan.data->signals[0].freq / (gdouble)step)*step;

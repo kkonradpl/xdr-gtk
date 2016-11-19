@@ -329,7 +329,7 @@ ui_init()
     gtk_widget_set_name(ui.b_settings, "small-button");
     gtk_widget_set_tooltip_text(ui.b_settings, "Settings");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_settings, FALSE, FALSE, 0);
-    g_signal_connect(ui.b_settings, "clicked", G_CALLBACK(settings_dialog), NULL);
+    g_signal_connect_swapped(ui.b_settings, "clicked", G_CALLBACK(settings_dialog), GINT_TO_POINTER(SETTINGS_TAB_DEFAULT));
 
     ui.b_scheduler = gtk_toggle_button_new();
     gtk_button_set_image(GTK_BUTTON(ui.b_scheduler), gtk_image_new_from_icon_name("xdr-gtk-scheduler", GTK_ICON_SIZE_BUTTON));
