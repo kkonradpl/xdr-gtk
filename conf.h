@@ -77,6 +77,7 @@ typedef struct settings
     enum Action event_action;
     gboolean hide_decorations;
     gboolean hide_interference;
+    gboolean hide_radiotext;
     gboolean hide_statusbar;
     gboolean restore_position;
     gboolean grab_focus;

@@ -41,6 +41,7 @@ static const gchar *key_disconnect_confirm = "disconnect_confirm";
 static const gchar *key_auto_reconnect     = "auto_reconnect";
 static const gchar *key_hide_decorations   = "hide_decorations";
 static const gchar *key_hide_interference  = "hide_interference";
+static const gchar *key_hide_radiotext     = "hide_radiotext";
 static const gchar *key_hide_statusbar     = "hide_statusbar";
 static const gchar *key_restore_position   = "restore_position";
 static const gchar *key_grab_focus         = "grab_focus";
@@ -212,6 +213,7 @@ conf_read()
     conf.auto_reconnect     = conf_read_boolean(keyfile, group_interface, key_auto_reconnect,     CONF_INTERFACE_AUTO_RECONNECT);
     conf.hide_decorations   = conf_read_boolean(keyfile, group_interface, key_hide_decorations,   CONF_INTERFACE_HIDE_DECORATIONS);
     conf.hide_interference  = conf_read_boolean(keyfile, group_interface, key_hide_interference,  CONF_INTERFACE_HIDE_INTERFERENCE);
+    conf.hide_radiotext     = conf_read_boolean(keyfile, group_interface, key_hide_radiotext,     CONF_INTERFACE_HIDE_RADIOTEXT);
     conf.hide_statusbar     = conf_read_boolean(keyfile, group_interface, key_hide_statusbar,     CONF_INTERFACE_HIDE_STATUSBAR);
     conf.restore_position   = conf_read_boolean(keyfile, group_interface, key_restore_position,   CONF_INTERFACE_RESTORE_POSITION);
     conf.grab_focus         = conf_read_boolean(keyfile, group_interface, key_grab_focus,         CONF_INTERFACE_GRAB_FOCUS);
@@ -352,6 +354,7 @@ conf_write()
     g_key_file_set_boolean(keyfile, group_interface, key_auto_reconnect,     conf.auto_reconnect);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_decorations,   conf.hide_decorations);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_interference,  conf.hide_interference);
+    g_key_file_set_boolean(keyfile, group_interface, key_hide_radiotext,     conf.hide_radiotext);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_statusbar,     conf.hide_statusbar);
     g_key_file_set_boolean(keyfile, group_interface, key_restore_position,   conf.restore_position);
     g_key_file_set_boolean(keyfile, group_interface, key_grab_focus,         conf.grab_focus);

@@ -521,6 +521,11 @@ ui_init()
         gtk_widget_hide(ui.hs_align);
     if(conf.hide_interference)
         gtk_widget_hide(ui.box_left_interference);
+    if(conf.hide_radiotext)
+    {
+        gtk_widget_hide(ui.l_rt[0]);
+        gtk_widget_hide(ui.l_rt[1]);
+    }
     if(conf.hide_statusbar)
         gtk_widget_hide(ui.l_status);
     ui_rotator_button_swap();
