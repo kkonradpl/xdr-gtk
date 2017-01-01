@@ -78,7 +78,7 @@ typedef struct ui
     GtkWidget *l_ta;
     GtkWidget *l_ms;
     GtkWidget *l_pty;
-    GtkWidget *l_sig;
+    GtkWidget *event_sig, *l_sig;
 
     GtkWidget *b_connect;
     GtkWidget *b_pattern;

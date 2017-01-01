@@ -58,6 +58,8 @@ static void tune_ui_af(GtkTreeSelection*, gpointer);
 static void window_on_top(GtkToggleButton*);
 static void ui_toggle_band(GtkWidget*, GdkEventButton*, gpointer);
 static void ui_st_click(GtkWidget*, GdkEventButton*, gpointer);
+static void ui_sig_click(GtkWidget*, GdkEventButton*, gpointer);
+static gboolean ui_sig_click_key(GtkWidget*, GdkEventKey*, gpointer);
 static gboolean ui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor);
 static gboolean signal_tooltip(GtkWidget*, gint, gint, gboolean, GtkTooltip*, gpointer);
 static void ui_af_autoscroll(GtkWidget*, GtkAllocation*, gpointer);
@@ -291,13 +293,20 @@ ui_init()
     gtk_widget_set_tooltip_text(ui.l_pty, "RDS Programme Type (PTY)");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_pty, TRUE, TRUE, 3);
 
+    ui.event_sig = gtk_event_box_new();
     ui.l_sig = gtk_label_new(NULL);
+    gtk_container_add(GTK_CONTAINER(ui.event_sig), ui.l_sig);
     gtk_widget_modify_font(ui.l_sig, font_status);
     gtk_misc_set_alignment(GTK_MISC(ui.l_sig), 1, 0.5);
     gtk_label_set_width_chars(GTK_LABEL(ui.l_sig), 12);
-    gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_sig, TRUE, TRUE, 2);
     gtk_widget_set_tooltip_text(ui.l_sig, "max / current signal level");
+    gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.event_sig, TRUE, TRUE, 2);
     g_signal_connect(ui.l_sig, "query-tooltip", G_CALLBACK(signal_tooltip), NULL);
+    gtk_event_box_set_visible_window(GTK_EVENT_BOX(ui.event_sig), FALSE);
+    gtk_widget_set_events(ui.event_sig, GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
+    g_signal_connect(ui.event_sig, "enter-notify-event", G_CALLBACK(ui_cursor), ui.click_cursor);
+    g_signal_connect(ui.event_sig, "leave-notify-event", G_CALLBACK(ui_cursor), NULL);
+    g_signal_connect(ui.event_sig, "button-press-event", G_CALLBACK(ui_sig_click), NULL);
 
     // ----------------
 
@@ -856,6 +865,65 @@ ui_st_click(GtkWidget      *widget,
     }
     else if(event->type == GDK_BUTTON_PRESS && event->button == 3)
         tuner_set_forced_mono(!tuner.forced_mono);
+}
+
+static void
+ui_sig_click(GtkWidget      *widget,
+             GdkEventButton *event,
+             gpointer        step)
+{
+    if(event->type == GDK_BUTTON_PRESS && event->button == 1)
+    {
+        GtkWidget *dialog, *message;
+        GtkWidget *box, *spinbutton, *label, *checkbox;
+        gint interval;
+        gboolean fast_mode;
+
+        dialog = gtk_message_dialog_new(GTK_WINDOW(ui.window),
+                                        GTK_DIALOG_MODAL,
+                                        GTK_MESSAGE_QUESTION,
+                                        GTK_BUTTONS_OK_CANCEL,
+                                        "Custom interval [ms]:");
+        gtk_window_set_title(GTK_WINDOW(dialog), "Signal sampling");
+        message = gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(dialog));
+
+        box = gtk_vbox_new(FALSE, 2);
+        gtk_box_pack_start(GTK_BOX(message), box, FALSE, FALSE, 0);
+
+        spinbutton = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(0.0, 0.0, 1000.0, 1.0, 2.0, 0.0)), 0, 0);
+        g_signal_connect(dialog, "key-press-event", G_CALLBACK(ui_sig_click_key), spinbutton);
+        gtk_box_pack_start(GTK_BOX(box), spinbutton, FALSE, FALSE, 0);
+
+        label = gtk_label_new("(use zero for default)");
+        gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+
+        checkbox = gtk_check_button_new_with_label("Fast signal detector");
+        gtk_box_pack_start(GTK_BOX(box), checkbox, FALSE, FALSE, 2);
+
+        gtk_widget_show_all(dialog);
+        if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK)
+        {
+            interval = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+            fast_mode = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(checkbox));
+            tuner_set_sampling_interval(interval, fast_mode);
+        }
+        gtk_widget_destroy(dialog);
+    }
+}
+
+static gboolean
+ui_sig_click_key(GtkWidget   *widget,
+                 GdkEventKey *event,
+                 gpointer     button)
+{
+    guint current = gdk_keyval_to_upper(event->keyval);
+    if(current == GDK_Return)
+    {
+        gtk_spin_button_update(GTK_SPIN_BUTTON(button));
+        gtk_dialog_response(GTK_DIALOG(widget), GTK_RESPONSE_OK);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 static gboolean

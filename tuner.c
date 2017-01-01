@@ -336,6 +336,11 @@ tuner_parse(gchar  c,
         /* Rotator control */
         g_idle_add(tuner_rotator, GINT_TO_POINTER(atoi(msg)));
     }
+    else if(c == 'I')
+    {
+        /* Custom signal level sampling interval */
+        g_idle_add(tuner_sampling_interval, GINT_TO_POINTER(atoi(msg)));
+    }
     else if(c == '!')
     {
         /* External event */
@@ -489,6 +494,7 @@ void tuner_clear_all()
     tuner.prevfreq = 0;
     ui_update_freq();
 
+    tuner.sampling_interval = 0;
     tuner.signal = NAN;
     tuner.forced_mono = FALSE;
     tuner_clear_signal();

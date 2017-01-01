@@ -7,7 +7,7 @@
 
 #include "rdsspy.h"
 
-#define RDS_DEFAULT_TIMER 3
+#define DEFAULT_SAMPLING_INTERVAL 66
 
 #define RDS_BLOCK_B 0
 #define RDS_BLOCK_C 1
@@ -115,12 +115,15 @@ tuner_pi(gpointer data)
 {
     gint pi = GPOINTER_TO_INT(data) & 0xFFFF;
     gint err_level = (GPOINTER_TO_INT(data) & 0x30000) >> 16;
+    gint interval = (tuner.sampling_interval ? tuner.sampling_interval : DEFAULT_SAMPLING_INTERVAL);
 
     if(err_level > tuner.rds_pi_err_level &&
        tuner.rds_pi != pi)
         return FALSE;
 
-    tuner.rds = RDS_DEFAULT_TIMER;
+    /* RDS stream: 1187.5 bps
+     * One group: 104 bits (each has PI code) */
+    tuner.rds = ceil(1000 * 104 / 1187.5 / interval) + 1;
     tuner.rds_reset_timer = g_get_real_time();
 
     tuner.rds_pi = pi;
@@ -400,6 +403,13 @@ tuner_rotator(gpointer data)
     tuner.rotator = abs(rotator);
     tuner.rotator_waiting = (rotator < 0);
     ui_update_rotator();
+    return FALSE;
+}
+
+gboolean
+tuner_sampling_interval(gpointer data)
+{
+    tuner.sampling_interval = GPOINTER_TO_INT(data);
     return FALSE;
 }
 

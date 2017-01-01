@@ -35,6 +35,7 @@ typedef struct tuner
     gint freq;
     gint prevfreq;
 
+    gint     sampling_interval;
     gfloat   signal;
     gfloat   signal_max;
     gdouble  signal_sum;

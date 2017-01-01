@@ -168,6 +168,14 @@ tuner_set_stereo_test()
 }
 
 void
+tuner_set_sampling_interval(gint interval, gboolean mode)
+{
+    gchar buffer[10];
+    g_snprintf(buffer, sizeof(buffer), "I%d,%d", interval, mode);
+    tuner_write(tuner.thread, buffer);
+}
+
+void
 tuner_modify_frequency(guint mode)
 {
     if(tuner.freq <= 300)

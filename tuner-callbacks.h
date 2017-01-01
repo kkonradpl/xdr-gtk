@@ -24,6 +24,7 @@ gboolean tuner_mode(gpointer);
 gboolean tuner_filter(gpointer);
 gboolean tuner_squelch(gpointer);
 gboolean tuner_rotator(gpointer);
+gboolean tuner_sampling_interval(gpointer);
 gboolean tuner_online(gpointer);
 gboolean tuner_online_guests(gpointer);
 

@@ -19,6 +19,7 @@ void tuner_set_alignment();
 void tuner_set_rotator(gpointer);
 void tuner_set_forced_mono(gboolean);
 void tuner_set_stereo_test();
+void tuner_set_sampling_interval(gint, gboolean);
 void tuner_modify_frequency(guint);
 
 #endif
