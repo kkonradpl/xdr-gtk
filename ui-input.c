@@ -36,31 +36,31 @@ keyboard_press(GtkWidget   *widget,
 
     if(current == conf.key_tune_fine_up)
     {
-        if(tuner.freq < 1900)
-            tuner_set_frequency(tuner.freq+1);
+        if(tuner_get_freq() < 1900)
+            tuner_set_frequency(tuner_get_freq()+1);
         else
-            tuner_set_frequency(tuner.freq+5);
+            tuner_set_frequency(tuner_get_freq()+5);
         return TRUE;
     }
 
     if(current == conf.key_tune_fine_down)
     {
-        if(tuner.freq <= 1900)
-            tuner_set_frequency(tuner.freq-1);
+        if(tuner_get_freq() <= 1900)
+            tuner_set_frequency(tuner_get_freq()-1);
         else
-            tuner_set_frequency(tuner.freq-5);
+            tuner_set_frequency(tuner_get_freq()-5);
         return TRUE;
     }
 
     if(current == conf.key_tune_jump_down)
     {
-        tuner_set_frequency(tuner.freq-1000);
+        tuner_set_frequency(tuner_get_freq()-1000);
         return TRUE;
     }
 
     if(current == conf.key_tune_jump_up)
     {
-        tuner_set_frequency(tuner.freq+1000);
+        tuner_set_frequency(tuner_get_freq()+1000);
         return TRUE;
     }
 
@@ -133,7 +133,7 @@ keyboard_press(GtkWidget   *widget,
         gint id = event->keyval-GDK_F1;
         if(shift_pressed)
         {
-            conf.presets[id] = tuner.freq;
+            conf.presets[id] = tuner_get_freq();
             ui_status(1500, "Preset <b>F%d</b> has been stored.", id+1);
         }
         else

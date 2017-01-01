@@ -486,7 +486,7 @@ scan_toggle(GtkWidget *widget,
 
         g_snprintf(buff, sizeof(buff),
                    "Sa%d\nSb%d\nSc%d\nSf%d\nS%s",
-                   start, stop, step, tuner_filter_from_index(bw), (continuous?"m":""));
+                   start+conf.freq_offset, stop+conf.freq_offset, step, tuner_filter_from_index(bw), (continuous?"m":""));
 
         ui_antenna_switch(start);
         tuner_write(tuner.thread, buff);
@@ -556,7 +556,7 @@ scan_prev(GtkWidget *widget,
 
     freq_min = scan.data->signals[0].freq;
     freq_max = scan.data->signals[scan.data->len-1].freq;
-    freq_curr = tuner.freq;
+    freq_curr = tuner_get_freq();
     prev = 0;
     last = 0;
 
@@ -595,7 +595,7 @@ scan_next(GtkWidget *widget,
 
     freq_min = scan.data->signals[0].freq;
     freq_max = scan.data->signals[scan.data->len-1].freq;
-    freq_curr = tuner.freq;
+    freq_curr = tuner_get_freq();
     next = 0;
     first = 0;
 
@@ -998,10 +998,10 @@ scan_redraw(GtkWidget      *widget,
     /* Mark currently tuned frequency */
     if(conf.scan_mark_tuned &&
        tuner.thread &&
-       tuner.freq >= scan.data->signals[0].freq &&
-       tuner.freq <= scan.data->signals[scan.data->len-1].freq)
+       tuner_get_freq() >= scan.data->signals[0].freq &&
+       tuner_get_freq() <= scan.data->signals[scan.data->len-1].freq)
     {
-        scan_draw_mark(cr, width, height, tuner.freq, TRUE);
+        scan_draw_mark(cr, width, height, tuner_get_freq(), TRUE);
     }
 
     if(scan.focus >= 0 && scan.focus < scan.data->len)
@@ -1243,7 +1243,7 @@ scan_motion(GtkWidget      *widget,
         current_focus = round(x/(width/(gdouble)(scan.data->len - 1)));
         if(current_focus >= 0 && current_focus < scan.data->len)
         {
-            if(scan.motion_tuning && tuner.freq != scan.data->signals[current_focus].freq)
+            if(scan.motion_tuning && tuner_get_freq() != scan.data->signals[current_focus].freq)
                 tuner_set_frequency(scan.data->signals[current_focus].freq);
         }
         else
@@ -1373,7 +1373,7 @@ scan_update_value(gint   freq,
             gtk_widget_set_sensitive(scan.b_start, TRUE);
             scan_lock(FALSE);
         }
-        ui_antenna_switch(tuner.freq);
+        ui_antenna_switch(tuner_get_freq());
     }
 
     if(!conf.scan_update || !scan.window || !scan.data)

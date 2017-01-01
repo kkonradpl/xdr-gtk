@@ -15,17 +15,24 @@ tuner_set_frequency(gint freq)
     static gint64 last_request = 0;
     gint64 now = g_get_real_time();
     gchar buffer[8];
+    gint real_freq = freq + conf.freq_offset;
 
     if((now-last_request) < 1000000 &&
-       freq == freq_waiting &&
-       freq != tuner.freq)
+       real_freq == freq_waiting &&
+       real_freq != tuner.freq)
         return;
 
     ui_antenna_switch(freq);
-    g_snprintf(buffer, sizeof(buffer), "T%d", freq);
+    g_snprintf(buffer, sizeof(buffer), "T%d", real_freq);
     tuner_write(tuner.thread, buffer);
-    freq_waiting = freq;
+    freq_waiting = real_freq;
     last_request = now;
+}
+
+void
+tuner_set_frequency_prev()
+{
+    tuner_set_frequency(tuner.prevfreq - conf.freq_offset);
 }
 
 void
@@ -178,13 +185,13 @@ tuner_set_sampling_interval(gint interval, gboolean mode)
 void
 tuner_modify_frequency(guint mode)
 {
-    if(tuner.freq <= 300)
+    if(tuner_get_freq() <= 300)
         tuner_modify_frequency_full(99, 9, mode);
-    else if(tuner.freq <= 1900)
+    else if(tuner_get_freq() <= 1900)
         tuner_modify_frequency_full((conf.mw_10k_steps?100:99), (conf.mw_10k_steps?10:9), mode);
-    else if(tuner.freq <= 30000)
+    else if(tuner_get_freq() <= 30000)
         tuner_modify_frequency_full(1900, 10, mode);
-    else if(tuner.freq >= 65750 && tuner.freq <= 74000)
+    else if(tuner_get_freq() >= 65750 && tuner_get_freq() <= 74000)
         tuner_modify_frequency_full(65750, 30, mode);
     else
         tuner_modify_frequency_full(0, 100, mode);
@@ -196,27 +203,27 @@ tuner_modify_frequency_full(guint base_freq,
                             guint mode)
 {
     gint m;
-    if(((tuner.freq-base_freq) % step) == 0)
+    if(((tuner_get_freq()-base_freq) % step) == 0)
     {
         if(mode == TUNER_FREQ_MODIFY_UP)
-            tuner_set_frequency(tuner.freq+step);
+            tuner_set_frequency(tuner_get_freq()+step);
         else if(mode == TUNER_FREQ_MODIFY_DOWN)
-            tuner_set_frequency(tuner.freq-step);
+            tuner_set_frequency(tuner_get_freq()-step);
         else if(mode == TUNER_FREQ_MODIFY_RESET)
-            tuner_set_frequency(tuner.freq);
+            tuner_set_frequency(tuner_get_freq());
     }
     else
     {
-        m = (tuner.freq-base_freq) % step;
+        m = (tuner_get_freq()-base_freq) % step;
         if(mode == TUNER_FREQ_MODIFY_UP ||
            (mode == TUNER_FREQ_MODIFY_RESET && m >= (step/2)))
         {
-            tuner_set_frequency(base_freq+((tuner.freq-base_freq)/step*step)+step);
+            tuner_set_frequency(base_freq+((tuner_get_freq()-base_freq)/step*step)+step);
         }
         else if(mode == TUNER_FREQ_MODIFY_DOWN ||
                 (mode == TUNER_FREQ_MODIFY_RESET && m < (step/2)))
         {
-            tuner_set_frequency(base_freq+((tuner.freq-base_freq)/step*step));
+            tuner_set_frequency(base_freq+((tuner_get_freq()-base_freq)/step*step));
         }
     }
 }

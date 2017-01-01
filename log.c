@@ -52,7 +52,7 @@ log_prepare()
     g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP, directory, t);
     g_mkdir(path, 0755);
 
-    g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP "%d-%s.txt", directory, t, tuner.freq, t2);
+    g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP "%d-%s.txt", directory, t, tuner_get_freq(), t2);
     logfp = g_fopen(path, "w");
 
     if(!logfp)

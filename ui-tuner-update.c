@@ -27,11 +27,11 @@ ui_update_freq()
     if(conf.scan_mark_tuned)
         scan_force_redraw();
 
-    if(tuner.freq > 0)
+    if(tuner_get_freq() > 0)
     {
-        if(last_freq != tuner.freq)
+        if(last_freq != tuner_get_freq())
         {
-            g_snprintf(buffer, sizeof(buffer), "%.3f", tuner.freq/1000.0);
+            g_snprintf(buffer, sizeof(buffer), "%.3f", tuner_get_freq()/1000.0);
             gtk_label_set_text(GTK_LABEL(ui.l_freq), buffer);
         }
 
@@ -42,7 +42,7 @@ ui_update_freq()
             ui_activate();
 
         tuner_clear_signal();
-        stationlist_freq(tuner.freq);
+        stationlist_freq(tuner_get_freq());
         log_cleanup();
     }
     else
@@ -51,7 +51,7 @@ ui_update_freq()
         signal_clear();
     }
 
-    last_freq = tuner.freq;
+    last_freq = tuner_get_freq();
 }
 
 void
@@ -137,8 +137,8 @@ ui_update_signal()
         return;
     }
 
-    signal_push(tuner.signal, tuner.stereo, tuner.rds, tuner.freq);
-    scan_update_value(tuner.freq, tuner.signal);
+    signal_push(tuner.signal, tuner.stereo, tuner.rds, tuner_get_freq());
+    scan_update_value(tuner_get_freq(), tuner.signal);
     pattern_push(tuner.signal);
     stationlist_rcvlevel(lround(tuner.signal));
 

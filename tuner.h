@@ -103,4 +103,6 @@ void tuner_write(gpointer, gchar*);
 void tuner_clear_all();
 void tuner_clear_signal();
 void tuner_clear_rds();
+gint tuner_get_freq();
+
 #endif

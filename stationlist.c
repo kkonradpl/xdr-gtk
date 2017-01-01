@@ -169,7 +169,7 @@ stationlist_cmd(gchar *param,
     if(!g_ascii_strcasecmp(param, "freq"))
     {
         if(!g_ascii_strcasecmp(value, "?"))
-            stationlist_freq(tuner.freq);
+            stationlist_freq(tuner_get_freq());
         else
             g_idle_add(stationlist_set_freq, GINT_TO_POINTER(atoi(value)));
     }

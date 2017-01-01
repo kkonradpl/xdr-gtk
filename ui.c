@@ -664,7 +664,7 @@ static void
 tune_ui_back(GtkWidget *widget,
              gpointer   nothing)
 {
-    tuner_set_frequency(tuner.prevfreq);
+    tuner_set_frequency_prev();
 }
 
 static void
@@ -680,9 +680,9 @@ tune_ui_step_click(GtkWidget      *widget,
                    gpointer        step)
 {
     if(event->type == GDK_BUTTON_PRESS && event->button == 3) // right click, tune down
-        tuner_set_frequency(tuner.freq-(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner_get_freq()-(GPOINTER_TO_INT(step)));
     else if(event->type == GDK_BUTTON_PRESS && event->button == 1) // left click, tune up
-        tuner_set_frequency(tuner.freq+(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner_get_freq()+(GPOINTER_TO_INT(step)));
 }
 
 static void
@@ -691,9 +691,9 @@ tune_ui_step_scroll(GtkWidget      *widget,
                     gpointer        step)
 {
     if(event->direction)
-        tuner_set_frequency(tuner.freq-(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner_get_freq()-(GPOINTER_TO_INT(step)));
     else
-        tuner_set_frequency(tuner.freq+(GPOINTER_TO_INT(step)));
+        tuner_set_frequency(tuner_get_freq()+(GPOINTER_TO_INT(step)));
 }
 
 static gboolean
@@ -1023,11 +1023,11 @@ ui_screenshot()
 
     if(tuner.rds_pi >= 0)
     {
-        filename = g_strdup_printf("%s" PATH_SEP "%s-%d-%04X.png", directory, t, tuner.freq, tuner.rds_pi);
+        filename = g_strdup_printf("%s" PATH_SEP "%s-%d-%04X.png", directory, t, tuner_get_freq(), tuner.rds_pi);
     }
     else
     {
-        filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner.freq);
+        filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner_get_freq());
     }
 
     /* HACK: refresh window to avoid icons disappearing */

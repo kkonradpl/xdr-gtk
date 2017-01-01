@@ -23,6 +23,7 @@ static GtkWidget *dialog, *notebook;
 /* Interface page */
 static GtkWidget *page_interface, *table_interface;
 static GtkWidget *l_init_freq, *s_init_freq, *l_init_freq_unit;
+static GtkWidget *l_freq_offset, *s_freq_offset, *l_freq_offset_unit;
 static GtkWidget *l_event, *c_event;
 static GtkWidget *x_utc, *x_autoconnect, *x_amstep, *x_disconnect_confirm, *x_auto_reconnect;
 static GtkWidget *x_hide_decorations, *x_hide_interference, *x_hide_radiotext;
@@ -144,7 +145,7 @@ settings_dialog(gint tab_num)
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_interface, gtk_label_new("Interface"));
     gtk_container_child_set(GTK_CONTAINER(notebook), page_interface, "tab-expand", FALSE, "tab-fill", FALSE, NULL);
 
-    table_interface = gtk_table_new(13, 3, TRUE);
+    table_interface = gtk_table_new(14, 3, TRUE);
     gtk_table_set_homogeneous(GTK_TABLE(table_interface), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_interface), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_interface), 4);
@@ -160,6 +161,17 @@ settings_dialog(gint tab_num)
 
     l_init_freq_unit = gtk_label_new("kHz");
     gtk_table_attach(GTK_TABLE(table_interface), l_init_freq_unit, 2, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    l_freq_offset = gtk_label_new("Frequency offset:");
+    gtk_misc_set_alignment(GTK_MISC(l_freq_offset), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_interface), l_freq_offset, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    s_freq_offset = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.freq_offset, -100000.0, 1000000.0, 100.0, 200.0, 0.0)), 0, 0);
+    gtk_table_attach(GTK_TABLE(table_interface), s_freq_offset, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    l_freq_offset_unit = gtk_label_new("kHz");
+    gtk_table_attach(GTK_TABLE(table_interface), l_freq_offset_unit, 2, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     l_event = gtk_label_new("External event:");
@@ -928,6 +940,7 @@ settings_dialog(gint tab_num)
 
     /* Interface page */
     conf.initial_freq = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_init_freq));
+    conf.freq_offset = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_freq_offset));
     conf.event_action = gtk_combo_box_get_active(GTK_COMBO_BOX(c_event));
     conf.utc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_utc));
     conf.auto_connect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_autoconnect));

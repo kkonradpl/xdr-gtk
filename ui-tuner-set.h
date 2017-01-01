@@ -7,6 +7,7 @@
 #define TUNER_FREQ_MODIFY_RESET 2
 
 void tuner_set_frequency(gint);
+void tuner_set_frequency_prev();
 void tuner_set_mode(gint);
 void tuner_set_bandwidth();
 void tuner_set_deemphasis();

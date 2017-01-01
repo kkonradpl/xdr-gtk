@@ -308,6 +308,12 @@ gboolean
 tuner_scan(gpointer data)
 {
     tuner_scan_t *scan = (tuner_scan_t*)data;
+    gint i;
+
+    if(conf.freq_offset)
+        for(i=0; i<scan->len; i++)
+            scan->signals[i].freq -= conf.freq_offset;
+
     ui_update_scan(scan);
     return FALSE;
 }

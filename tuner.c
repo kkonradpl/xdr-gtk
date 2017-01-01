@@ -17,6 +17,7 @@
 #include "log.h"
 #include "tuner-callbacks.h"
 #include "ui-tuner-update.h"
+#include "conf.h"
 
 #define DEBUG_READ  0
 #define DEBUG_WRITE 1
@@ -572,4 +573,9 @@ void tuner_clear_rds()
     ui_update_rt(1);
 
     ui_clear_af();
+}
+
+gint tuner_get_freq()
+{
+    return tuner.freq - conf.freq_offset;
 }

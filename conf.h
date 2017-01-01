@@ -69,6 +69,7 @@ typedef struct settings
 
     /* Interface */
     gint initial_freq;
+    gint freq_offset;
     gboolean utc;
     gboolean auto_connect;
     gboolean mw_10k_steps;
