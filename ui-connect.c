@@ -404,12 +404,12 @@ connection_dialog_connected(gint mode,
         tuner_set_volume();
         tuner_set_squelch();
         tuner_set_mode(tuner.mode);
+        tuner_set_antenna();
         tuner_set_frequency(conf.initial_freq);
         tuner_set_agc();
         tuner_set_bandwidth();
         tuner_set_deemphasis();
         tuner_set_gain();
-        tuner_set_antenna();
     }
 
     connect_button(TRUE);

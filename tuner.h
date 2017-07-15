@@ -1,6 +1,7 @@
 #ifndef XDR_TUNER_H_
 #define XDR_TUNER_H_
 #include <glib.h>
+#include "conf.h"
 #include "tuner-filters.h"
 
 #define TUNER_THREAD_SERIAL 0
@@ -34,6 +35,7 @@ typedef struct tuner
     gint mode;
     gint freq;
     gint prevfreq;
+    gint prevantenna;
 
     gint     sampling_interval;
     gfloat   signal;
@@ -91,6 +93,8 @@ typedef struct tuner
     gint64 last_set_daa;
     gint64 last_set_rotator;
     gint64 last_set_pilot;
+
+    gint offset[ANT_COUNT];
 } tuner_t;
 
 tuner_t tuner;
@@ -104,5 +108,7 @@ void tuner_clear_all();
 void tuner_clear_signal();
 void tuner_clear_rds();
 gint tuner_get_freq();
+gint tuner_get_offset();
+void tuner_set_offset(gint, gint);
 
 #endif

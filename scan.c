@@ -446,8 +446,10 @@ scan_toggle(GtkWidget *widget,
 {
     gint start, stop, step, bw;
     gboolean continuous;
-    gchar buff[50];
+    gchar buff[100];
     gint samples;
+    gint offset;
+    gint antenna;
 
     if(!tuner.thread)
         return;
@@ -484,11 +486,12 @@ scan_toggle(GtkWidget *widget,
             return;
         }
 
+        antenna = ui_antenna_id(start);
+        offset = tuner.offset[antenna];
         g_snprintf(buff, sizeof(buff),
-                   "Sa%d\nSb%d\nSc%d\nSf%d\nS%s",
-                   start+conf.freq_offset, stop+conf.freq_offset, step, tuner_filter_from_index(bw), (continuous?"m":""));
+                   "Sa%d\nSb%d\nSc%d\nSf%d\nSz%d\nS%s",
+                   start+offset, stop+offset, step, tuner_filter_from_index(bw), antenna, (continuous?"m":""));
 
-        ui_antenna_switch(start);
         tuner_write(tuner.thread, buff);
         scan_lock(TRUE);
         gtk_widget_set_sensitive(scan.b_start, FALSE);
@@ -1373,7 +1376,6 @@ scan_update_value(gint   freq,
             gtk_widget_set_sensitive(scan.b_start, TRUE);
             scan_lock(FALSE);
         }
-        ui_antenna_switch(tuner_get_freq());
     }
 
     if(!conf.scan_update || !scan.window || !scan.data)

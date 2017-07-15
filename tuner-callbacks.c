@@ -42,11 +42,15 @@ gboolean
 tuner_freq(gpointer data)
 {
     gint freq = GPOINTER_TO_INT(data);
-    if(freq != tuner.freq)
+    if(freq != tuner.freq ||
+       (tuner.prevantenna != tuner.antenna &&
+        tuner.offset[tuner.prevantenna] != tuner.offset[tuner.antenna]))
     {
         tuner.prevfreq = tuner.freq;
+        tuner.prevantenna = tuner.antenna;
         tuner.freq = freq;
     }
+
 
     tuner_clear_signal();
     tuner_clear_rds();
@@ -309,10 +313,11 @@ tuner_scan(gpointer data)
 {
     tuner_scan_t *scan = (tuner_scan_t*)data;
     gint i;
+    gint offset = tuner_get_offset();
 
-    if(conf.freq_offset)
+    if(offset)
         for(i=0; i<scan->len; i++)
-            scan->signals[i].freq -= conf.freq_offset;
+            scan->signals[i].freq -= offset;
 
     ui_update_scan(scan);
     return FALSE;
@@ -356,6 +361,7 @@ tuner_antenna(gpointer data)
         rdsspy_reset();
     }
     tuner_clear_signal();
+    ui_update_freq();
     return FALSE;
 }
 

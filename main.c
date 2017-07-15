@@ -1,6 +1,6 @@
 /*
- *  XDR-GTK v1.0
- *  Copyright (C) 2012-2016  Konrad Kosmatka
+ *  XDR-GTK v1.0-git
+ *  Copyright (C) 2012-2017  Konrad Kosmatka
  *  http://fmdx.pl/
 
  *  This program is free software; you can redistribute it and/or

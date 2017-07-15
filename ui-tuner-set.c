@@ -15,16 +15,22 @@ tuner_set_frequency(gint freq)
     static gint64 last_request = 0;
     gint64 now = g_get_real_time();
     gchar buffer[8];
-    gint real_freq = freq + conf.freq_offset;
+    gint real_freq;
+    gint ant;
+
+    ant = ui_antenna_id(freq);
+    real_freq = freq + tuner.offset[ant];
 
     if((now-last_request) < 1000000 &&
        real_freq == freq_waiting &&
        real_freq != tuner.freq)
         return;
 
-    ui_antenna_switch(freq);
     g_snprintf(buffer, sizeof(buffer), "T%d", real_freq);
     tuner_write(tuner.thread, buffer);
+
+    ui_antenna_switch(freq);
+
     freq_waiting = real_freq;
     last_request = now;
 }
@@ -32,7 +38,7 @@ tuner_set_frequency(gint freq)
 void
 tuner_set_frequency_prev()
 {
-    tuner_set_frequency(tuner.prevfreq - conf.freq_offset);
+    tuner_set_frequency(tuner.prevfreq - tuner.offset[tuner.prevantenna]);
 }
 
 void

@@ -23,7 +23,6 @@ static GtkWidget *dialog, *notebook;
 /* Interface page */
 static GtkWidget *page_interface, *table_interface;
 static GtkWidget *l_init_freq, *s_init_freq, *l_init_freq_unit;
-static GtkWidget *l_freq_offset, *s_freq_offset, *l_freq_offset_unit;
 static GtkWidget *l_event, *c_event;
 static GtkWidget *x_utc, *x_autoconnect, *x_amstep, *x_disconnect_confirm, *x_auto_reconnect;
 static GtkWidget *x_hide_decorations, *x_hide_interference, *x_hide_radiotext;
@@ -51,7 +50,7 @@ static GtkWidget *page_ant, *table_ant;
 static GtkWidget *x_alignment, *x_swap_rotator;
 static GtkWidget *l_ant_count, *c_ant_count;
 static GtkWidget *x_ant_clear_rds, *x_ant_switching;
-static GtkWidget *s_ant_start[ANT_COUNT], *s_ant_stop[ANT_COUNT];
+static GtkWidget *s_ant_start[ANT_COUNT], *s_ant_stop[ANT_COUNT], *s_ant_offset[ANT_COUNT];
 
 /* Logs page */
 static GtkWidget *page_logs, *table_logs, *l_fmlist;
@@ -145,7 +144,7 @@ settings_dialog(gint tab_num)
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_interface, gtk_label_new("Interface"));
     gtk_container_child_set(GTK_CONTAINER(notebook), page_interface, "tab-expand", FALSE, "tab-fill", FALSE, NULL);
 
-    table_interface = gtk_table_new(14, 3, TRUE);
+    table_interface = gtk_table_new(13, 3, TRUE);
     gtk_table_set_homogeneous(GTK_TABLE(table_interface), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_interface), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_interface), 4);
@@ -161,17 +160,6 @@ settings_dialog(gint tab_num)
 
     l_init_freq_unit = gtk_label_new("kHz");
     gtk_table_attach(GTK_TABLE(table_interface), l_init_freq_unit, 2, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
-    l_freq_offset = gtk_label_new("Frequency offset:");
-    gtk_misc_set_alignment(GTK_MISC(l_freq_offset), 0.0, 0.5);
-    gtk_table_attach(GTK_TABLE(table_interface), l_freq_offset, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    s_freq_offset = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.freq_offset, -100000.0, 1000000.0, 100.0, 200.0, 0.0)), 0, 0);
-    gtk_table_attach(GTK_TABLE(table_interface), s_freq_offset, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    l_freq_offset_unit = gtk_label_new("kHz");
-    gtk_table_attach(GTK_TABLE(table_interface), l_freq_offset_unit, 2, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
     l_event = gtk_label_new("External event:");
@@ -441,12 +429,11 @@ settings_dialog(gint tab_num)
     gtk_container_set_border_width(GTK_CONTAINER(page_ant), 4);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_ant, gtk_label_new("Antenna"));
 
-    table_ant = gtk_table_new(11, 2, FALSE);
+    table_ant = gtk_table_new(7+2*ANT_COUNT, 2, FALSE);
     gtk_table_set_homogeneous(GTK_TABLE(table_ant), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_ant), 4);
     gtk_table_set_col_spacings(GTK_TABLE(table_ant), 4);
     gtk_container_add(GTK_CONTAINER(page_ant), table_ant);
-
 
     row = 0;
     x_alignment = gtk_check_button_new_with_label("Show antenna input alignment");
@@ -479,9 +466,6 @@ settings_dialog(gint tab_num)
     gtk_table_attach(GTK_TABLE(table_ant), x_ant_clear_rds, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    gtk_table_attach(GTK_TABLE(table_ant), gtk_hseparator_new(), 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-
-    row++;
     x_ant_switching = gtk_check_button_new_with_label("Automatic antenna switching");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_ant_switching), conf.ant_auto_switch);
     gtk_table_attach(GTK_TABLE(table_ant), x_ant_switching, 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
@@ -489,7 +473,7 @@ settings_dialog(gint tab_num)
     for(i=0; i<ANT_COUNT; i++)
     {
         row++;
-        g_snprintf(tmp, sizeof(tmp), "Ant %c:", 'A'+i);
+        g_snprintf(tmp, sizeof(tmp), "Range %c:", 'A'+i);
         gtk_table_attach(GTK_TABLE(table_ant), gtk_label_new(tmp), 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
         s_ant_start[i] = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.ant_start[i], 0.0, TUNER_FREQ_MAX, 100.0, 200.0, 0.0)), 0, 0);
         gtk_table_attach(GTK_TABLE(table_ant), s_ant_start[i], 1, 2, row, row+1, 0, 0, 0, 0);
@@ -499,6 +483,18 @@ settings_dialog(gint tab_num)
         gtk_table_attach(GTK_TABLE(table_ant), gtk_label_new("kHz"), 4, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
     }
 
+    row++;
+    gtk_table_attach(GTK_TABLE(table_ant), gtk_hseparator_new(), 0, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    for(i=0; i<ANT_COUNT; i++)
+    {
+        row++;
+        g_snprintf(tmp, sizeof(tmp), "Offset %c:", 'A'+i);
+        gtk_table_attach(GTK_TABLE(table_ant), gtk_label_new(tmp), 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+        s_ant_offset[i] = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.ant_offset[i], -100000.0, 1000000.0, 100.0, 200.0, 0.0)), 0, 0);
+        gtk_table_attach(GTK_TABLE(table_ant), s_ant_offset[i], 1, 4, row, row+1, 0, 0, 0, 0);
+        gtk_table_attach(GTK_TABLE(table_ant), gtk_label_new("kHz"), 4, 5, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    }
 
     /* Logs page */
     page_logs = gtk_vbox_new(FALSE, 5);
@@ -940,7 +936,6 @@ settings_dialog(gint tab_num)
 
     /* Interface page */
     conf.initial_freq = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_init_freq));
-    conf.freq_offset = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_freq_offset));
     conf.event_action = gtk_combo_box_get_active(GTK_COMBO_BOX(c_event));
     conf.utc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_utc));
     conf.auto_connect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_autoconnect));
@@ -1013,6 +1008,8 @@ settings_dialog(gint tab_num)
     {
         conf.ant_start[i] = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_ant_start[i]));
         conf.ant_stop[i] = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_ant_stop[i]));
+        conf.ant_offset[i] = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_ant_offset[i]));
+        tuner_set_offset(i, conf.ant_offset[i]);
     }
 
     /* Logs page */

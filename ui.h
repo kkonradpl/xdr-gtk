@@ -120,7 +120,8 @@ void ui_bandwidth_fill(GtkWidget*, gboolean);
 
 void ui_dialog(GtkWidget*, GtkMessageType, gchar*, gchar*, ...);
 void connect_button(gboolean);
-void ui_antenna_switch(gint);
+gint ui_antenna_switch(gint);
+gint ui_antenna_id(gint);
 void ui_antenna_showhide();
 void ui_toggle_ps_mode();
 void ui_screenshot();

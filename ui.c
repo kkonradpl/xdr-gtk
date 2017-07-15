@@ -515,6 +515,8 @@ ui_init()
     tuner_clear_all();
     tuner.mode = MODE_FM;
     tuner.filter = -1;
+    for(i=0; i<ANT_COUNT; i++)
+        tuner.offset[i] = conf.ant_offset[i];
     ui_update_mode();
     gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw),
                              gtk_tree_model_iter_n_children(GTK_TREE_MODEL(gtk_combo_box_get_model(GTK_COMBO_BOX(ui.c_bw))), NULL) - 1);
@@ -826,22 +828,45 @@ connect_button(gboolean is_active)
     gtk_widget_set_tooltip_text(ui.b_connect, (is_active ? "Disconnect" : "Connect"));
 }
 
-void
+gint
 ui_antenna_switch(gint newfreq)
 {
+    gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_ant));
     gint i;
+
+    if(current < 0 || current > ANT_COUNT)
+        current = 0;
+
     if(!conf.ant_auto_switch)
-        return;
+        return current;
+
+    i = ui_antenna_id(newfreq);
+    if(current == i)
+        return i;
+
+    gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_ant), i);
+    return i;
+}
+
+gint
+ui_antenna_id(gint newfreq)
+{
+    gint current = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_ant));
+    gint i;
+
+    if(current < 0 || current > ANT_COUNT)
+        current = 0;
+
+    if(!conf.ant_auto_switch)
+        return current;
+
     for(i=0; i<conf.ant_count; i++)
     {
         if(newfreq >= conf.ant_start[i] && newfreq <= conf.ant_stop[i])
-        {
-            if(gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_ant)) == i)
-                break;
-            gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_ant), i);
-            break;
-        }
+            return i;
     }
+
+    return current;
 }
 
 static void

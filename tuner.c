@@ -493,6 +493,7 @@ void tuner_clear_all()
 
     tuner.freq = 0;
     tuner.prevfreq = 0;
+    tuner.prevantenna = 0;
     ui_update_freq();
 
     tuner.sampling_interval = 0;
@@ -577,5 +578,17 @@ void tuner_clear_rds()
 
 gint tuner_get_freq()
 {
-    return tuner.freq - conf.freq_offset;
+    return tuner.freq - tuner.offset[tuner.antenna];
+}
+
+gint tuner_get_offset()
+{
+    return tuner.offset[tuner.antenna];
+}
+
+void tuner_set_offset(gint antenna,
+                      gint offset)
+{
+    if(antenna >= 0 && antenna <= ANT_COUNT)
+        tuner.offset[antenna] = offset;
 }

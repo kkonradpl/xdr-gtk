@@ -69,7 +69,6 @@ typedef struct settings
 
     /* Interface */
     gint initial_freq;
-    gint freq_offset;
     gboolean utc;
     gboolean auto_connect;
     gboolean mw_10k_steps;
@@ -113,6 +112,7 @@ typedef struct settings
     gboolean ant_auto_switch;
     gint ant_start[ANT_COUNT];
     gint ant_stop[ANT_COUNT];
+    gint ant_offset[ANT_COUNT];
 
     /* Logs */
     gint rdsspy_port;

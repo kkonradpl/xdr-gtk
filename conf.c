@@ -33,7 +33,6 @@ static const gchar *key_ifgain             = "ifgain";
 static const gchar *key_agc                = "agc";
 static const gchar *key_deemphasis         = "deemphasis";
 static const gchar *key_initial_freq       = "initial_freq";
-static const gchar *key_freq_offset        = "freq_offset";
 static const gchar *key_event_action       = "event_action";
 static const gchar *key_utc                = "utc";
 static const gchar *key_mw_10k_steps       = "mw_10k_steps";
@@ -71,6 +70,7 @@ static const gchar *key_clear_rds          = "clear_rds";
 static const gchar *key_auto_switch        = "auto_switch";
 static const gchar *key_ant_start          = "ant_start";
 static const gchar *key_ant_stop           = "ant_stop";
+static const gchar *key_ant_offset         = "ant_offset";
 static const gchar *key_rdsspy_port        = "rdsspy_port";
 static const gchar *key_rdsspy_auto        = "rdsspy_auto";
 static const gchar *key_rdsspy_run         = "rdsspy_run";
@@ -206,7 +206,6 @@ conf_read()
 
     /* Interface */
     conf.initial_freq       = conf_read_integer(keyfile, group_interface, key_initial_freq,       CONF_INTERFACE_INITIAL_FREQ);
-    conf.freq_offset        = conf_read_integer(keyfile, group_interface, key_freq_offset,        CONF_INTERFACE_FREQ_OFFSET);
     conf.event_action       = conf_read_integer(keyfile, group_interface, key_event_action,       CONF_INTERFACE_EVENT_ACTION);
     conf.utc                = conf_read_boolean(keyfile, group_interface, key_utc,                CONF_INTERFACE_UTC);
     conf.mw_10k_steps       = conf_read_boolean(keyfile, group_interface, key_mw_10k_steps,       CONF_INTERFACE_MW_10K_STEPS);
@@ -250,6 +249,7 @@ conf_read()
     conf.ant_auto_switch    = conf_read_boolean(keyfile, group_antenna, key_auto_switch,    CONF_ANTENNA_AUTO_SWITCH);
     conf_read_integers(keyfile, group_antenna, key_ant_start, ANT_COUNT, NULL, conf.ant_start);
     conf_read_integers(keyfile, group_antenna, key_ant_stop, ANT_COUNT, NULL, conf.ant_stop);
+    conf_read_integers(keyfile, group_antenna, key_ant_offset, ANT_COUNT, NULL, conf.ant_offset);
 
     /* Logs */
     conf.rdsspy_port    = conf_read_integer(keyfile, group_logs, key_rdsspy_port,    CONF_LOGS_RDSSPY_PORT);
@@ -316,6 +316,9 @@ conf_read()
     conf.scan_update     = conf_read_boolean(keyfile, group_scan, key_update,     CONF_SCAN_UPDATE);
     conf.scan_marks      = conf_uniq_int_list_read(keyfile, group_scan, key_marks);
 
+    if(conf.ant_count >= ANT_COUNT)
+        conf.ant_count = ANT_COUNT;
+
     if(!file_exists)
         conf_write();
 }
@@ -348,7 +351,6 @@ conf_write()
 
     /* Interface */
     g_key_file_set_integer(keyfile, group_interface, key_initial_freq,       conf.initial_freq);
-    g_key_file_set_integer(keyfile, group_interface, key_freq_offset,        conf.freq_offset);
     g_key_file_set_integer(keyfile, group_interface, key_event_action,       conf.event_action);
     g_key_file_set_boolean(keyfile, group_interface, key_utc,                conf.utc);
     g_key_file_set_boolean(keyfile, group_interface, key_mw_10k_steps,       conf.mw_10k_steps);
@@ -392,6 +394,7 @@ conf_write()
     g_key_file_set_boolean     (keyfile, group_antenna, key_auto_switch,    conf.ant_auto_switch);
     g_key_file_set_integer_list(keyfile, group_antenna, key_ant_start,      conf.ant_start, ANT_COUNT);
     g_key_file_set_integer_list(keyfile, group_antenna, key_ant_stop,       conf.ant_stop, ANT_COUNT);
+    g_key_file_set_integer_list(keyfile, group_antenna, key_ant_offset,     conf.ant_offset, ANT_COUNT);
 
     /* Logs */
     g_key_file_set_integer(keyfile, group_logs, key_rdsspy_port,    conf.rdsspy_port);
