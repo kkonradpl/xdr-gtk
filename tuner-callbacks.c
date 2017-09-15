@@ -378,6 +378,7 @@ tuner_gain(gpointer data)
     gint gain = GPOINTER_TO_INT(data);
     tuner.rfgain = (gain == 10 || gain == 11);
     tuner.ifgain = (gain ==  1 || gain == 11);
+    tuner_clear_signal();
     return FALSE;
 }
 
