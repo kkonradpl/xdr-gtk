@@ -35,6 +35,7 @@
 #define SCAN_SPECTRUM_ALPHA_HOLD 1.00
 #define SCAN_GRID_ALPHA          0.50
 #define SCAN_MARK_TUNED_WIDTH     3.0
+#define SCAN_MARK_LABEL_MARGIN    2.0
 
 #define SCAN_REDRAW_DELAY         500
 
@@ -89,6 +90,12 @@ typedef struct scan
     gint queue_redraw;
 } scan_t;
 
+typedef struct scan_ext_pairs
+{
+    gdouble start;
+    gdouble end;
+} scan_ext_t;
+
 static scan_t scan;
 static const double grid_pattern[] = {1.0, 1.0};
 static const gint grid_pattern_len = 2;
@@ -120,7 +127,7 @@ static void scan_view(GtkWidget*, gpointer);
 static gboolean scan_redraw(GtkWidget*, GdkEventExpose*, gpointer);
 static void scan_draw_spectrum(cairo_t*, tuner_scan_t*, gint, gint, gdouble, gdouble, gdouble);
 static void scan_draw_scale(cairo_t*, gint, gint, gdouble, gdouble);
-static void scan_draw_mark(cairo_t*, gint, gint, gint, gboolean);
+static void scan_draw_mark(cairo_t*, gint, gint, gint, gboolean, GSList**);
 static gboolean scan_click(GtkWidget*, GdkEventButton*, gpointer);
 static gboolean scan_motion(GtkWidget*, GdkEventMotion*, gpointer);
 static gboolean scan_leave(GtkWidget*, GdkEvent*, gpointer);
@@ -885,6 +892,7 @@ scan_redraw(GtkWidget      *widget,
     gdouble x_focus, y_focus, point_radius;
     gchar text[50];
     GList *l;
+    GSList *exts = NULL;
 
     width = widget->allocation.width - SCAN_OFFSET_LEFT - SCAN_OFFSET_RIGHT;
     height = widget->allocation.height - SCAN_OFFSET_TOP - SCAN_OFFSET_BOTTOM;
@@ -993,7 +1001,7 @@ scan_redraw(GtkWidget      *widget,
         if(freq >= scan.data->signals[0].freq &&
            freq <= scan.data->signals[scan.data->len-1].freq)
         {
-            scan_draw_mark(cr, width, height, freq, FALSE);
+            scan_draw_mark(cr, width, height, freq, FALSE, &exts);
         }
     }
     cairo_restore(cr);
@@ -1004,7 +1012,7 @@ scan_redraw(GtkWidget      *widget,
        tuner_get_freq() >= scan.data->signals[0].freq &&
        tuner_get_freq() <= scan.data->signals[scan.data->len-1].freq)
     {
-        scan_draw_mark(cr, width, height, tuner_get_freq(), TRUE);
+        scan_draw_mark(cr, width, height, tuner_get_freq(), TRUE, &exts);
     }
 
     if(scan.focus >= 0 && scan.focus < scan.data->len)
@@ -1064,6 +1072,8 @@ scan_redraw(GtkWidget      *widget,
         g_source_remove(scan.queue_redraw);
         scan.queue_redraw = 0;
     }
+
+    g_slist_free_full(exts, g_free);
     return FALSE;
 }
 
@@ -1165,41 +1175,70 @@ scan_draw_scale(cairo_t *cr,
 }
 
 static void
-scan_draw_mark(cairo_t *cr,
-               gint     width,
-               gint     height,
-               gint     freq,
-               gboolean current)
+scan_draw_mark(cairo_t   *cr,
+               gint       width,
+               gint       height,
+               gint       freq,
+               gboolean   current,
+               GSList   **exts)
 {
     cairo_text_extents_t extents;
     const gchar *freq_text;
-    gdouble x;
+    scan_ext_t *ext;
+    GSList *it;
+    gdouble x, lstart, lend;
+    gboolean label;
+
+    /* Current frequency has no label */
+    label = !current;
 
     x  = freq - scan.data->signals[0].freq;
     x /= (gdouble)(scan.data->signals[scan.data->len-1].freq - scan.data->signals[0].freq);
     x *= width;
 
+    /* Check whether the label overlaps any existing one */
+    cairo_set_font_size(cr, SCAN_FONT_SCALE_SIZE);
+    freq_text = scan_format_frequency(freq);
+    cairo_text_extents(cr, freq_text, &extents);
+    lstart = SCAN_OFFSET_LEFT+x-(extents.width/2.0 + extents.x_bearing);
+    lend = SCAN_OFFSET_LEFT+x+(extents.width/2.0 + extents.x_bearing);
+    for(it=*exts; it; it=it->next)
+    {
+        ext = (scan_ext_t*)it->data;
+        if((lstart >= ext->start && lstart <= ext->end) ||
+           (lend >= ext->start && lend <= ext->end))
+        {
+            label = FALSE;
+            break;
+        }
+    }
+
+    if(label)
+    {
+        /* Draw a frequency label */
+        cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+        cairo_move_to(cr, lstart, SCAN_OFFSET_TOP+SCAN_OFFSET_BOTTOM+height-3.0);
+        cairo_show_text(cr, freq_text);
+        cairo_stroke(cr);
+
+        /* Add label extents to the list */
+        ext = g_malloc(sizeof(scan_ext_t));
+        ext->start = lstart - SCAN_MARK_LABEL_MARGIN;
+        ext->end = lend + SCAN_MARK_LABEL_MARGIN;
+        *exts = g_slist_append(*exts, ext);
+    }
+
+
     if(current)
+    {
+        /* Set different width for the currently tuned frequency */
         cairo_set_line_width(cr, SCAN_MARK_TUNED_WIDTH);
+    }
 
     /* Draw a vertical line */
     cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, SCAN_GRID_ALPHA);
     cairo_move_to(cr, SCAN_OFFSET_LEFT+x, SCAN_OFFSET_TOP);
-    cairo_line_to(cr, SCAN_OFFSET_LEFT+x, SCAN_OFFSET_TOP+height+(current?0.0:4.0));
-    cairo_stroke(cr);
-
-    if(current)
-        return;
-
-    /* Draw a frequency label */
-    cairo_set_font_size(cr, SCAN_FONT_SCALE_SIZE);
-    freq_text = scan_format_frequency(freq);
-    cairo_text_extents(cr, freq_text, &extents);
-    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-    cairo_move_to(cr,
-                  SCAN_OFFSET_LEFT+x-(extents.width/2.0 + extents.x_bearing),
-                  SCAN_OFFSET_TOP+SCAN_OFFSET_BOTTOM+height-3.0);
-    cairo_show_text(cr, freq_text);
+    cairo_line_to(cr, SCAN_OFFSET_LEFT+x, SCAN_OFFSET_TOP+height+(label?4.0:0.0));
     cairo_stroke(cr);
 }
 
