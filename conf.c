@@ -717,7 +717,7 @@ static gint
 conf_uniq_int_list_cmp(gconstpointer a,
                        gconstpointer b)
 {
-    return a-b;
+    return GPOINTER_TO_INT(a)-GPOINTER_TO_INT(b);
 }
 
 void

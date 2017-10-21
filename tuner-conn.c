@@ -1,12 +1,14 @@
-#define _WIN32_WINNT 0x0501
 #include <string.h>
 #include <stdlib.h>
 #include "ui-connect.h"
 #include "tuner-conn.h"
 #include "tuner.h"
 #ifdef G_OS_WIN32
-#include <windows.h>
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
 #include <winsock2.h>
+#include <windows.h>
 #include <ws2tcpip.h>
 #include "win32.h"
 #else
