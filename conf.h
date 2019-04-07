@@ -81,6 +81,7 @@ typedef struct settings
     gboolean hide_statusbar;
     gboolean restore_position;
     gboolean grab_focus;
+    gboolean title_tuner_info;
 
     /* Graph */
     gdouble signal_offset;

@@ -55,6 +55,7 @@ static void tune_ui_round(GtkWidget*, gpointer);
 static void tune_ui_step_click(GtkWidget*, GdkEventButton*, gpointer);
 static void tune_ui_step_scroll(GtkWidget*, GdkEventScroll*, gpointer);
 static gboolean ui_toggle_gain(GtkWidget*, GdkEventButton*, gpointer);
+static gboolean ui_update_title(gpointer);
 static gboolean ui_update_clock(gpointer);
 static void tune_ui_af(GtkTreeSelection*, gpointer);
 static void window_on_top(GtkToggleButton*);
@@ -553,6 +554,7 @@ ui_init()
     g_signal_connect(ui.window, "destroy", G_CALLBACK(ui_destroy), NULL);
     g_signal_connect(ui.window, "scroll-event", G_CALLBACK(mouse_scroll), NULL);
     ui.status_timeout = g_timeout_add(1000, (GSourceFunc)ui_update_clock, (gpointer)ui.l_status);
+    g_timeout_add(1000, (GSourceFunc)ui_update_title, NULL);
 
     signal_init();
 
@@ -720,6 +722,49 @@ ui_toggle_gain(GtkWidget      *widget,
         return TRUE;
     }
     return FALSE;
+}
+
+static gboolean
+ui_update_title(gpointer user_data)
+{
+    static gint last_signal;
+    static gint last_freq;
+    static gint last_pi;
+    static gboolean init = FALSE;
+    gint signal = (gint)round(signal_level(tuner.signal));
+    gint pi = (tuner.rds_pi_err_level == 0) ? tuner.rds_pi : -1;
+    gchar *title;
+
+    if(tuner.thread)
+    {
+        if(conf.title_tuner_info)
+        {
+            if(!init ||
+               (last_freq != tuner.freq ||
+                last_signal != signal ||
+                last_pi != pi))
+            {
+                init = TRUE;
+                last_freq = tuner.freq;
+                last_signal = signal;
+                last_pi = pi;
+
+                if(last_pi >= 0)
+                    title = g_strdup_printf("%g %d%s %04X", last_freq/1000.0, last_signal, signal_unit(), last_pi);
+                else
+                    title = g_strdup_printf("%g %d%s", last_freq/1000.0, last_signal, signal_unit());
+
+                gtk_window_set_title(GTK_WINDOW(ui.window), title);
+                g_free(title);
+            }
+        }
+        else if(init)
+        {
+            gtk_window_set_title(GTK_WINDOW(ui.window), ui.window_title);
+        }
+    }
+
+    return TRUE;
 }
 
 static gboolean
