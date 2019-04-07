@@ -87,7 +87,7 @@ connection_dialog(gboolean auto_connect)
     c_serial = gtk_combo_box_text_new();
 #ifdef G_OS_WIN32
     gchar tmp[10];
-    for(i=1; i<=20; i++)
+    for(i=1; i<=99; i++)
     {
         g_snprintf(tmp, sizeof(tmp), "COM%d", i);
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_serial), tmp);
