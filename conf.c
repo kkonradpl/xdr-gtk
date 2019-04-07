@@ -48,6 +48,8 @@ static const gchar *key_hide_statusbar     = "hide_statusbar";
 static const gchar *key_restore_position   = "restore_position";
 static const gchar *key_grab_focus         = "grab_focus";
 static const gchar *key_title_tuner_info   = "title_tuner_info";
+static const gchar *key_accessibility      = "accessibility";
+static const gchar *key_horizontal_af      = "horizontal_af";
 static const gchar *key_unit               = "unit";
 static const gchar *key_display            = "display";
 static const gchar *key_mode               = "mode";
@@ -223,6 +225,8 @@ conf_read()
     conf.restore_position   = conf_read_boolean(keyfile, group_interface, key_restore_position,   CONF_INTERFACE_RESTORE_POSITION);
     conf.grab_focus         = conf_read_boolean(keyfile, group_interface, key_grab_focus,         CONF_INTERFACE_GRAB_FOCUS);
     conf.title_tuner_info   = conf_read_boolean(keyfile, group_interface, key_title_tuner_info,   CONF_INTERFACE_TITLE_TUNER_INFO);
+    conf.accessibility      = conf_read_boolean(keyfile, group_interface, key_accessibility,      CONF_INTERFACE_ACCESSIBILITY);
+    conf.horizontal_af      = conf_read_boolean(keyfile, group_interface, key_horizontal_af,      CONF_INTERFACE_HORIZONTAL_AF);
 
     /* Graph */
     conf.signal_unit    = conf_read_integer(keyfile, group_signal, key_unit,     CONF_SIGNAL_UNIT);
@@ -370,6 +374,8 @@ conf_write()
     g_key_file_set_boolean(keyfile, group_interface, key_restore_position,   conf.restore_position);
     g_key_file_set_boolean(keyfile, group_interface, key_grab_focus,         conf.grab_focus);
     g_key_file_set_boolean(keyfile, group_interface, key_title_tuner_info,   conf.title_tuner_info);
+    g_key_file_set_boolean(keyfile, group_interface, key_accessibility,      conf.accessibility);
+    g_key_file_set_boolean(keyfile, group_interface, key_horizontal_af,      conf.horizontal_af);
 
     /* Signal */
     g_key_file_set_integer(keyfile, group_signal, key_unit,    conf.signal_unit);

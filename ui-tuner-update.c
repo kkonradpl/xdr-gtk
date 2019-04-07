@@ -74,39 +74,61 @@ ui_update_mode()
 void
 ui_update_stereo_flag()
 {
-    static gboolean flag = FALSE;
-    static gboolean forced_mono = FALSE;
+    static gint flag = -1;
+    static gint forced_mono = -1;
 
-    if(forced_mono != tuner.forced_mono)
+    if(forced_mono != tuner.forced_mono ||
+       flag != tuner.stereo)
     {
         forced_mono = tuner.forced_mono;
-        if(forced_mono)
-            gtk_label_set_markup(GTK_LABEL(ui.l_st), "<span strikethrough=\"true\" strikethrough-color=\"black\">ST</span>");
-        else
-            gtk_label_set_markup(GTK_LABEL(ui.l_st), "ST");
-    }
-
-    if(flag != tuner.stereo)
-    {
         flag = tuner.stereo;
-        gtk_widget_modify_fg(GTK_WIDGET(ui.l_st),
-                             GTK_STATE_NORMAL,
-                             flag ? &ui.colors.stereo : &ui.colors.insensitive);
+
+        if(flag)
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_st), (!forced_mono) ? "ST" : "MO");
+            gtk_widget_modify_fg(GTK_WIDGET(ui.l_st), GTK_STATE_NORMAL, &ui.colors.stereo);
+        }
+        else
+        {
+            if(!conf.accessibility)
+            {
+                gtk_label_set_text(GTK_LABEL(ui.l_st), (!forced_mono) ? "ST" : "MO");
+                gtk_widget_modify_fg(GTK_WIDGET(ui.l_st), GTK_STATE_NORMAL, &ui.colors.insensitive);
+            }
+            else
+            {
+                gtk_label_set_markup(GTK_LABEL(ui.l_st), "  ");
+            }
+        }
     }
 }
 
 void
 ui_update_rds_flag()
 {
-    static gboolean last_flag = FALSE;
-    gboolean flag = (tuner.rds > 0);
+    static gint last_flag = -1;
 
-    if(last_flag != flag)
+    if(last_flag != tuner.rds)
     {
-        last_flag = flag;
-        gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds),
-                             GTK_STATE_NORMAL,
-                             flag ? &conf.color_rds : &ui.colors.insensitive);
+        last_flag = tuner.rds;
+
+        if(last_flag == 0)
+        {
+            if(!conf.accessibility)
+            {
+                gtk_label_set_text(GTK_LABEL(ui.l_rds), "RDS");
+                gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds), GTK_STATE_NORMAL, &ui.colors.insensitive);
+            }
+            else
+            {
+                gtk_label_set_markup(GTK_LABEL(ui.l_rds), "   ");
+            }
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_rds), "RDS");
+            gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds), GTK_STATE_NORMAL, &conf.color_rds);
+        }
     }
 }
 
@@ -364,8 +386,15 @@ ui_update_tp()
     switch(tuner.rds_tp)
     {
     case 0:
-        gtk_label_set_text(GTK_LABEL(ui.l_tp), "TP");
-        gtk_widget_modify_fg(GTK_WIDGET(ui.l_tp), GTK_STATE_NORMAL, &ui.colors.insensitive);
+        if(!conf.accessibility)
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_tp), "TP");
+            gtk_widget_modify_fg(GTK_WIDGET(ui.l_tp), GTK_STATE_NORMAL, &ui.colors.insensitive);
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_tp), "  ");
+        }
         break;
     case 1:
         gtk_label_set_text(GTK_LABEL(ui.l_tp), "TP");
@@ -389,8 +418,15 @@ ui_update_ta()
     switch(tuner.rds_ta)
     {
     case 0:
-        gtk_label_set_text(GTK_LABEL(ui.l_ta), "TA");
-        gtk_widget_modify_fg(GTK_WIDGET(ui.l_ta), GTK_STATE_NORMAL, &ui.colors.insensitive);
+        if(!conf.accessibility)
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_ta), "TA");
+            gtk_widget_modify_fg(GTK_WIDGET(ui.l_ta), GTK_STATE_NORMAL, &ui.colors.insensitive);
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_ta), "  ");
+        }
         break;
     case 1:
         gtk_label_set_text(GTK_LABEL(ui.l_ta), "TA");
@@ -414,13 +450,34 @@ ui_update_ms()
     switch(tuner.rds_ms)
     {
     case 0:
-        gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
+        if(!conf.accessibility)
+        {
+            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_ms), "Speech");
+        }
         break;
     case 1:
-        gtk_label_set_markup(GTK_LABEL(ui.l_ms), "M<span color=\"" UI_COLOR_INSENSITIVE "\">S</span>");
+        if(!conf.accessibility)
+        {
+            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_ms), "Music ");
+        }
         break;
     default:
-        gtk_label_set_text(GTK_LABEL(ui.l_ms), "  ");
+        if(!conf.accessibility)
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_ms), "  ");
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_ms), "      ");
+        }
         break;
     }
 }
@@ -433,17 +490,19 @@ ui_update_pty()
         { "None", "News", "Affairs", "Info", "Sport", "Educate", "Drama", "Culture", "Science", "Varied", "Pop M", "Rock M", "Easy M", "Light M", "Classics", "Other M", "Weather", "Finance", "Children", "Social", "Religion", "Phone In", "Travel", "Leisure", "Jazz", "Country", "Nation M", "Oldies", "Folk M", "Document", "TEST", "Alarm !" },
         { "None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!" }
     };
+
     static gint last_pty = G_MININT;
 
     if(last_pty == tuner.rds_pty)
         return;
+
     last_pty = tuner.rds_pty;
 
-    if(tuner.rds_pty >= 0 && tuner.rds_pty < 32)
+    if(last_pty >= 0 && last_pty < 32)
     {
-        gtk_label_set_text(GTK_LABEL(ui.l_pty), pty_list[conf.rds_pty_set][tuner.rds_pty]);
-        stationlist_pty(tuner.rds_pty);
-        log_pty(pty_list[conf.rds_pty_set][tuner.rds_pty]);
+        gtk_label_set_text(GTK_LABEL(ui.l_pty), pty_list[conf.rds_pty_set][last_pty]);
+        stationlist_pty(last_pty);
+        log_pty(pty_list[conf.rds_pty_set][last_pty]);
     }
     else
     {
@@ -503,7 +562,7 @@ ui_update_ps(gboolean new_data)
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
                                 "<span color=\"#%02X%02X%02X\">%c</span>"
                                 "<span color=\"" UI_COLOR_INSENSITIVE "\">%c</span>",
-                                (conf.rds_ps_progressive?'(':'['),
+                                conf.rds_ps_progressive?'(':'[',
                                 c[0], c[0], c[0], tuner.rds_ps[0],
                                 c[1], c[1], c[1], tuner.rds_ps[1],
                                 c[2], c[2], c[2], tuner.rds_ps[2],
@@ -512,7 +571,7 @@ ui_update_ps(gboolean new_data)
                                 c[5], c[5], c[5], tuner.rds_ps[5],
                                 c[6], c[6], c[6], tuner.rds_ps[6],
                                 c[7], c[7], c[7], tuner.rds_ps[7],
-                                (conf.rds_ps_progressive?')':']'));
+                                conf.rds_ps_progressive?')':']');
     gtk_label_set_markup(GTK_LABEL(ui.l_ps), m);
     g_free(m);
 
@@ -540,10 +599,12 @@ ui_update_rt(gboolean flag)
         return;
     }
 
-    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">[</span>"
+    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">%s</span>"
                                 "%s"
-                                "<span color=\"" UI_COLOR_INSENSITIVE "\">]</span>",
-                                tuner.rds_rt[flag]);
+                                "<span color=\"" UI_COLOR_INSENSITIVE "\">%s</span>",
+                                (!conf.accessibility ? "[" : ""),
+                                tuner.rds_rt[flag],
+                                (!conf.accessibility ? "]" : ""));
 
     gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), m);
     g_free(m);
@@ -554,18 +615,22 @@ ui_update_rt(gboolean flag)
 void
 ui_update_af(gint af)
 {
-    GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(ui.af_list));
+    GtkListStore *model = ui.af_model;
     GtkTreeIter iter;
 
     // if new frequency is found on the AF list, ui_update_af_check() will set the pointer to NULL
-    gtk_tree_model_foreach(model, (GtkTreeModelForeachFunc)ui_update_af_check, &af);
+    gtk_tree_model_foreach(GTK_TREE_MODEL(model), (GtkTreeModelForeachFunc)ui_update_af_check, &af);
     if(af)
     {
-        GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ui.af_box));
-        ui.autoscroll = (gtk_adjustment_get_value(adj) == gtk_adjustment_get_lower(adj));
-        gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+        if(!conf.horizontal_af)
+        {
+            GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ui.af_treeview_scroll));
+            ui.autoscroll = (gtk_adjustment_get_value(adj) == gtk_adjustment_get_lower(adj));
+        }
+
+        gtk_list_store_append(model, &iter);
         gchar *af_new_freq = g_strdup_printf("%.1f", ((87500+af*100)/1000.0));
-        gtk_list_store_set(GTK_LIST_STORE(model), &iter, 0, af, 1, af_new_freq, -1);
+        gtk_list_store_set(model, &iter, 0, af, 1, af_new_freq, -1);
         stationlist_af(af);
         log_af(af_new_freq);
         g_free(af_new_freq);
@@ -667,8 +732,7 @@ ui_unauthorized()
 void
 ui_clear_af()
 {
-    GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(ui.af_list));
-    gtk_list_store_clear(GTK_LIST_STORE(model));
+    gtk_list_store_clear(ui.af_model);
 }
 
 void

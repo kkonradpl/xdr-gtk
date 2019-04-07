@@ -70,7 +70,6 @@ static void ui_af_autoscroll(GtkWidget*, GtkAllocation*, gpointer);
 void
 ui_init()
 {
-    GtkListStore *model;
     GtkCellRenderer *renderer;
 
     gtk_rc_parse_string(rc_string);
@@ -81,6 +80,8 @@ ui_init()
     gdk_color_parse(UI_COLOR_ACTION, &ui.colors.action);
     gdk_color_parse(UI_COLOR_ACTION2, &ui.colors.action2);
     ui.click_cursor = gdk_cursor_new(GDK_HAND2);
+    ui.af_model = gtk_list_store_new(2, G_TYPE_INT, G_TYPE_STRING);
+    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(ui.af_model), AF_LIST_STORE_ID, GTK_SORT_ASCENDING);
 
     ui.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_position(GTK_WINDOW(ui.window), GTK_WIN_POS_CENTER);
@@ -107,7 +108,7 @@ ui_init()
     gtk_container_add(GTK_CONTAINER(ui.frame), ui.margin);
 
     ui.box = gtk_vbox_new(FALSE, 2);
-    gtk_container_set_border_width(GTK_CONTAINER(ui.box), 1);
+    gtk_container_set_border_width(GTK_CONTAINER(ui.box), 2);
     gtk_container_add(GTK_CONTAINER(ui.margin), ui.box);
     ui.box_header = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(ui.box), ui.box_header);
@@ -253,7 +254,7 @@ ui_init()
     gtk_box_pack_start(GTK_BOX(ui.box_left), ui.box_left_indicators, FALSE, FALSE, 0);
 
     ui.event_st = gtk_event_box_new();
-    ui.l_st = gtk_label_new("ST");
+    ui.l_st = gtk_label_new(NULL);
     gtk_container_add(GTK_CONTAINER(ui.event_st), ui.l_st);
     gtk_widget_modify_font(ui.l_st, font_status);
     gtk_widget_modify_fg(GTK_WIDGET(ui.l_st), GTK_STATE_NORMAL, &ui.colors.insensitive);
@@ -267,11 +268,11 @@ ui_init()
     g_signal_connect(ui.event_st, "button-press-event", G_CALLBACK(ui_st_click), NULL);
 
 
-    ui.l_rds = gtk_label_new("RDS");
+    ui.l_rds = gtk_label_new(NULL);
     gtk_widget_modify_font(ui.l_rds, font_status);
     gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds), GTK_STATE_NORMAL, &ui.colors.insensitive);
     gtk_misc_set_alignment(GTK_MISC(ui.l_rds), 0, 0.5);
-    gtk_widget_set_tooltip_text(ui.l_rds, "RDS PI indicator");
+    gtk_widget_set_tooltip_text(ui.l_rds, "RDS indicator");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_rds, TRUE, TRUE,  3);
 
     ui.l_tp = gtk_label_new(NULL);
@@ -310,6 +311,26 @@ ui_init()
     g_signal_connect(ui.event_sig, "enter-notify-event", G_CALLBACK(ui_cursor), ui.click_cursor);
     g_signal_connect(ui.event_sig, "leave-notify-event", G_CALLBACK(ui_cursor), NULL);
     g_signal_connect(ui.event_sig, "button-press-event", G_CALLBACK(ui_sig_click), NULL);
+
+    // ----------------
+
+    if(conf.horizontal_af)
+    {
+        ui.af_iconview = gtk_icon_view_new_with_model(GTK_TREE_MODEL(ui.af_model));
+        gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(ui.af_iconview), -1);
+        gtk_icon_view_set_text_column(GTK_ICON_VIEW(ui.af_iconview), 1);
+        gtk_icon_view_set_spacing(GTK_ICON_VIEW(ui.af_iconview), 0);
+        gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(ui.af_iconview), 0);
+        //gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(ui.af_iconview), 0);
+        gtk_icon_view_set_margin(GTK_ICON_VIEW(ui.af_iconview), 0);
+        gtk_icon_view_set_item_padding(GTK_ICON_VIEW(ui.af_iconview), 0);
+        gtk_widget_set_can_focus(GTK_WIDGET(ui.af_iconview), FALSE);
+
+        ui.af_iconview_scroll = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_iconview_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        gtk_container_add(GTK_CONTAINER(ui.af_iconview_scroll), ui.af_iconview);
+        gtk_box_pack_start(GTK_BOX(ui.box_left), ui.af_iconview_scroll, TRUE, TRUE, 0);
+    }
 
     // ----------------
 
@@ -457,29 +478,36 @@ ui_init()
 
     // ----------------
 
-    ui.l_af = gtk_label_new("  AF:  ");
-    gtk_widget_modify_font(ui.l_af, font_af);
-    gtk_box_pack_start(GTK_BOX(ui.box_right), ui.l_af, FALSE, FALSE, 3);
+    if(!conf.horizontal_af)
+    {
+        ui.l_af = gtk_label_new("  AF:  ");
+        gtk_widget_modify_font(ui.l_af, font_af);
+        gtk_box_pack_start(GTK_BOX(ui.box_right), ui.l_af, FALSE, FALSE, 3);
 
-    model = gtk_list_store_new(2, G_TYPE_INT, G_TYPE_STRING);
-    ui.af_list = gtk_tree_view_new();
-    gtk_tree_view_set_model(GTK_TREE_VIEW(ui.af_list), GTK_TREE_MODEL(model));
-    g_object_unref(model);
-    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_list), -1, "ID", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
-    gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_list), -1, "FREQ", gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
-    gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(ui.af_list), AF_LIST_STORE_ID), FALSE);
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(ui.af_list), FALSE);
-    gtk_widget_modify_base(ui.af_list, GTK_STATE_NORMAL, &ui.colors.background);
-    g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(ui.af_list)), "changed", G_CALLBACK(tune_ui_af), NULL);
-    ui.autoscroll = FALSE;
-    g_signal_connect(GTK_TREE_VIEW(ui.af_list), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
-    gtk_widget_set_can_focus(GTK_WIDGET(ui.af_list), FALSE);
-    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model), AF_LIST_STORE_ID, GTK_SORT_ASCENDING);
+        ui.af_treeview = gtk_tree_view_new();
+        gtk_tree_view_set_model(GTK_TREE_VIEW(ui.af_treeview), GTK_TREE_MODEL(ui.af_model));
 
-    ui.af_box = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_box), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_container_add(GTK_CONTAINER(ui.af_box), ui.af_list);
-    gtk_box_pack_start(GTK_BOX(ui.box_right), ui.af_box, TRUE, TRUE, 0);
+        gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_treeview), -1, "ID",
+                                                    gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
+        gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_treeview), -1, "FREQ",
+                                                    gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
+
+        gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(ui.af_treeview), AF_LIST_STORE_ID),
+                                         FALSE);
+        gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(ui.af_treeview), FALSE);
+        gtk_widget_modify_base(ui.af_treeview, GTK_STATE_NORMAL, &ui.colors.background);
+        g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(ui.af_treeview)), "changed", G_CALLBACK(tune_ui_af),
+                         NULL);
+        ui.autoscroll = FALSE;
+        g_signal_connect(GTK_TREE_VIEW(ui.af_treeview), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
+        gtk_widget_set_can_focus(GTK_WIDGET(ui.af_treeview), FALSE);
+
+        ui.af_treeview_scroll = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_treeview_scroll), GTK_POLICY_NEVER,
+                                       GTK_POLICY_AUTOMATIC);
+        gtk_container_add(GTK_CONTAINER(ui.af_treeview_scroll), ui.af_treeview);
+        gtk_box_pack_start(GTK_BOX(ui.box_right), ui.af_treeview_scroll, TRUE, TRUE, 0);
+    }
 
     // ----------------
 
@@ -1201,7 +1229,7 @@ ui_af_autoscroll(GtkWidget     *widget,
 {
     GtkWidget *parent = gtk_widget_get_parent(widget);
     GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(parent));
-    if(ui.autoscroll)
+    if(!conf.horizontal_af && ui.autoscroll)
     {
         gtk_adjustment_set_value(adj, gtk_adjustment_get_lower(adj));
         ui.autoscroll = FALSE;

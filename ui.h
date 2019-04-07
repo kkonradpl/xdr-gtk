@@ -36,6 +36,7 @@ typedef struct ui
     gchar window_title[100];
     ui_colors_t colors;
     GdkCursor *click_cursor;
+    GtkListStore *af_model;
 
     GtkWidget *frame;
     GtkWidget *margin;
@@ -80,6 +81,9 @@ typedef struct ui
     GtkWidget *l_pty;
     GtkWidget *event_sig, *l_sig;
 
+    GtkWidget *af_iconview;
+    GtkWidget *af_iconview_scroll;
+
     GtkWidget *b_connect;
     GtkWidget *b_pattern;
     GtkWidget *b_settings;
@@ -105,8 +109,8 @@ typedef struct ui
     GtkWidget *l_status;
 
     GtkWidget *l_af;
-    GtkWidget *af_list;
-    GtkWidget *af_box;
+    GtkWidget *af_treeview;
+    GtkWidget *af_treeview_scroll;
 
     gboolean autoscroll;
 } ui_t;
