@@ -82,6 +82,7 @@ static GtkWidget *l_key_ps_mode, *b_key_ps_mode;
 static GtkWidget *l_scan_toggle, *b_key_scan_toggle;
 static GtkWidget *l_scan_prev, *b_key_scan_prev;
 static GtkWidget *l_scan_next, *b_key_scan_next;
+static GtkWidget *l_stereo_toggle, *b_key_stereo_toggle;
 
 /* Presets page */
 static GtkWidget *page_presets, *presets_wrapper, *table_presets;
@@ -622,7 +623,7 @@ settings_dialog(gint tab_num)
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(page_key), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_key, gtk_label_new("Keyboard"));
 
-    table_key = gtk_table_new(19, 2, FALSE);
+    table_key = gtk_table_new(20, 2, FALSE);
     gtk_container_set_border_width(GTK_CONTAINER(table_key), 4);
     gtk_table_set_homogeneous(GTK_TABLE(table_key), FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table_key), 1);
@@ -782,6 +783,14 @@ settings_dialog(gint tab_num)
     b_key_scan_next = gtk_button_new_with_label(gdk_keyval_name(conf.key_scan_next));
     g_signal_connect(b_key_scan_next, "clicked", G_CALLBACK(settings_key), NULL);
     gtk_table_attach(GTK_TABLE(table_key), b_key_scan_next, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+
+    row++;
+    l_stereo_toggle = gtk_label_new("Stereo toggle");
+    gtk_misc_set_alignment(GTK_MISC(l_stereo_toggle), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table_key), l_stereo_toggle, 0, 1, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+    b_key_stereo_toggle = gtk_button_new_with_label(gdk_keyval_name(conf.key_scan_next));
+    g_signal_connect(b_key_stereo_toggle, "clicked", G_CALLBACK(settings_key), NULL);
+    gtk_table_attach(GTK_TABLE(table_key), b_key_stereo_toggle, 1, 2, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
 
     /* Presets page */
@@ -1053,6 +1062,7 @@ settings_dialog(gint tab_num)
     conf.key_scan_toggle = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_scan_toggle)));
     conf.key_scan_prev = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_scan_prev)));
     conf.key_scan_next = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_scan_next)));
+    conf.key_stereo_toggle = gdk_keyval_from_name(gtk_button_get_label(GTK_BUTTON(b_key_stereo_toggle)));
 
     /* Presets page */
     for(i=0; i<PRESETS; i++)

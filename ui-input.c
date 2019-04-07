@@ -177,6 +177,12 @@ keyboard_press(GtkWidget   *widget,
         return TRUE;
     }
 
+    if(current == conf.key_stereo_toggle)
+    {
+        tuner_set_forced_mono(!tuner.forced_mono);
+        return TRUE;
+    }
+
     if(disable_frequency_entry)
     {
         return FALSE;

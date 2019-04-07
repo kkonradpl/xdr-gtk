@@ -146,6 +146,7 @@ typedef struct settings
     guint key_scan_toggle;
     guint key_scan_prev;
     guint key_scan_next;
+    guint key_stereo_toggle;
 
     /* Presets */
     gint presets[PRESETS];

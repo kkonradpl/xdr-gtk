@@ -102,6 +102,7 @@ static const gchar *key_rds_ps_mode        = "rds_ps_mode";
 static const gchar *key_scan_toggle        = "scan_toggle";
 static const gchar *key_scan_prev          = "scan_prev";
 static const gchar *key_scan_next          = "scan_next";
+static const gchar *key_stereo_toggle      = "stereo_toggle";
 static const gchar *key_presets            = "presets";
 static const gchar *key_freqs              = "freqs";
 static const gchar *key_timeouts           = "timeouts";
@@ -285,6 +286,7 @@ conf_read()
     conf.key_scan_toggle    = conf_read_integer(keyfile, group_keyboard, key_scan_toggle,    CONF_KEY_SCAN_TOGGLE);
     conf.key_scan_prev      = conf_read_integer(keyfile, group_keyboard, key_scan_prev,      CONF_KEY_SCAN_PREV);
     conf.key_scan_next      = conf_read_integer(keyfile, group_keyboard, key_scan_next,      CONF_KEY_SCAN_NEXT);
+    conf.key_stereo_toggle  = conf_read_integer(keyfile, group_keyboard, key_stereo_toggle,  CONF_KEY_STEREO_TOGGLE);
 
     /* Presets */
     conf_read_integers(keyfile, group_presets, key_presets, PRESETS, default_presets, conf.presets);
@@ -430,6 +432,7 @@ conf_write()
     g_key_file_set_integer(keyfile, group_keyboard, key_scan_toggle,    conf.key_scan_toggle);
     g_key_file_set_integer(keyfile, group_keyboard, key_scan_prev,      conf.key_scan_prev);
     g_key_file_set_integer(keyfile, group_keyboard, key_scan_next,      conf.key_scan_next);
+    g_key_file_set_integer(keyfile, group_keyboard, key_stereo_toggle,  conf.key_stereo_toggle);
 
     /* Presets */
     g_key_file_set_integer_list(keyfile, group_presets, key_presets, conf.presets, PRESETS);
