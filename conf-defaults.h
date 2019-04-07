@@ -104,6 +104,7 @@
 #define CONF_KEY_SCAN_PREV      GDK_KEY_less
 #define CONF_KEY_SCAN_NEXT      GDK_KEY_greater
 #define CONF_KEY_STEREO_TOGGLE  GDK_KEY_M
+#define CONF_KEY_MODE_TOGGLE    GDK_KEY_F
 
 /* Presets */
 #define CONF_PRESET_1   87600

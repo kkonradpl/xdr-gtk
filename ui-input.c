@@ -183,6 +183,12 @@ keyboard_press(GtkWidget   *widget,
         return TRUE;
     }
 
+    if(current == conf.key_mode_toggle)
+    {
+        tuner_set_mode((tuner.mode != MODE_FM) ? MODE_FM : MODE_AM);
+        return TRUE;
+    }
+
     if(disable_frequency_entry)
     {
         return FALSE;
