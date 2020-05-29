@@ -389,6 +389,25 @@ mouse_freq(GtkWidget *widget,
 }
 
 gboolean
+mouse_scroll(GtkWidget *widget,
+         GdkEventScroll  *event,
+         gpointer   nothing)
+{
+    if(event->direction == GDK_SCROLL_DOWN)
+    {
+        tuner_modify_frequency(TUNER_FREQ_MODIFY_DOWN);
+        return TRUE;
+    }
+
+    if(event->direction == GDK_SCROLL_UP)
+    {
+        tuner_modify_frequency(TUNER_FREQ_MODIFY_UP);
+        return TRUE;
+    }
+    return TRUE;
+}
+
+gboolean
 mouse_pi(GtkWidget *widget,
          GdkEvent  *event,
          gpointer   nothing)
