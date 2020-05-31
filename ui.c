@@ -549,6 +549,7 @@ ui_init()
     g_signal_connect(ui.window, "button-press-event", G_CALLBACK(mouse_window), GTK_WINDOW(ui.window));
     g_signal_connect(ui.window, "delete-event", G_CALLBACK(ui_delete_event), NULL);
     g_signal_connect(ui.window, "destroy", G_CALLBACK(ui_destroy), NULL);
+    g_signal_connect(ui.window, "scroll-event", G_CALLBACK(mouse_scroll), NULL);
     ui.status_timeout = g_timeout_add(1000, (GSourceFunc)ui_update_clock, (gpointer)ui.l_status);
 
     signal_init();
