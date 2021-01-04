@@ -26,6 +26,7 @@
 #define DEBUG_WRITE 1
 
 #define SERIAL_BUFFER 10000
+tuner_t tuner;
 
 typedef struct tuner_thread
 {

@@ -97,7 +97,7 @@ typedef struct tuner
     gint offset[ANT_COUNT];
 } tuner_t;
 
-tuner_t tuner;
+extern tuner_t tuner;
 
 gpointer tuner_thread_new(gint, gintptr);
 gboolean tuner_write_socket(gintptr, gchar*, int);

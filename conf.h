@@ -180,7 +180,7 @@ typedef struct settings
     GList *scan_marks;
 } settings_t;
 
-settings_t conf;
+extern settings_t conf;
 
 void conf_init(const gchar*);
 void conf_write();
