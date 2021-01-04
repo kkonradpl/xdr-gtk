@@ -111,7 +111,7 @@ typedef struct ui
     gboolean autoscroll;
 } ui_t;
 
-ui_t ui;
+extern ui_t ui;
 
 void ui_init();
 

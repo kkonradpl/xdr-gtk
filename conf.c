@@ -5,6 +5,8 @@
 
 #define CONF_DIR "xdr-gtk"
 #define CONF_FILE "xdr-gtk.conf"
+settings_t conf;
+
 
 static const gchar *group_window     = "window";
 static const gchar *group_connection = "connection";

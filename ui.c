@@ -22,6 +22,8 @@
 #ifdef G_OS_WIN32
 #include "win32.h"
 #endif
+ui_t ui;
+
 
 static const char rc_string[] = "style \"small-button-style\"\n"
                                 "{\n"
