@@ -1,17 +1,28 @@
 XDR-GTK
 =======
 
-User interface for the XDR-F1HD Radio Tuner with XDR-I2C modification.
+User interface for XDR-F1HD tuner with XDR-I2C modification.
 
-Written in C/GTK+ for GNU/Linux and Windows operating systems.
+![Screenshot](/xdr-gtk.png?raw=true)
 
-Copyright (C) 2012-2016  Konrad Kosmatka
+Copyright (C) 2012-2021  Konrad Kosmatka
 
-http://fmdx.pl/xdr-gtk/
+https://fmdx.pl/xdr-gtk/
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-# Compiling
-Currently the easiest way to compile xdr-gtk is to use Code::Blocks IDE.
-The project file xdr-gtk.cbp includes targets for both GNU/Linux (Debug/Release) and Windows (Debug-win/Release-win).
+# Build
+In order to build XDR-GTK you will need:
+- CMake
+- C compiler
+- GTK+ 2 & dependencies
+
+Once you have all the necessary dependencies, you can use scripts available in the `build` directory.
+
+# Installation
+After a successful build, just use:
+```sh
+$ sudo make install
+```
+in the `build` directory.
