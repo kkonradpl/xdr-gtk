@@ -1,8 +1,7 @@
 /*
- *  XDR-GTK v1.0-git
- *  Copyright (C) 2012-2017  Konrad Kosmatka
- *  http://fmdx.pl/
-
+ *  XDR-GTK - user interface for XDR-F1HD tuner with XDR-I2C modification
+ *  Copyright (c) 2012-2021  Konrad Kosmatka
+ *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation; either version 2

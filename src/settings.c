@@ -927,7 +927,7 @@ settings_dialog(gint tab_num)
 
     xdr_gtk_info = gtk_label_new(NULL);
     gtk_label_set_justify(GTK_LABEL(xdr_gtk_info), GTK_JUSTIFY_CENTER);
-    gtk_label_set_markup(GTK_LABEL(xdr_gtk_info), "User interface for the XDR-F1HD Radio\nTuner with <a href=\"http://fmdx.pl/xdr-i2c\">XDR-I2C</a> modification.");
+    gtk_label_set_markup(GTK_LABEL(xdr_gtk_info), "User interface for XDR-F1HD tuner\nwith <a href=\"http://fmdx.pl/xdr-i2c\">XDR-I2C</a> modification.");
 #ifdef G_OS_WIN32
     g_signal_connect(xdr_gtk_info, "activate-link", G_CALLBACK(win32_uri), NULL);
 #endif
@@ -939,7 +939,7 @@ settings_dialog(gint tab_num)
     gtk_box_pack_start(GTK_BOX(page_about), xdr_gtk_info2, TRUE, FALSE, 5);
 
     xdr_gtk_copyright = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(xdr_gtk_copyright), "<span size=\"small\">Copyright (C) 2012-2016  Konrad Kosmatka</span>");
+    gtk_label_set_markup(GTK_LABEL(xdr_gtk_copyright), "<span size=\"small\">Copyright (C) 2012-2021  Konrad Kosmatka</span>");
     gtk_box_pack_start(GTK_BOX(page_about), xdr_gtk_copyright, TRUE, FALSE, 5);
 
     xdr_gtk_link = gtk_label_new(NULL);
