@@ -79,4 +79,9 @@ if(MINGW)
 ELSE()
     add_executable(xdr-gtk ${SOURCE_FILES})
     target_link_libraries(xdr-gtk ${LIBRARIES})
+    install(TARGETS xdr-gtk DESTINATION bin)
+    install(DIRECTORY icons/ DESTINATION share/icons/hicolor
+            PATTERN "INFO" EXCLUDE
+            PATTERN "ico" EXCLUDE)
+    install(CODE "execute_process(COMMAND gtk-update-icon-cache /usr/share/icons/hicolor)")
 ENDIF()
