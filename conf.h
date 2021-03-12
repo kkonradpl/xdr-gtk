@@ -82,6 +82,7 @@ typedef struct settings
     gboolean restore_position;
     gboolean grab_focus;
     gboolean title_tuner_info;
+    gint title_tuner_mode;
     gboolean accessibility;
     gboolean horizontal_af;
 

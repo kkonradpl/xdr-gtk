@@ -106,6 +106,7 @@ typedef struct ui
     GtkWidget *event_rt[2], *l_rt[2];
 
     guint status_timeout;
+    guint title_timeout;
     GtkWidget *l_status;
 
     GtkWidget *l_af;
@@ -121,6 +122,7 @@ void ui_init();
 
 GtkWidget* ui_bandwidth_new();
 void ui_bandwidth_fill(GtkWidget*, gboolean);
+gboolean ui_update_title(gpointer);
 
 void ui_dialog(GtkWidget*, GtkMessageType, gchar*, gchar*, ...);
 void connect_button(gboolean);

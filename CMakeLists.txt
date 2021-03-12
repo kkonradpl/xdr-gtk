@@ -19,6 +19,8 @@ set(SOURCE_FILES
         main.c
         pattern.c
         pattern.h
+        rds-utils.c
+        rds-utils.h
         rdsspy.c
         rdsspy.h
         scan.c

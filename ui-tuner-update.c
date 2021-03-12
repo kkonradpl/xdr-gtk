@@ -10,6 +10,7 @@
 #include "scan.h"
 #include "version.h"
 #include "log.h"
+#include "rds-utils.h"
 
 #define PEAK_HOLD_SAMPLES 4
 #define UPDATE_TIMEOUT 2000
@@ -377,7 +378,7 @@ ui_update_pi()
 void
 ui_update_tp()
 {
-    static gint last_tp = -1;
+    static gint last_tp = G_MININT;
 
     if(last_tp == tuner.rds_tp)
         return;
@@ -451,33 +452,21 @@ ui_update_ms()
     {
     case 0:
         if(!conf.accessibility)
-        {
             gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
-        }
         else
-        {
             gtk_label_set_text(GTK_LABEL(ui.l_ms), "Speech");
-        }
         break;
     case 1:
         if(!conf.accessibility)
-        {
-            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
-        }
+            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "M<span color=\"" UI_COLOR_INSENSITIVE "\">S</span>");
         else
-        {
             gtk_label_set_text(GTK_LABEL(ui.l_ms), "Music ");
-        }
         break;
     default:
         if(!conf.accessibility)
-        {
             gtk_label_set_text(GTK_LABEL(ui.l_ms), "  ");
-        }
         else
-        {
             gtk_label_set_text(GTK_LABEL(ui.l_ms), "      ");
-        }
         break;
     }
 }
@@ -485,13 +474,8 @@ ui_update_ms()
 void
 ui_update_pty()
 {
-    static const gchar* const pty_list[][32] =
-    {
-        { "None", "News", "Affairs", "Info", "Sport", "Educate", "Drama", "Culture", "Science", "Varied", "Pop M", "Rock M", "Easy M", "Light M", "Classics", "Other M", "Weather", "Finance", "Children", "Social", "Religion", "Phone In", "Travel", "Leisure", "Jazz", "Country", "Nation M", "Oldies", "Folk M", "Document", "TEST", "Alarm !" },
-        { "None", "News", "Inform", "Sports", "Talk", "Rock", "Cls Rock", "Adlt Hit", "Soft Rck", "Top 40", "Country", "Oldies", "Soft", "Nostalga", "Jazz", "Classicl", "R & B", "Soft R&B", "Language", "Rel Musc", "Rel Talk", "Persnlty", "Public", "College", "N/A", "N/A", "N/A", "N/A", "N/A", "Weather", "Test", "ALERT!" }
-    };
-
     static gint last_pty = G_MININT;
+    const gchar *pty_text;
 
     if(last_pty == tuner.rds_pty)
         return;
@@ -500,9 +484,10 @@ ui_update_pty()
 
     if(last_pty >= 0 && last_pty < 32)
     {
-        gtk_label_set_text(GTK_LABEL(ui.l_pty), pty_list[conf.rds_pty_set][last_pty]);
+        pty_text = rds_utils_pty_to_string(conf.rds_pty_set, last_pty);
+        gtk_label_set_text(GTK_LABEL(ui.l_pty), pty_text);
         stationlist_pty(last_pty);
-        log_pty(pty_list[conf.rds_pty_set][last_pty]);
+        log_pty(pty_text);
     }
     else
     {
@@ -599,12 +584,10 @@ ui_update_rt(gboolean flag)
         return;
     }
 
-    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">%s</span>"
+    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">[</span>"
                                 "%s"
-                                "<span color=\"" UI_COLOR_INSENSITIVE "\">%s</span>",
-                                (!conf.accessibility ? "[" : ""),
-                                tuner.rds_rt[flag],
-                                (!conf.accessibility ? "]" : ""));
+                                "<span color=\"" UI_COLOR_INSENSITIVE "\">]</span>",
+                                tuner.rds_rt[flag]);
 
     gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), m);
     g_free(m);

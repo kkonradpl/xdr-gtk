@@ -20,6 +20,7 @@ keyboard_press(GtkWidget   *widget,
 {
     guint current = gdk_keyval_to_upper(event->keyval);
     gboolean shift_pressed = (event->state & GDK_SHIFT_MASK);
+    gboolean ctrl_pressed = (event->state & GDK_CONTROL_MASK);
 
     // tuning
     if(current == conf.key_tune_down)
@@ -186,6 +187,27 @@ keyboard_press(GtkWidget   *widget,
     if(current == conf.key_mode_toggle)
     {
         tuner_set_mode((tuner.mode != MODE_FM) ? MODE_FM : MODE_AM);
+        return TRUE;
+    }
+
+    if(ctrl_pressed)
+    {
+        if(current == GDK_1)
+            conf.title_tuner_mode = 0;
+        else if(current == GDK_2)
+            conf.title_tuner_mode = 1;
+        else if(current == GDK_3)
+            conf.title_tuner_mode = 2;
+        else if(current == GDK_4)
+            conf.title_tuner_mode = 3;
+        else if(current == GDK_5)
+            conf.title_tuner_mode = 4;
+        else if(current == GDK_6)
+            conf.title_tuner_mode = 5;
+
+        g_source_remove(ui.title_timeout);
+        ui_update_title(NULL);
+
         return TRUE;
     }
 
