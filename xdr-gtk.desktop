@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=XDR-GTK
+Comment=User interface for XDR-F1HD tuner
+Icon=xdr-gtk
+Exec=xdr-gtk
+Terminal=false
+Categories=Network;
+StartupWMClass=xdr-gtk
+StartupNotify=false
