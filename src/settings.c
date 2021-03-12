@@ -240,7 +240,7 @@ settings_dialog(gint tab_num)
     gtk_table_attach(GTK_TABLE(table_interface), x_accessibility, 0, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
     row++;
-    x_horizontal_af = gtk_check_button_new_with_label("Show AFs in a horizontal list");
+    x_horizontal_af = gtk_check_button_new_with_label("AFs in a horizontal list (restart required)");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_horizontal_af), conf.horizontal_af);
     gtk_table_attach(GTK_TABLE(table_interface), x_horizontal_af, 0, 3, row, row+1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
 
