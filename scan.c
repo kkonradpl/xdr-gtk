@@ -100,6 +100,29 @@ static scan_t scan;
 static const double grid_pattern[] = {1.0, 1.0};
 static const gint grid_pattern_len = 2;
 
+static const gdouble color_steps[] =
+{
+    0.00,
+    0.05,
+    0.35,
+    0.60,
+    0.90,
+    1.00
+};
+
+static const uint32_t color_data[] =
+{
+    0xff0080,
+    0xff0000,
+    0xd0d000,
+    0x00e000,
+    0x4080e0,
+    0x0030e0
+};
+
+static const gint scan_colors = sizeof(color_data) / sizeof(uint32_t);
+
+
 static void scan_destroy(GtkWidget*, gpointer);
 static gboolean scan_window_event(GtkWidget*, gpointer);
 static void scan_lock(gboolean);
@@ -893,6 +916,7 @@ scan_redraw(GtkWidget      *widget,
     gchar text[50];
     GList *l;
     GSList *exts = NULL;
+    gint i;
 
     width = widget->allocation.width - SCAN_OFFSET_LEFT - SCAN_OFFSET_RIGHT;
     height = widget->allocation.height - SCAN_OFFSET_TOP - SCAN_OFFSET_BOTTOM;
@@ -954,11 +978,10 @@ scan_redraw(GtkWidget      *widget,
     if(scan.peak)
     {
         gradient = cairo_pattern_create_linear(0.0, 0.0, 0.0, height);
-        SCAN_ADD_COLOR(gradient, 1.0, 0x0030e0, SCAN_SPECTRUM_ALPHA_PEAK);
-        SCAN_ADD_COLOR(gradient, 0.8, 0x00e000, SCAN_SPECTRUM_ALPHA_PEAK);
-        SCAN_ADD_COLOR(gradient, 0.6, 0xe0e000, SCAN_SPECTRUM_ALPHA_PEAK);
-        SCAN_ADD_COLOR(gradient, 0.4, 0xe00000, SCAN_SPECTRUM_ALPHA_PEAK);
-        SCAN_ADD_COLOR(gradient, 0.0, 0x661b00, SCAN_SPECTRUM_ALPHA_PEAK);
+        
+        for(i=0; i<scan_colors; i++)
+            SCAN_ADD_COLOR(gradient, color_steps[i], color_data[i], SCAN_SPECTRUM_ALPHA_PEAK);
+        
         scan_draw_spectrum(cr, scan.peak, width, height, step, min, max);
         cairo_set_source(cr, gradient);
         cairo_close_path(cr);
@@ -968,11 +991,10 @@ scan_redraw(GtkWidget      *widget,
 
     /* Draw the spectrum (current) */
     gradient = cairo_pattern_create_linear(0.0, 0.0, 0.0, height);
-    SCAN_ADD_COLOR(gradient, 1.0, 0x0030e0, SCAN_SPECTRUM_ALPHA);
-    SCAN_ADD_COLOR(gradient, 0.8, 0x00e000, SCAN_SPECTRUM_ALPHA);
-    SCAN_ADD_COLOR(gradient, 0.6, 0xe0e000, SCAN_SPECTRUM_ALPHA);
-    SCAN_ADD_COLOR(gradient, 0.4, 0xe00000, SCAN_SPECTRUM_ALPHA);
-    SCAN_ADD_COLOR(gradient, 0.0, 0x661b00, SCAN_SPECTRUM_ALPHA);
+    
+    for(i=0; i<scan_colors; i++)
+        SCAN_ADD_COLOR(gradient, color_steps[i], color_data[i], SCAN_SPECTRUM_ALPHA);
+    
     scan_draw_spectrum(cr, scan.data, width, height, step, min, max);
     cairo_set_source(cr, gradient);
     cairo_close_path(cr);
