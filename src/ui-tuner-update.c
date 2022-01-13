@@ -15,7 +15,7 @@
 #define PEAK_HOLD_SAMPLES 4
 #define UPDATE_TIMEOUT 2000
 
-static gboolean ui_update_af_check(GtkTreeModel*, GtkTreePath*, GtkTreeIter*, gpointer*);
+static gboolean ui_update_af_check(GtkTreeModel*, GtkTreePath*, GtkTreeIter*, gpointer);
 static gboolean update_service(gpointer);
 static void service_update_rotator();
 
@@ -601,7 +601,7 @@ ui_update_af(gint af)
     GtkListStore *model = ui.af_model;
     GtkTreeIter iter;
 
-    // if new frequency is found on the AF list, ui_update_af_check() will set the pointer to NULL
+    // if new frequency is found on the AF list, ui_update_af_check() will set it to 0
     gtk_tree_model_foreach(GTK_TREE_MODEL(model), (GtkTreeModelForeachFunc)ui_update_af_check, &af);
     if(af)
     {
@@ -624,13 +624,15 @@ static gboolean
 ui_update_af_check(GtkTreeModel *model,
                    GtkTreePath  *path,
                    GtkTreeIter  *iter,
-                   gpointer     *newfreq)
+                   gpointer      user_data)
 {
-    gint cfreq;
-    gtk_tree_model_get(model, iter, 0, &cfreq, -1);
-    if(cfreq == GPOINTER_TO_INT(*newfreq))
+    gint *new_freq = (gint*)user_data;
+    gint freq;
+    
+    gtk_tree_model_get(model, iter, 0, &freq, -1);
+    if(freq == *new_freq)
     {
-        *newfreq = NULL;
+        *new_freq = 0;
         return TRUE; // frequency is already on the list, stop searching.
     }
     return FALSE;
