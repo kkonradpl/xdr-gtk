@@ -756,12 +756,11 @@ ui_toggle_gain(GtkWidget      *widget,
 gboolean
 ui_update_title(gpointer user_data)
 {
-    gint signal = (gint)round(signal_level(tuner.signal));
-    gint pi = (tuner.rds_pi_err_level == 0) ? tuner.rds_pi : -1;
-    gint freq = tuner_get_freq();
     const gchar *current_title = gtk_window_get_title(GTK_WINDOW(ui.window));
     gchar *new_title = NULL;
-
+    gint signal;
+    gint pi;
+    
     if(!conf.title_tuner_info)
     {
         new_title = g_strdup((tuner.thread ? ui.window_title : APP_NAME));
@@ -773,16 +772,18 @@ ui_update_title(gpointer user_data)
     else if(conf.title_tuner_mode == 0)
     {
         /* General info */
-        if(tuner.freq)
+        if(tuner_get_freq())
         {
             if(isnan(tuner.signal))
-                new_title = g_strdup_printf("%g", freq/1000.0);
+                new_title = g_strdup_printf("%g", tuner_get_freq()/1000.0);
             else
             {
+                signal = (gint)round(signal_level(tuner.signal));
+                pi = (tuner.rds_pi_err_level == 0) ? tuner.rds_pi : -1;
                 if(pi >= 0)
-                    new_title = g_strdup_printf("%g %d%s %04X", freq/1000.0, signal, signal_unit(), pi);
+                    new_title = g_strdup_printf("%g %d%s %04X", tuner_get_freq()/1000.0, signal, signal_unit(), pi);
                 else
-                    new_title = g_strdup_printf("%g %d%s", freq/1000.0, signal, signal_unit());
+                    new_title = g_strdup_printf("%g %d%s", tuner_get_freq()/1000.0, signal, signal_unit());
             }
         }
     }
