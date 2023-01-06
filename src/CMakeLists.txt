@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.6)
 
 set(SOURCE_FILES
+        antpatt.c
+        antpatt.h
         conf.c
         conf.h
         conf-defaults.h
         log.c
         log.h
         main.c
-        pattern.c
-        pattern.h
         rds-utils.c
         rds-utils.h
         rdsspy.c

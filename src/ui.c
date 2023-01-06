@@ -15,7 +15,7 @@
 #include "ui-tuner-update.h"
 #include "ui-input.h"
 #include "scan.h"
-#include "pattern.h"
+#include "antpatt.h"
 #include "rdsspy.h"
 #include "version.h"
 #include "scheduler.h"
@@ -26,28 +26,109 @@
 #endif
 ui_t ui;
 
-
-static const char rc_string[] = "style \"small-button-style\"\n"
-                                "{\n"
-                                    "GtkButton::inner-border = { 0, 0, 0, 0 }\n"
-                                 "}\n"
-                                 "widget \"*.small-button\" style\n\"small-button-style\"\n"
-                                 "\n"
-                                 "style \"smaller-button-style\"\n"
-                                 "{\n"
-                                    "GtkButton::inner-border = { 0, 0, 0, 0 }\n"
-                                    "GtkWidget::focus-padding = 0\n"
-                                    "GtkWidget::focus-line-width = 0\n"
-                                 "}\n"
-                                 "widget \"*.smaller-button\" style\n\"smaller-button-style\"\n"
-                                 "\n"
-                                 "style \"ci-progress-style\"\n"
-                                 "{\n"
-                                     "GtkProgressBar::min-horizontal-bar-height = 15\n"
-                                     "GtkProgressBar::yspacing = 0\n"
-                                     "GtkProgressBar::xspacing = 0\n"
-                                 "}\n"
-                                 "widget \"*.ci-progress\" style\n\"ci-progress-style\"\n";
+static const char css_string[] =
+"treeview {\n"
+"    background-color: rgba(0,0,0,0);\n"
+"}\n"
+"\n"
+"button.xdr-tune {\n"
+"    padding: 2px;\n"
+"}\n"
+"\n"
+"button:checked.xdr-action {\n"
+"    color: black;\n"
+"    outline-color: rgba(255, 255, 255, 0.3);\n"
+"    border-color: #de4040;\n"
+"    background-image: image(#f97e7e);\n"
+"}\n"
+"\n"
+"button:checked.xdr-wait {\n"
+"     color: black;\n"
+"     outline-color: rgba(255, 255, 255, 0.3);\n"
+"     border-color: #de9340;\n"
+"     background-image: image(#f9bf7e);\n"
+"}\n"
+"\n"
+".xdr-smallest-button {\n"
+"    padding-top: 1px;\n"
+"    padding-bottom: 1px;\n"
+"    padding-left: 1px;\n"
+"    padding-right: 1px;\n"
+"}\n"
+"\n"
+".xdr-header {\n"
+"    font-family: DejaVu Sans Mono, monospace;\n"
+"    font-size: 20pt;\n"
+"}\n"
+"\n"
+".xdr-status {\n"
+"    font-family: DejaVu Sans Mono, monospace;\n"
+"    font-size: 14pt;\n"
+"}\n"
+"\n"
+".xdr-entry {\n"
+"    font-family: DejaVu Sans Mono, monospace;\n"
+"    font-size: 10pt;\n"
+"}\n"
+"\n"
+".xdr-af {\n"
+"    font-family: DejaVu Sans Mono, monospace;\n"
+"    font-size: 11pt;\n"
+"}\n"
+"\n"
+".xdr-rt {\n"
+"    font-family: DejaVu Sans Mono, monospace;\n"
+"    font-size: 10pt;\n"
+"}\n"
+"\n"
+".xdr-stereo {\n"
+"    color: #EE4000;\n"
+"}\n"
+"\n"
+"progress, trough {\n"
+"    min-height: 1.3em;\n"
+"}\n"
+"\n"
+"progressbar.xdr-cci progress {\n"
+"    background-image: linear-gradient(#febbbb, #f97e7e);\n"
+"    border-color: #de4040;\n"
+"}\n"
+"\n"
+"progressbar.xdr-aci progress {\n"
+"    background-image: linear-gradient(#fedfbb, #f9bf7e);\n"
+"    border-color: #de9340;\n"
+"}\n"
+"\n"
+"progressbar.xdr-signal progress {\n"
+"    background-image: linear-gradient(#f3f8ff, #a9ccfb);\n"
+"    border-color: #5e98e3;\n"
+"}\n"
+"\n"
+"progressbar.xdr-cci-dark progress {\n"
+"    text-shadow: 1px 1px #000;\n"
+"    background-image: linear-gradient(#f97e7e, #de4040);\n"
+"    border-color: #febbbb;\n"
+"}\n"
+"\n"
+"progressbar.xdr-aci-dark progress {\n"
+"    background-image: linear-gradient(#f9bf7e, #de9340);\n"
+"    border-color: #fedfbb;\n"
+"}\n"
+"\n"
+"progressbar.xdr-signal-dark prongress {\n"
+"    background-image: linear-gradient(#a9ccfb, #5e98e3);\n"
+"    border-color: #f3f8ff;\n"
+"}\n"
+"\n"
+"scale.xdr-align {\n"
+"    padding-left: 0;\n"
+"    padding-top: 0;\n"
+"    padding-bottom: 0;\n"
+"}\n"
+"\n"
+"spinner {\n"
+"    animation-timing-function: steps(24);"
+"}\n";
 
 static void ui_destroy();
 static gboolean ui_delete_event(GtkWidget*, GdkEvent*, gpointer);
@@ -58,7 +139,7 @@ static void tune_ui_step_click(GtkWidget*, GdkEventButton*, gpointer);
 static void tune_ui_step_scroll(GtkWidget*, GdkEventScroll*, gpointer);
 static gboolean ui_toggle_gain(GtkWidget*, GdkEventButton*, gpointer);
 static gboolean ui_update_clock(gpointer);
-static void tune_ui_af(GtkTreeSelection*, gpointer);
+static void tune_ui_af(GtkTreeView*, GtkTreePath*, GtkTreeViewColumn*, gpointer);
 static void window_on_top(GtkToggleButton*);
 static void ui_toggle_band(GtkWidget*, GdkEventButton*, gpointer);
 static void ui_st_click(GtkWidget*, GdkEventButton*, gpointer);
@@ -68,36 +149,34 @@ static gboolean ui_cursor(GtkWidget *widget, GdkEvent  *event, gpointer cursor);
 static gboolean signal_tooltip(GtkWidget*, gint, gint, gboolean, GtkTooltip*, gpointer);
 static void ui_af_autoscroll(GtkWidget*, GtkAllocation*, gpointer);
 
+
 void
 ui_init()
 {
+    GtkWidget *progress_overlay;
+    GtkSizeGroup *size_group;
     GtkCellRenderer *renderer;
 
-    gtk_rc_parse_string(rc_string);
-    gdk_color_parse(UI_COLOR_BACKGROUND, &ui.colors.background);
-    gdk_color_parse(UI_COLOR_FOREGROUND, &ui.colors.foreground);
-    gdk_color_parse(UI_COLOR_INSENSITIVE, &ui.colors.insensitive);
-    gdk_color_parse(UI_COLOR_STEREO, &ui.colors.stereo);
-    gdk_color_parse(UI_COLOR_ACTION, &ui.colors.action);
-    gdk_color_parse(UI_COLOR_ACTION2, &ui.colors.action2);
-    ui.click_cursor = gdk_cursor_new(GDK_HAND2);
+    GtkCssProvider *provider = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(provider, css_string, -1, NULL);
+    GdkScreen *screen = gdk_display_get_default_screen (gdk_display_get_default());
+    gtk_style_context_add_provider_for_screen (screen, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+
+    ui.click_cursor = gdk_cursor_new_for_display(gdk_display_get_default(), GDK_HAND2);
     ui.af_model = gtk_list_store_new(2, G_TYPE_INT, G_TYPE_STRING);
     gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(ui.af_model), AF_LIST_STORE_ID, GTK_SORT_ASCENDING);
 
     ui.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+#ifdef G_OS_WIN32
+    g_signal_connect(ui.window, "realize", G_CALLBACK(win32_realize), NULL);
+#endif
+
     gtk_window_set_position(GTK_WINDOW(ui.window), GTK_WIN_POS_CENTER);
     if(conf.restore_position && conf.win_x >= 0 && conf.win_y >= 0)
         gtk_window_move(GTK_WINDOW(ui.window), conf.win_x, conf.win_y);
     gtk_window_set_title(GTK_WINDOW(ui.window), APP_NAME);
     gtk_window_set_default_icon_name(APP_ICON);
     gtk_container_set_border_width(GTK_CONTAINER(ui.window), 0);
-    gtk_widget_modify_bg(ui.window, GTK_STATE_NORMAL, &ui.colors.background);
-
-    PangoFontDescription *font_header = pango_font_description_from_string("DejaVu Sans Mono, monospace 20");
-    PangoFontDescription *font_status = pango_font_description_from_string("DejaVu Sans Mono, monospace 14");
-    PangoFontDescription *font_entry  = pango_font_description_from_string("DejaVu Sans Mono, monospace 10");
-    PangoFontDescription *font_af     = pango_font_description_from_string("DejaVu Sans Mono, monospace 11");
-    PangoFontDescription *font_rt     = pango_font_description_from_string("DejaVu Sans Mono, monospace 9");
 
     ui.frame = gtk_event_box_new();
     gtk_container_set_border_width(GTK_CONTAINER(ui.frame), 0);
@@ -105,19 +184,18 @@ ui_init()
 
     ui.margin = gtk_event_box_new();
     gtk_container_set_border_width(GTK_CONTAINER(ui.margin), 1);
-    gtk_widget_modify_bg(ui.margin, GTK_STATE_NORMAL, &ui.colors.background);
     gtk_container_add(GTK_CONTAINER(ui.frame), ui.margin);
 
-    ui.box = gtk_vbox_new(FALSE, 2);
+    ui.box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     gtk_container_set_border_width(GTK_CONTAINER(ui.box), 2);
     gtk_container_add(GTK_CONTAINER(ui.margin), ui.box);
-    ui.box_header = gtk_hbox_new(FALSE, 0);
+    ui.box_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_container_add(GTK_CONTAINER(ui.box), ui.box_header);
-    ui.box_ui = gtk_hbox_new(FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(ui.box), ui.box_ui);
-    ui.box_left = gtk_vbox_new(FALSE, 2);
+    ui.box_ui = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_box_pack_start(GTK_BOX(ui.box), ui.box_ui, TRUE, TRUE, 0);
+    ui.box_left = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_left, TRUE, TRUE, 0);
-    ui.box_right = gtk_vbox_new(FALSE, 0);
+    ui.box_right = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_right, FALSE, FALSE, 0);
 
     // ----------------
@@ -130,7 +208,7 @@ ui_init()
     ui.event_band = gtk_event_box_new();
     ui.l_band = gtk_label_new(NULL);
     gtk_container_add(GTK_CONTAINER(ui.event_band), ui.l_band);
-    gtk_widget_modify_font(ui.l_band, font_header);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_band), "xdr-header");
     gtk_box_pack_start(GTK_BOX(ui.box_header), ui.event_band, TRUE, FALSE, 4);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(ui.event_band), FALSE);
     g_signal_connect(ui.event_band, "enter-notify-event", G_CALLBACK(ui_cursor), ui.click_cursor);
@@ -139,8 +217,8 @@ ui_init()
 
     ui.event_freq = gtk_event_box_new();
     ui.l_freq = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_freq, font_header);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_freq), 1.0, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_freq), "xdr-header");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_freq), 1.0);
     gtk_label_set_width_chars(GTK_LABEL(ui.l_freq), 7);
     gtk_container_add(GTK_CONTAINER(ui.event_freq), ui.l_freq);
     gtk_box_pack_start(GTK_BOX(ui.box_header), ui.event_freq, TRUE, FALSE, 6);
@@ -149,8 +227,8 @@ ui_init()
 
     ui.event_pi = gtk_event_box_new();
     ui.l_pi = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_pi, font_header);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_pi), 0.0, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_pi), "xdr-header");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_pi), 0.0);
     gtk_label_set_width_chars(GTK_LABEL(ui.l_pi), 5);
     gtk_container_add(GTK_CONTAINER(ui.event_pi), ui.l_pi);
     gtk_box_pack_start(GTK_BOX(ui.box_header), ui.event_pi, TRUE, FALSE, 5);
@@ -159,8 +237,8 @@ ui_init()
 
     ui.event_ps = gtk_event_box_new();
     ui.l_ps = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_ps, font_header);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_ps), 0.0, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_ps), "xdr-header");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_ps), 0.0);
     gtk_label_set_width_chars(GTK_LABEL(ui.l_ps), 10);
     gtk_container_add(GTK_CONTAINER(ui.event_ps), ui.l_ps);
     gtk_box_pack_start(GTK_BOX(ui.box_header), ui.event_ps, TRUE, FALSE, 0);
@@ -169,45 +247,51 @@ ui_init()
 
     // ----------------
 
-    ui.box_left_tune = gtk_hbox_new(FALSE, 0);
+    ui.box_left_tune = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_box_pack_start(GTK_BOX(ui.box_left), ui.box_left_tune, FALSE, FALSE, 0);
 
     ui.b_scan = gtk_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_scan), gtk_image_new_from_icon_name("xdr-gtk-scan", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_scan), FALSE);
-    gtk_widget_set_name(ui.b_scan, "small-button");
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.b_scan), "xdr-tune");
+    gtk_button_set_image(GTK_BUTTON(ui.b_scan), gtk_image_new_from_icon_name("xdr-gtk-scan", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_scan), FALSE);
     gtk_widget_set_tooltip_text(ui.b_scan, "Spectral scan");
-    gtk_box_pack_start(GTK_BOX(ui.box_left_tune), ui.b_scan, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(ui.box_left_tune), ui.b_scan, TRUE, TRUE, 0);
     g_signal_connect(ui.b_scan, "clicked", G_CALLBACK(scan_dialog), NULL);
 
-    ui.b_tune_back = gtk_button_new_with_label("↔");
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_tune_back), FALSE);
-    gtk_widget_modify_font(ui.b_tune_back, font_header);
+    ui.b_tune_back = gtk_button_new();
+    ui.b_tune_back_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(ui.b_tune_back_label), "<span size=\"large\">↔</span>");
+    gtk_container_add(GTK_CONTAINER(ui.b_tune_back), ui.b_tune_back_label);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.b_tune_back), "xdr-tune");
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_tune_back), FALSE);
     gtk_box_pack_start(GTK_BOX(ui.box_left_tune), ui.b_tune_back, TRUE, TRUE, 0);
     g_signal_connect(ui.b_tune_back, "clicked", G_CALLBACK(tune_ui_back), NULL);
     gtk_widget_set_tooltip_text(ui.b_tune_back, "Tune back to the previous frequency");
 
-    ui.e_freq = gtk_entry_new_with_max_length(7);
+    ui.e_freq = gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(ui.e_freq), 7);
     gtk_entry_set_width_chars(GTK_ENTRY(ui.e_freq), 8);
-    gtk_widget_modify_font(ui.e_freq, font_entry);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.e_freq), "xdr-entry");
     gtk_box_pack_start(GTK_BOX(ui.box_left_tune), ui.e_freq, FALSE, FALSE, 0);
 
     ui.b_tune_reset = gtk_button_new_with_label("R");
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_tune_reset), FALSE);
-    gtk_widget_set_name(ui.b_tune_reset, "small-button");
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.b_tune_reset), "xdr-tune");
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_tune_reset), FALSE);
     gtk_box_pack_start(GTK_BOX(ui.box_left_tune), ui.b_tune_reset, TRUE, TRUE, 0);
     g_signal_connect(ui.b_tune_reset, "clicked", G_CALLBACK(tune_ui_round), NULL);
     gtk_widget_set_tooltip_text(ui.b_tune_reset, "Reset the frequency to a nearest channel");
 
     gchar label[5];
     size_t i;
-    const gint steps[] = {5, 9, 10, 30, 50, 100, 200, 300};
+    const gint steps[] = {5, 10, 50, 100, 200, 300};
     const size_t steps_n = sizeof(steps)/sizeof(gint);
     GtkWidget *b_tune[steps_n];
     for(i=0; i<steps_n; i++)
     {
         g_snprintf(label, 5, "%d", steps[i]);
         b_tune[i] = gtk_button_new_with_label(label);
+        gtk_style_context_add_class(gtk_widget_get_style_context(b_tune[i]), "xdr-tune");
+        gtk_widget_add_events(b_tune[i], GDK_SCROLL_MASK);
         gtk_box_pack_start(GTK_BOX(ui.box_left_tune), b_tune[i], TRUE, TRUE, 0);
         g_signal_connect(b_tune[i], "button-press-event", G_CALLBACK(tune_ui_step_click), GINT_TO_POINTER(steps[i]));
         g_signal_connect(b_tune[i], "scroll-event", G_CALLBACK(tune_ui_step_scroll), GINT_TO_POINTER(steps[i]));
@@ -216,50 +300,77 @@ ui_init()
     // ----------------
 
     ui.adj_align = gtk_adjustment_new(0.0, 0.0, 127.0, 0.5, 1.0, 0);
-    ui.hs_align = gtk_hscale_new(GTK_ADJUSTMENT(ui.adj_align));
+    ui.hs_align = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(ui.adj_align));
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.hs_align), "xdr-align");
     gtk_scale_set_digits(GTK_SCALE(ui.hs_align), 0);
     gtk_scale_set_value_pos(GTK_SCALE(ui.hs_align), GTK_POS_RIGHT);
     g_signal_connect(G_OBJECT(ui.adj_align), "value-changed", G_CALLBACK(tuner_set_alignment), NULL);
     gtk_box_pack_start(GTK_BOX(ui.box_left), ui.hs_align, TRUE, TRUE, 0);
 
     // ----------------
-    ui.box_left_interference = gtk_hbox_new(FALSE, 2);
+    ui.box_left_interference = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_set_homogeneous(GTK_BOX(ui.box_left_interference), TRUE);
     gtk_container_add(GTK_CONTAINER(ui.box_left), ui.box_left_interference);
 
     ui.p_cci = gtk_progress_bar_new();
-    gtk_widget_set_name(ui.p_cci, "ci-progress");
-    gtk_widget_modify_bg(ui.p_cci, GTK_STATE_PRELIGHT, &ui.colors.action);
-    gtk_widget_modify_fg(ui.p_cci, GTK_STATE_PRELIGHT, &ui.colors.foreground);
-    gtk_box_pack_start(GTK_BOX(ui.box_left_interference), ui.p_cci, TRUE, TRUE, 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.p_cci), (conf.dark_theme ? "xdr-cci-dark" : "xdr-cci"));
+
+    progress_overlay = gtk_overlay_new();
+    gtk_widget_set_hexpand(progress_overlay, TRUE);
+    gtk_container_add(GTK_CONTAINER(progress_overlay), ui.p_cci);
+
+    ui.l_cci = gtk_label_new(NULL);
+    gtk_widget_set_valign(ui.l_cci, GTK_ALIGN_CENTER);
+    gtk_overlay_add_overlay(GTK_OVERLAY(progress_overlay), ui.l_cci);
+
+    size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+    gtk_size_group_add_widget(size_group, ui.p_cci);
+    gtk_size_group_add_widget(size_group, ui.l_cci);
+
+    gtk_box_pack_start(GTK_BOX(ui.box_left_interference), progress_overlay, TRUE, TRUE, 0);
+
 
     ui.p_aci = gtk_progress_bar_new();
-    gtk_widget_set_name(ui.p_aci, "ci-progress");
-    gtk_widget_modify_bg(ui.p_aci, GTK_STATE_PRELIGHT, &ui.colors.action2);
-    gtk_widget_modify_fg(ui.p_aci, GTK_STATE_PRELIGHT, &ui.colors.foreground);
-    gtk_box_pack_start(GTK_BOX(ui.box_left_interference), ui.p_aci, TRUE, TRUE, 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.p_aci), (conf.dark_theme ? "xdr-aci-dark" : "xdr-aci"));
+
+    progress_overlay = gtk_overlay_new();
+    gtk_widget_set_hexpand(progress_overlay, TRUE);
+    gtk_container_add(GTK_CONTAINER(progress_overlay), ui.p_aci);
+
+    ui.l_aci = gtk_label_new(NULL);
+    gtk_widget_set_valign(ui.l_aci, GTK_ALIGN_CENTER);
+    gtk_overlay_add_overlay(GTK_OVERLAY (progress_overlay), ui.l_aci);
+
+    size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+    gtk_size_group_add_widget(size_group, ui.p_aci);
+    gtk_size_group_add_widget(size_group, ui.l_aci);
+
+    gtk_box_pack_start(GTK_BOX(ui.box_left_interference), progress_overlay, TRUE, TRUE, 0);
 
     // ----------------
 
-    ui.box_left_signal = gtk_vbox_new(FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(ui.box_left), ui.box_left_signal);
+    ui.box_left_signal = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_box_pack_start(GTK_BOX(ui.box_left), ui.box_left_signal, TRUE, TRUE, 0);
 
     ui.graph = gtk_drawing_area_new();
+    gtk_widget_add_events(ui.graph, GDK_SCROLL_MASK);
+    g_signal_connect(ui.graph, "scroll-event", G_CALLBACK(mouse_scroll), NULL);
     gtk_box_pack_start(GTK_BOX(ui.box_left_signal), ui.graph, TRUE, TRUE, 0);
     // or
     ui.p_signal = gtk_progress_bar_new();
-    gtk_box_pack_start(GTK_BOX(ui.box_left_signal), ui.p_signal, TRUE, TRUE, 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.p_signal), (conf.dark_theme ? "xdr-signal-dark" : "xdr-signal"));
+    gtk_box_pack_start(GTK_BOX(ui.box_left_signal), ui.p_signal, FALSE, FALSE, 0);
 
     // ----------------
 
-    ui.box_left_indicators = gtk_hbox_new(FALSE, 0);
+    ui.box_left_indicators = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_box_pack_start(GTK_BOX(ui.box_left), ui.box_left_indicators, FALSE, FALSE, 0);
 
     ui.event_st = gtk_event_box_new();
     ui.l_st = gtk_label_new(NULL);
     gtk_container_add(GTK_CONTAINER(ui.event_st), ui.l_st);
-    gtk_widget_modify_font(ui.l_st, font_status);
-    gtk_widget_modify_fg(GTK_WIDGET(ui.l_st), GTK_STATE_NORMAL, &ui.colors.insensitive);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_st), 0, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_st), "xdr-status");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_st), 0.0);
     gtk_widget_set_tooltip_text(ui.l_st, "19kHz stereo pilot indicator");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.event_st, TRUE, TRUE,  3);
     gtk_event_box_set_visible_window(GTK_EVENT_BOX(ui.event_st), FALSE);
@@ -270,30 +381,29 @@ ui_init()
 
 
     ui.l_rds = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_rds, font_status);
-    gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds), GTK_STATE_NORMAL, &ui.colors.insensitive);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_rds), 0, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_rds), "xdr-status");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_rds), 0.0);
     gtk_widget_set_tooltip_text(ui.l_rds, "RDS indicator");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_rds, TRUE, TRUE,  3);
 
     ui.l_tp = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_tp, font_status);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_tp), "xdr-status");
     gtk_widget_set_tooltip_text(ui.l_tp, "RDS Traffic Programme flag");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_tp, TRUE, TRUE, 3);
 
     ui.l_ta = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_ta, font_status);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_ta), "xdr-status");
     gtk_widget_set_tooltip_text(ui.l_ta, "RDS Traffic Announcement flag");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_ta, TRUE, TRUE, 3);
 
     ui.l_ms = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_ms, font_status);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_ms), "xdr-status");
     gtk_widget_set_tooltip_text(ui.l_ms, "RDS Music/Speech flag");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_ms, TRUE, TRUE, 3);
 
     ui.l_pty = gtk_label_new(NULL);
-    gtk_widget_modify_font(ui.l_pty, font_status);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_pty), 0.0, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_pty), "xdr-status");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_pty), 0.0);
     gtk_label_set_width_chars(GTK_LABEL(ui.l_pty), 8);
     gtk_widget_set_tooltip_text(ui.l_pty, "RDS Programme Type (PTY)");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_pty, TRUE, TRUE, 3);
@@ -301,8 +411,8 @@ ui_init()
     ui.event_sig = gtk_event_box_new();
     ui.l_sig = gtk_label_new(NULL);
     gtk_container_add(GTK_CONTAINER(ui.event_sig), ui.l_sig);
-    gtk_widget_modify_font(ui.l_sig, font_status);
-    gtk_misc_set_alignment(GTK_MISC(ui.l_sig), 1, 0.5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_sig), "xdr-status");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_sig), 1.0);
     gtk_label_set_width_chars(GTK_LABEL(ui.l_sig), 12);
     gtk_widget_set_tooltip_text(ui.l_sig, "max / current signal level");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.event_sig, TRUE, TRUE, 2);
@@ -335,72 +445,66 @@ ui_init()
 
     // ----------------
 
-    ui.box_left_settings1 = gtk_hbox_new(FALSE, 3);
+    ui.box_left_settings1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 3);
     gtk_container_add(GTK_CONTAINER(ui.box_left), ui.box_left_settings1);
 
-    ui.box_buttons = gtk_hbox_new(FALSE, 0);
+    ui.box_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_box_set_homogeneous(GTK_BOX(ui.box_buttons), TRUE);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings1), ui.box_buttons, FALSE, FALSE, 0);
 
     ui.b_connect = gtk_toggle_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_connect), gtk_image_new_from_stock(GTK_STOCK_DISCONNECT, GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_connect), FALSE);
-    gtk_widget_set_name(ui.b_connect, "small-button");
+    gtk_button_set_image(GTK_BUTTON(ui.b_connect), gtk_image_new_from_icon_name("gtk-disconnect", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_connect), FALSE);
     gtk_widget_set_tooltip_text(ui.b_connect, "Connect");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_connect, FALSE, FALSE, 0);
     g_signal_connect(ui.b_connect, "toggled", G_CALLBACK(connection_toggle), NULL);
 
-    ui.b_pattern = gtk_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_pattern), gtk_image_new_from_icon_name("xdr-gtk-pattern", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_pattern), FALSE);
-    gtk_widget_set_name(ui.b_pattern, "small-button");
+    ui.b_pattern = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(ui.b_pattern), gtk_image_new_from_icon_name("xdr-gtk-pattern", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_pattern), FALSE);
     gtk_widget_set_tooltip_text(ui.b_pattern, "Antenna pattern");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_pattern, FALSE, FALSE, 0);
-    g_signal_connect(ui.b_pattern, "clicked", G_CALLBACK(pattern_dialog), NULL);
+    g_signal_connect(ui.b_pattern, "clicked", G_CALLBACK(antpatt_toggle), NULL);
 
     ui.b_settings = gtk_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_settings), gtk_image_new_from_icon_name("xdr-gtk-settings", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_settings), FALSE);
-    gtk_widget_set_name(ui.b_settings, "small-button");
+    gtk_button_set_image(GTK_BUTTON(ui.b_settings), gtk_image_new_from_icon_name("xdr-gtk-settings", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_settings), FALSE);
     gtk_widget_set_tooltip_text(ui.b_settings, "Settings");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_settings, FALSE, FALSE, 0);
     g_signal_connect_swapped(ui.b_settings, "clicked", G_CALLBACK(settings_dialog), GINT_TO_POINTER(SETTINGS_TAB_DEFAULT));
 
     ui.b_scheduler = gtk_toggle_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_scheduler), gtk_image_new_from_icon_name("xdr-gtk-scheduler", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_scheduler), FALSE);
-    gtk_widget_set_name(ui.b_scheduler, "small-button");
+    gtk_button_set_image(GTK_BUTTON(ui.b_scheduler), gtk_image_new_from_icon_name("xdr-gtk-scheduler", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_scheduler), FALSE);
     gtk_widget_set_tooltip_text(ui.b_scheduler, "Scheduler");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_scheduler, FALSE, FALSE, 0);
     g_signal_connect(ui.b_scheduler, "toggled", G_CALLBACK(scheduler_toggle), NULL);
 
     ui.b_rdsspy = gtk_toggle_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_rdsspy), gtk_image_new_from_icon_name("xdr-gtk-rdsspy", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_rdsspy), FALSE);
-    gtk_widget_set_name(ui.b_rdsspy, "small-button");
+    gtk_button_set_image(GTK_BUTTON(ui.b_rdsspy), gtk_image_new_from_icon_name("xdr-gtk-rdsspy", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_rdsspy), FALSE);
     gtk_widget_set_tooltip_text(ui.b_rdsspy, "RDS Spy Link");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_rdsspy, FALSE, FALSE, 0);
     g_signal_connect(ui.b_rdsspy, "toggled", G_CALLBACK(rdsspy_toggle), NULL);
 
     ui.b_ontop = gtk_toggle_button_new();
-    ui.b_ontop_icon = gtk_image_new_from_icon_name("xdr-gtk-top", GTK_ICON_SIZE_BUTTON);
-    gtk_button_set_image(GTK_BUTTON(ui.b_ontop), ui.b_ontop_icon);
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_ontop), FALSE);
-    gtk_widget_set_name(ui.b_ontop, "small-button");
+    gtk_button_set_image(GTK_BUTTON(ui.b_ontop), gtk_image_new_from_icon_name("xdr-gtk-top", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_ontop), FALSE);
     gtk_widget_set_tooltip_text(ui.b_ontop, "Stay on top");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_ontop, FALSE, FALSE, 0);
     g_signal_connect(ui.b_ontop, "toggled", G_CALLBACK(window_on_top), NULL);
 
-    ui.l_agc = gtk_label_new("AGC threshold:");
+    ui.l_agc = gtk_label_new("AGC:");
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings1), ui.l_agc, TRUE, TRUE, 0);
 
-    ui.c_agc = gtk_combo_box_new_text();
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_agc), "highest");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_agc), "high");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_agc), "medium");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_agc), "low");
+    ui.c_agc = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_agc), "highest");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_agc), "high");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_agc), "medium");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_agc), "low");
     gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_agc), conf.agc);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings1), ui.c_agc, TRUE, TRUE, 0);
-    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(ui.c_agc), FALSE);
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.c_agc), FALSE);
     g_signal_connect(G_OBJECT(ui.c_agc), "changed", G_CALLBACK(tuner_set_agc), NULL);
 
     ui.x_rf = gtk_check_button_new_with_label("RF+");
@@ -410,26 +514,26 @@ ui_init()
 
     // ----------------
 
-    ui.box_left_settings2 = gtk_hbox_new(FALSE, 3);
+    ui.box_left_settings2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 3);
     gtk_container_add(GTK_CONTAINER(ui.box_left), ui.box_left_settings2);
 
     ui.l_deemph = gtk_label_new(NULL);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.l_deemph, FALSE, FALSE, 0);
 
-    ui.c_deemph = gtk_combo_box_new_text();
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_deemph), "50 us");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_deemph), "75 us");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(ui.c_deemph), "0 us");
+    ui.c_deemph = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_deemph), "50 µs");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_deemph), "75 µs");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(ui.c_deemph), "0 µs");
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.c_deemph, TRUE, TRUE, 0);
     gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_deemph), conf.deemphasis);
-    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(ui.c_deemph), FALSE);
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.c_deemph), FALSE);
     g_signal_connect(G_OBJECT(ui.c_deemph), "changed", G_CALLBACK(tuner_set_deemphasis), NULL);
 
     ui.ant = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_BOOLEAN);
-    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, "Ant A", 1, (conf.ant_count>=1), -1);
-    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, "Ant B", 1, (conf.ant_count>=2), -1);
-    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, "Ant C", 1, (conf.ant_count>=3), -1);
-    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, "Ant D", 1, (conf.ant_count>=4), -1);
+    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, conf.ant_name[0], 1, (conf.ant_count>=1), -1);
+    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, conf.ant_name[1], 1, (conf.ant_count>=2), -1);
+    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, conf.ant_name[2], 1, (conf.ant_count>=3), -1);
+    gtk_list_store_insert_with_values(ui.ant, NULL, -1, 0, conf.ant_name[3], 1, (conf.ant_count>=4), -1);
     GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(ui.ant), NULL);
     gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER(filter), 1);
 
@@ -439,28 +543,26 @@ ui_init()
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(ui.c_ant), renderer, "text", 0, NULL);
     gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_ant), 0);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.c_ant, TRUE, TRUE, 0);
-    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(ui.c_ant), FALSE);
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.c_ant), FALSE);
     g_signal_connect(G_OBJECT(ui.c_ant), "changed", G_CALLBACK(tuner_set_antenna), NULL);
 
-    ui.box_rotator = gtk_hbox_new(TRUE, 0);
+    ui.box_rotator = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.box_rotator, TRUE, TRUE, 0);
 
     ui.b_cw = gtk_toggle_button_new();
     ui.b_cw_label = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(ui.b_cw_label), "  <b>↻</b>  ");
     gtk_container_add(GTK_CONTAINER(ui.b_cw), ui.b_cw_label);
     gtk_box_pack_start(GTK_BOX(ui.box_rotator), ui.b_cw, TRUE, TRUE, 0);
     gtk_widget_set_tooltip_text(ui.b_cw, "Rotate antenna clockwise");
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_cw), FALSE);
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_cw), FALSE);
     g_signal_connect_swapped(ui.b_cw, "toggled", G_CALLBACK(tuner_set_rotator), GINT_TO_POINTER(1));
 
     ui.b_ccw = gtk_toggle_button_new();
     ui.b_ccw_label = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(ui.b_ccw_label), "  <b>↺</b>  ");
     gtk_container_add(GTK_CONTAINER(ui.b_ccw), ui.b_ccw_label);
     gtk_box_pack_start(GTK_BOX(ui.box_rotator), ui.b_ccw, TRUE, TRUE, 0);
     gtk_widget_set_tooltip_text(ui.b_ccw, "Rotate antenna counterclockwise");
-    gtk_button_set_focus_on_click(GTK_BUTTON(ui.b_ccw), FALSE);
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_ccw), FALSE);
     g_signal_connect_swapped(ui.b_ccw, "toggled", G_CALLBACK(tuner_set_rotator), GINT_TO_POINTER(2));
 
     ui.l_bw = gtk_label_new("BW:");
@@ -469,7 +571,7 @@ ui_init()
 
     ui.c_bw = ui_bandwidth_new();
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.c_bw, TRUE, TRUE, 0);
-    gtk_combo_box_set_focus_on_click(GTK_COMBO_BOX(ui.c_bw), FALSE);
+    gtk_widget_set_focus_on_click(GTK_WIDGET(ui.c_bw), FALSE);
     g_signal_connect(G_OBJECT(ui.c_bw), "changed", G_CALLBACK(tuner_set_bandwidth), NULL);
 
     ui.x_if = gtk_check_button_new_with_label("IF+");
@@ -482,11 +584,13 @@ ui_init()
     if(!conf.horizontal_af)
     {
         ui.l_af = gtk_label_new("  AF:  ");
-        gtk_widget_modify_font(ui.l_af, font_af);
+        gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_af), "xdr-af");
         gtk_box_pack_start(GTK_BOX(ui.box_right), ui.l_af, FALSE, FALSE, 3);
 
         ui.af_treeview = gtk_tree_view_new();
+        gtk_widget_set_can_focus(ui.af_treeview, FALSE);
         gtk_tree_view_set_model(GTK_TREE_VIEW(ui.af_treeview), GTK_TREE_MODEL(ui.af_model));
+        gtk_tree_view_set_activate_on_single_click(GTK_TREE_VIEW(ui.af_treeview), TRUE);
 
         gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_treeview), -1, "ID",
                                                     gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
@@ -496,12 +600,9 @@ ui_init()
         gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(ui.af_treeview), AF_LIST_STORE_ID),
                                          FALSE);
         gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(ui.af_treeview), FALSE);
-        gtk_widget_modify_base(ui.af_treeview, GTK_STATE_NORMAL, &ui.colors.background);
-        g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(ui.af_treeview)), "changed", G_CALLBACK(tune_ui_af),
-                         NULL);
+        g_signal_connect(ui.af_treeview, "row-activated", G_CALLBACK(tune_ui_af), NULL);
         ui.autoscroll = FALSE;
         g_signal_connect(GTK_TREE_VIEW(ui.af_treeview), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
-        gtk_widget_set_can_focus(GTK_WIDGET(ui.af_treeview), FALSE);
 
         ui.af_treeview_scroll = gtk_scrolled_window_new(NULL, NULL);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_treeview_scroll), GTK_POLICY_NEVER,
@@ -516,25 +617,19 @@ ui_init()
     {
         ui.event_rt[i] = gtk_event_box_new();
         ui.l_rt[i] = gtk_label_new(NULL);
-        gtk_widget_modify_font(ui.l_rt[i], font_rt);
-        gtk_misc_set_alignment(GTK_MISC(ui.l_rt[i]), 0.0, 0.5);
+        gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_rt[i]), "xdr-rt");
+        gtk_label_set_xalign(GTK_LABEL(ui.l_rt[i]), 0.0);
         gtk_label_set_width_chars(GTK_LABEL(ui.l_rt[i]), 66);
         gtk_container_add(GTK_CONTAINER(ui.event_rt[i]), ui.l_rt[i]);
         gtk_event_box_set_visible_window(GTK_EVENT_BOX(ui.event_rt[i]), FALSE);
-        gtk_box_pack_start(GTK_BOX(ui.box), ui.event_rt[i], TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ui.box), ui.event_rt[i], FALSE, FALSE, 0);
         g_signal_connect(ui.event_rt[i], "button-press-event", G_CALLBACK(mouse_rt), tuner.rds_rt[i]);
     }
 
     // ----------------
 
     ui.l_status = gtk_label_new(NULL);
-    gtk_box_pack_start(GTK_BOX(ui.box), ui.l_status, TRUE, TRUE, 0);
-
-    pango_font_description_free(font_status);
-    pango_font_description_free(font_header);
-    pango_font_description_free(font_entry);
-    pango_font_description_free(font_af);
-    pango_font_description_free(font_rt);
+    gtk_box_pack_start(GTK_BOX(ui.box), ui.l_status, FALSE, FALSE, 0);
 
     tuner.volume = lround(gtk_scale_button_get_value(GTK_SCALE_BUTTON(ui.volume)));
     tuner.squelch = lround(gtk_scale_button_get_value(GTK_SCALE_BUTTON(ui.squelch)));
@@ -572,7 +667,7 @@ ui_init()
     if(conf.hide_statusbar)
         gtk_widget_hide(ui.l_status);
     ui_rotator_button_swap();
-    ui_antenna_showhide();
+    ui_antenna_update();
 
     gtk_widget_add_events(GTK_WIDGET(ui.window), GDK_CONFIGURE);
     g_signal_connect(ui.window, "configure-event", G_CALLBACK(ui_window_event), NULL);
@@ -581,7 +676,7 @@ ui_init()
     g_signal_connect(ui.window, "button-press-event", G_CALLBACK(mouse_window), GTK_WINDOW(ui.window));
     g_signal_connect(ui.window, "delete-event", G_CALLBACK(ui_delete_event), NULL);
     g_signal_connect(ui.window, "destroy", G_CALLBACK(ui_destroy), NULL);
-    g_signal_connect(ui.window, "scroll-event", G_CALLBACK(mouse_scroll), NULL);
+
     ui.status_timeout = g_timeout_add(1000, (GSourceFunc)ui_update_clock, (gpointer)ui.l_status);
     ui.title_timeout = g_timeout_add(1000, (GSourceFunc)ui_update_title, NULL);
 
@@ -624,6 +719,7 @@ ui_delete_event(GtkWidget *widget,
                                     "Tuner is currently connected.\nAre you sure you want to quit?");
     gtk_window_set_title(GTK_WINDOW(dialog), APP_NAME);
 #ifdef G_OS_WIN32
+    g_signal_connect(dialog, "realize", G_CALLBACK(win32_realize), NULL);
     response = win32_dialog_workaround(GTK_DIALOG(dialog));
 #else
     response = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -760,7 +856,7 @@ ui_update_title(gpointer user_data)
     gchar *new_title = NULL;
     gint signal;
     gint pi;
-    
+
     if(!conf.title_tuner_info)
     {
         new_title = g_strdup((tuner.thread ? ui.window_title : APP_NAME));
@@ -883,23 +979,26 @@ ui_update_clock(gpointer label)
 }
 
 static void
-tune_ui_af(GtkTreeSelection *ts,
-           gpointer          nothing)
+tune_ui_af(GtkTreeView       *treeview,
+           GtkTreePath       *path,
+           GtkTreeViewColumn *column,
+           gpointer           user_data)
 {
-    GtkTreeModel *model;
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
+    GtkTreeModel *model = gtk_tree_view_get_model(treeview);
     GtkTreeIter iter;
     gint n = 0;
 
-    if(!gtk_tree_selection_get_selected(ts, &model, &iter))
-    {
+    if (!selection)
         return;
-    }
+
+    if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+        return;
+
     gtk_tree_model_get(model, &iter, 0, &n, -1);
 
     if(n)
-    {
         tuner_set_frequency(87500+n*100);
-    }
 }
 
 void
@@ -921,6 +1020,10 @@ ui_dialog(GtkWidget      *window,
                                     icon,
                                     GTK_BUTTONS_CLOSE,
                                     NULL);
+#ifdef G_OS_WIN32
+    g_signal_connect(dialog, "realize", G_CALLBACK(win32_realize), NULL);
+#endif
+
     gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dialog), msg);
     gtk_window_set_title(GTK_WINDOW(dialog), title);
     if(!window)
@@ -1032,10 +1135,14 @@ ui_sig_click(GtkWidget      *widget,
                                         GTK_MESSAGE_QUESTION,
                                         GTK_BUTTONS_OK_CANCEL,
                                         "Custom interval [ms]:");
+#ifdef G_OS_WIN32
+    g_signal_connect(dialog, "realize", G_CALLBACK(win32_realize), NULL);
+#endif
+
         gtk_window_set_title(GTK_WINDOW(dialog), "Signal sampling");
         message = gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(dialog));
 
-        box = gtk_vbox_new(FALSE, 2);
+        box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
         gtk_box_pack_start(GTK_BOX(message), box, FALSE, FALSE, 0);
 
         spinbutton = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(0.0, 0.0, 1000.0, 1.0, 2.0, 0.0)), 0, 0);
@@ -1072,7 +1179,7 @@ ui_sig_click_key(GtkWidget   *widget,
                  gpointer     button)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
-    if(current == GDK_Return)
+    if(current == GDK_KEY_Return)
     {
         gtk_spin_button_update(GTK_SPIN_BUTTON(button));
         gtk_dialog_response(GTK_DIALOG(widget), GTK_RESPONSE_OK);
@@ -1091,7 +1198,7 @@ ui_cursor(GtkWidget *widget,
 }
 
 void
-ui_antenna_showhide()
+ui_antenna_update()
 {
     GtkTreeIter iter;
 
@@ -1108,16 +1215,32 @@ ui_antenna_showhide()
     }
 
     if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(ui.ant), &iter))
-        gtk_list_store_set(ui.ant, &iter, 1, (conf.ant_count>=1), -1);
+    {
+        gtk_list_store_set(ui.ant, &iter,
+                           0, conf.ant_name[0],
+                           1, (conf.ant_count>=1), -1);
+    }
 
     if(gtk_tree_model_iter_next(GTK_TREE_MODEL(ui.ant), &iter))
-        gtk_list_store_set(ui.ant, &iter, 1, (conf.ant_count>=2), -1);
+    {
+        gtk_list_store_set(ui.ant, &iter,
+                           0, conf.ant_name[1],
+                           1, (conf.ant_count>=2), -1);
+    }
 
     if(gtk_tree_model_iter_next(GTK_TREE_MODEL(ui.ant), &iter))
-        gtk_list_store_set(ui.ant, &iter, 1, (conf.ant_count>=3), -1);
+    {
+        gtk_list_store_set(ui.ant, &iter,
+                           0, conf.ant_name[2],
+                           1, (conf.ant_count>=3), -1);
+    }
 
     if(gtk_tree_model_iter_next(GTK_TREE_MODEL(ui.ant), &iter))
-        gtk_list_store_set(ui.ant, &iter, 1, (conf.ant_count>=4), -1);
+    {
+        gtk_list_store_set(ui.ant, &iter,
+                           0, conf.ant_name[3],
+                           1, (conf.ant_count>=4), -1);
+    }
 }
 
 static gboolean
@@ -1156,14 +1279,13 @@ ui_toggle_ps_mode()
 void
 ui_screenshot()
 {
-    static gchar *default_path = "." PATH_SEP "screenshots";
+    static gchar default_path[] = "." PATH_SEP "screenshots";
     gchar t[20], *filename;
-    GdkPixmap *pixmap;
-    GdkPixbuf *pixbuf;
-    gint width, height;
     gchar *directory;
     time_t tt = time(NULL);
-    GError *err = NULL;
+    cairo_surface_t *surface;
+    cairo_t *cr;
+
     strftime(t, sizeof(t), "%Y%m%d-%H%M%S", conf.utc?gmtime(&tt):localtime(&tt));
 
     if(conf.screen_dir && strlen(conf.screen_dir))
@@ -1185,24 +1307,24 @@ ui_screenshot()
         filename = g_strdup_printf("%s" PATH_SEP "%s-%d.png", directory, t, tuner_get_freq());
     }
 
-    /* HACK: refresh window to avoid icons disappearing */
-    gtk_widget_queue_draw(ui.window);
-    gdk_window_process_all_updates();
 
-    pixmap = gtk_widget_get_snapshot(ui.window, NULL);
-    gdk_pixmap_get_size(pixmap, &width, &height);
-    pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, NULL, 1, 1, 0, 0, width-2, height-2);
-    if(!gdk_pixbuf_save(pixbuf, filename, "png", &err, NULL))
+    surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+                                         gtk_widget_get_allocated_width(ui.window),
+                                         gtk_widget_get_allocated_height(ui.window));
+    cr = cairo_create(surface);
+    gtk_widget_draw(ui.window, cr);
+    cairo_destroy(cr);
+
+    if(cairo_surface_write_to_png(surface, filename) != CAIRO_STATUS_SUCCESS)
     {
         ui_dialog(ui.window,
                   GTK_MESSAGE_ERROR,
                   "Screenshot",
-                  "%s\n\nCheck selected screenshot directory in settings.",
-                  err->message);
-        g_error_free(err);
+                  "Unable to save a screenshot to:\n%s",
+                  filename);
     }
-    g_object_unref(G_OBJECT(pixmap));
-    g_object_unref(G_OBJECT(pixbuf));
+    cairo_surface_destroy(surface);
+
     g_free(filename);
 }
 
@@ -1219,6 +1341,9 @@ ui_activate()
 void
 ui_rotator_button_swap()
 {
+    gtk_label_set_markup(GTK_LABEL(ui.b_cw_label), "<span size=\"large\"><b>↻</b></span>");
+    gtk_label_set_markup(GTK_LABEL(ui.b_ccw_label), "<span size=\"large\"><b>↺</b></span>");
+
     if(conf.ant_swap_rotator)
     {
         gtk_box_reorder_child(GTK_BOX(ui.box_rotator), ui.b_cw, 1);
@@ -1253,7 +1378,6 @@ ui_decorations(gboolean state)
 {
     gtk_window_set_decorated(GTK_WINDOW(ui.window), state);
     gtk_window_set_resizable(GTK_WINDOW(ui.window), FALSE);
-    gtk_widget_modify_bg(ui.frame, GTK_STATE_NORMAL, (state?&ui.colors.background:&ui.colors.insensitive));
 }
 
 gboolean
@@ -1268,6 +1392,7 @@ ui_dialog_confirm_disconnect()
                                     "Are you sure you want to disconnect?");
     gtk_window_set_title(GTK_WINDOW(dialog), APP_NAME);
 #ifdef G_OS_WIN32
+    g_signal_connect(dialog, "realize", G_CALLBACK(win32_realize), NULL);
     response = win32_dialog_workaround(GTK_DIALOG(dialog));
 #else
     response = gtk_dialog_run(GTK_DIALOG(dialog));

@@ -10,31 +10,17 @@
 #define LOG_NL "\n"
 #endif
 
+#define UI_ALPHA_INSENSITIVE "25"
+
 #define AF_LIST_STORE_ID   0
 #define AF_LIST_STORE_FREQ 1
 
-#define UI_COLOR_BACKGROUND  "#FFFFFF"
-#define UI_COLOR_FOREGROUND  "#000000"
-#define UI_COLOR_INSENSITIVE "#C8C8C8"
 #define UI_COLOR_STEREO      "#EE4000"
-#define UI_COLOR_ACTION      "#FF9999"
-#define UI_COLOR_ACTION2     "#FFCF99"
-
-typedef struct ui_colors
-{
-    GdkColor background;
-    GdkColor foreground;
-    GdkColor insensitive;
-    GdkColor stereo;
-    GdkColor action;
-    GdkColor action2;
-} ui_colors_t;
 
 typedef struct ui
 {
     GtkWidget *window;
     gchar window_title[100];
-    ui_colors_t colors;
     GdkCursor *click_cursor;
     GtkListStore *af_model;
 
@@ -62,14 +48,15 @@ typedef struct ui
     GtkWidget *event_ps, *l_ps;
 
     GtkWidget *b_scan;
-    GtkWidget *b_tune_back;
+    GtkWidget *b_tune_back, *b_tune_back_label;
     GtkWidget *e_freq;
     GtkWidget *b_tune_reset;
 
-    GtkObject *adj_align;
+    GtkAdjustment *adj_align;
     GtkWidget *hs_align;
 
     GtkWidget *p_cci, *p_aci;
+    GtkWidget *l_cci, *l_aci;
 
     GtkWidget *graph, *p_signal;
 
@@ -128,7 +115,7 @@ void ui_dialog(GtkWidget*, GtkMessageType, gchar*, gchar*, ...);
 void connect_button(gboolean);
 gint ui_antenna_switch(gint);
 gint ui_antenna_id(gint);
-void ui_antenna_showhide();
+void ui_antenna_update();
 void ui_toggle_ps_mode();
 void ui_screenshot();
 void ui_activate();

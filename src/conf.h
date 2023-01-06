@@ -71,6 +71,7 @@ typedef struct settings
     gint initial_freq;
     gboolean utc;
     gboolean auto_connect;
+    gboolean fm_10k_steps;
     gboolean mw_10k_steps;
     gboolean disconnect_confirm;
     gboolean auto_reconnect;
@@ -85,6 +86,7 @@ typedef struct settings
     gint title_tuner_mode;
     gboolean accessibility;
     gboolean horizontal_af;
+    gboolean dark_theme;
 
     /* Graph */
     gdouble signal_offset;
@@ -92,11 +94,15 @@ typedef struct settings
     enum Signal_Display signal_display;
     enum Signal_Mode signal_mode;
     gint signal_height;
+    gboolean signal_scroll;
     gboolean signal_grid;
     gboolean signal_avg;
-    GdkColor color_mono;
-    GdkColor color_stereo;
-    GdkColor color_rds;
+    GdkRGBA color_mono;
+    GdkRGBA color_stereo;
+    GdkRGBA color_rds;
+    GdkRGBA color_mono_dark;
+    GdkRGBA color_stereo_dark;
+    GdkRGBA color_rds_dark;
 
     /* RDS */
     enum RDS_Mode rds_pty_set;
@@ -117,6 +123,7 @@ typedef struct settings
     gint ant_start[ANT_COUNT];
     gint ant_stop[ANT_COUNT];
     gint ant_offset[ANT_COUNT];
+    char **ant_name;
 
     /* Logs */
     gint rdsspy_port;
@@ -161,13 +168,6 @@ typedef struct settings
     gint *scheduler_freqs;
     gint *scheduler_timeouts;
     gint scheduler_default_timeout;
-
-    /* Pattern */
-    gint pattern_color;
-    gint pattern_size;
-    gboolean pattern_inv;
-    gboolean pattern_fill;
-    gboolean pattern_avg;
 
     /* Spectral scan */
     gint scan_x;

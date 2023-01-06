@@ -19,7 +19,6 @@ static const gchar *group_logs       = "logs";
 static const gchar *group_keyboard   = "keyboard";
 static const gchar *group_presets    = "presets";
 static const gchar *group_scheduler  = "scheduler";
-static const gchar *group_pattern    = "pattern";
 static const gchar *group_scan       = "scan";
 
 static const gchar *key_x                  = "x";
@@ -37,30 +36,36 @@ static const gchar *key_deemphasis         = "deemphasis";
 static const gchar *key_initial_freq       = "initial_freq";
 static const gchar *key_event_action       = "event_action";
 static const gchar *key_utc                = "utc";
+static const gchar *key_fm_10k_steps       = "fm_10k_steps";
 static const gchar *key_mw_10k_steps       = "mw_10k_steps";
 static const gchar *key_auto_connect       = "auto_connect";
 static const gchar *key_disconnect_confirm = "disconnect_confirm";
 static const gchar *key_auto_reconnect     = "auto_reconnect";
+static const gchar *key_grab_focus         = "grab_focus";
 static const gchar *key_hide_decorations   = "hide_decorations";
 static const gchar *key_hide_interference  = "hide_interference";
 static const gchar *key_hide_radiotext     = "hide_radiotext";
 static const gchar *key_hide_statusbar     = "hide_statusbar";
 static const gchar *key_restore_position   = "restore_position";
-static const gchar *key_grab_focus         = "grab_focus";
 static const gchar *key_title_tuner_info   = "title_tuner_info";
 static const gchar *key_title_tuner_mode   = "title_tuner_mode";
 static const gchar *key_accessibility      = "accessibility";
 static const gchar *key_horizontal_af      = "horizontal_af";
+static const gchar *key_dark_theme         = "dark_theme";
 static const gchar *key_unit               = "unit";
 static const gchar *key_display            = "display";
 static const gchar *key_mode               = "mode";
 static const gchar *key_height             = "height";
 static const gchar *key_offset             = "offset";
-static const gchar *key_grid               = "grid";
+static const gchar *key_scroll             = "scroll";
 static const gchar *key_avg                = "avg";
+static const gchar *key_grid               = "grid";
 static const gchar *key_color_mono         = "color_mono";
 static const gchar *key_color_stereo       = "color_stereo";
 static const gchar *key_color_rds          = "color_rds";
+static const gchar *key_color_mono_dark    = "color_mono_dark";
+static const gchar *key_color_stereo_dark  = "color_stereo_dark";
+static const gchar *key_color_rds_dark     = "color_rds_dark";
 static const gchar *key_pty_set            = "pty_set";
 static const gchar *key_reset              = "reset";
 static const gchar *key_reset_timeout      = "reset_timeout";
@@ -77,6 +82,7 @@ static const gchar *key_auto_switch        = "auto_switch";
 static const gchar *key_ant_start          = "ant_start";
 static const gchar *key_ant_stop           = "ant_stop";
 static const gchar *key_ant_offset         = "ant_offset";
+static const gchar *key_ant_name           = "ant_name";
 static const gchar *key_rdsspy_port        = "rdsspy_port";
 static const gchar *key_rdsspy_auto        = "rdsspy_auto";
 static const gchar *key_rdsspy_run         = "rdsspy_run";
@@ -112,10 +118,6 @@ static const gchar *key_presets            = "presets";
 static const gchar *key_freqs              = "freqs";
 static const gchar *key_timeouts           = "timeouts";
 static const gchar *key_default_timeout    = "default_timeout";
-static const gchar *key_color              = "color";
-static const gchar *key_size               = "size";
-static const gchar *key_inv                = "inv";
-static const gchar *key_fill               = "fill";
 static const gchar *key_width              = "width";
 static const gchar *key_start              = "start";
 static const gchar *key_end                = "end";
@@ -152,9 +154,9 @@ static gboolean conf_read_boolean(GKeyFile*, const gchar*, const gchar*, gboolea
 static gint     conf_read_integer(GKeyFile*, const gchar*, const gchar*, gint);
 static gdouble  conf_read_double(GKeyFile*, const gchar*, const gchar*, gdouble);
 static gchar*   conf_read_string(GKeyFile*, const gchar*, const gchar*, const gchar*);
-static void     conf_read_color(GKeyFile*, const gchar*, const gchar*, GdkColor*, const gchar*);
-static void     conf_save_color(GKeyFile*, const gchar*, const gchar*, const GdkColor*);
-static gchar**  conf_read_hosts(GKeyFile*, const gchar*, const gchar*, const gchar*);
+static void     conf_read_color(GKeyFile*, const gchar*, const gchar*, GdkRGBA*, const gchar*);
+static void     conf_save_color(GKeyFile*, const gchar*, const gchar*, const GdkRGBA*);
+static gchar**  conf_read_strings(GKeyFile*, const gchar*, const gchar*, const gchar**);
 static void     conf_read_integers(GKeyFile*, const gchar*, const gchar*, gint, const gint*, gint*);
 static GList*   conf_uniq_int_list_read(GKeyFile*, const gchar*, const gchar*);
 static void     conf_uniq_int_list_save(GKeyFile*, const gchar*, const gchar*, GList*);
@@ -185,6 +187,21 @@ conf_read()
     gboolean file_exists = TRUE;
     gsize length;
 
+    const char *default_host[] =
+    {
+        CONF_CONNECTION_HOST,
+        NULL
+    };
+
+    const char *default_ant_name[] =
+    {
+        CONF_ANTENNA_NAME_A,
+        CONF_ANTENNA_NAME_B,
+        CONF_ANTENNA_NAME_C,
+        CONF_ANTENNA_NAME_D,
+        NULL
+    };
+
     if(!g_key_file_load_from_file(keyfile, path, G_KEY_FILE_KEEP_COMMENTS, NULL))
     {
         file_exists = FALSE;
@@ -201,7 +218,7 @@ conf_read()
     /* Connection */
     conf.network  = conf_read_boolean(keyfile, group_connection, key_network,  CONF_CONNECTION_NETWORK);
     conf.serial   = conf_read_string (keyfile, group_connection, key_serial,   CONF_CONNECTION_SERIAL);
-    conf.host     = conf_read_hosts  (keyfile, group_connection, key_host,     CONF_CONNECTION_HOST);
+    conf.host     = conf_read_strings(keyfile, group_connection, key_host,     default_host);
     conf.port     = conf_read_integer(keyfile, group_connection, key_port,     CONF_CONNECTION_PORT);
     conf.password = conf_read_string (keyfile, group_connection, key_password, CONF_CONNECTION_PASSWORD);
 
@@ -212,24 +229,28 @@ conf_read()
     conf.agc        = conf_read_integer(keyfile, group_tuner, key_agc,        CONF_TUNER_AGC);
     conf.deemphasis = conf_read_integer(keyfile, group_tuner, key_deemphasis, CONF_TUNER_DEEMPHASIS);
 
-    /* Interface */
+    /* Interface (first part) */
     conf.initial_freq       = conf_read_integer(keyfile, group_interface, key_initial_freq,       CONF_INTERFACE_INITIAL_FREQ);
     conf.event_action       = conf_read_integer(keyfile, group_interface, key_event_action,       CONF_INTERFACE_EVENT_ACTION);
     conf.utc                = conf_read_boolean(keyfile, group_interface, key_utc,                CONF_INTERFACE_UTC);
+    conf.fm_10k_steps       = conf_read_boolean(keyfile, group_interface, key_fm_10k_steps,       CONF_INTERFACE_FM_10K_STEPS);
     conf.mw_10k_steps       = conf_read_boolean(keyfile, group_interface, key_mw_10k_steps,       CONF_INTERFACE_MW_10K_STEPS);
     conf.auto_connect       = conf_read_boolean(keyfile, group_interface, key_auto_connect,       CONF_INTERFACE_AUTO_CONNECT);
     conf.disconnect_confirm = conf_read_boolean(keyfile, group_interface, key_disconnect_confirm, CONF_INTERFACE_DISCONNECT_CONFIRM);
     conf.auto_reconnect     = conf_read_boolean(keyfile, group_interface, key_auto_reconnect,     CONF_INTERFACE_AUTO_RECONNECT);
+    conf.grab_focus         = conf_read_boolean(keyfile, group_interface, key_grab_focus,         CONF_INTERFACE_GRAB_FOCUS);
+
+    /* Interface (second part) */
     conf.hide_decorations   = conf_read_boolean(keyfile, group_interface, key_hide_decorations,   CONF_INTERFACE_HIDE_DECORATIONS);
     conf.hide_interference  = conf_read_boolean(keyfile, group_interface, key_hide_interference,  CONF_INTERFACE_HIDE_INTERFERENCE);
     conf.hide_radiotext     = conf_read_boolean(keyfile, group_interface, key_hide_radiotext,     CONF_INTERFACE_HIDE_RADIOTEXT);
     conf.hide_statusbar     = conf_read_boolean(keyfile, group_interface, key_hide_statusbar,     CONF_INTERFACE_HIDE_STATUSBAR);
     conf.restore_position   = conf_read_boolean(keyfile, group_interface, key_restore_position,   CONF_INTERFACE_RESTORE_POSITION);
-    conf.grab_focus         = conf_read_boolean(keyfile, group_interface, key_grab_focus,         CONF_INTERFACE_GRAB_FOCUS);
     conf.title_tuner_info   = conf_read_boolean(keyfile, group_interface, key_title_tuner_info,   CONF_INTERFACE_TITLE_TUNER_INFO);
     conf.title_tuner_mode   = conf_read_integer(keyfile, group_interface, key_title_tuner_mode,   CONF_INTERFACE_TITLE_TUNER_MODE);
     conf.accessibility      = conf_read_boolean(keyfile, group_interface, key_accessibility,      CONF_INTERFACE_ACCESSIBILITY);
     conf.horizontal_af      = conf_read_boolean(keyfile, group_interface, key_horizontal_af,      CONF_INTERFACE_HORIZONTAL_AF);
+    conf.dark_theme         = conf_read_boolean(keyfile, group_interface, key_dark_theme,         CONF_INTERFACE_DARK_THEME);
 
     /* Graph */
     conf.signal_unit    = conf_read_integer(keyfile, group_signal, key_unit,     CONF_SIGNAL_UNIT);
@@ -237,11 +258,15 @@ conf_read()
     conf.signal_mode    = conf_read_integer(keyfile, group_signal, key_mode,     CONF_SIGNAL_MODE);
     conf.signal_height  = conf_read_integer(keyfile, group_signal, key_height,   CONF_SIGNAL_HEIGHT);
     conf.signal_offset  = conf_read_double (keyfile, group_signal, key_offset,   CONF_SIGNAL_OFFSET);
-    conf.signal_grid    = conf_read_boolean(keyfile, group_signal, key_grid,     CONF_SIGNAL_GRID);
+    conf.signal_scroll  = conf_read_boolean(keyfile, group_signal, key_scroll,   CONF_SIGNAL_SCROLL);
     conf.signal_avg     = conf_read_boolean(keyfile, group_signal, key_avg,      CONF_SIGNAL_AVG);
-    conf_read_color(keyfile, group_signal, key_color_mono,   &conf.color_mono,   CONF_SIGNAL_COLOR_MONO);
-    conf_read_color(keyfile, group_signal, key_color_stereo, &conf.color_stereo, CONF_SIGNAL_COLOR_STEREO);
-    conf_read_color(keyfile, group_signal, key_color_rds,    &conf.color_rds,    CONF_SIGNAL_COLOR_RDS);
+    conf.signal_grid    = conf_read_boolean(keyfile, group_signal, key_grid,     CONF_SIGNAL_GRID);
+    conf_read_color(keyfile, group_signal, key_color_mono,        &conf.color_mono,        CONF_SIGNAL_COLOR_MONO);
+    conf_read_color(keyfile, group_signal, key_color_stereo,      &conf.color_stereo,      CONF_SIGNAL_COLOR_STEREO);
+    conf_read_color(keyfile, group_signal, key_color_rds,         &conf.color_rds,         CONF_SIGNAL_COLOR_RDS);
+    conf_read_color(keyfile, group_signal, key_color_mono_dark,   &conf.color_mono_dark,   CONF_SIGNAL_COLOR_MONO_DARK);
+    conf_read_color(keyfile, group_signal, key_color_stereo_dark, &conf.color_stereo_dark, CONF_SIGNAL_COLOR_STEREO_DARK);
+    conf_read_color(keyfile, group_signal, key_color_rds_dark,    &conf.color_rds_dark,    CONF_SIGNAL_COLOR_RDS_DARK);
 
     /* RDS */
     conf.rds_pty_set        = conf_read_integer(keyfile, group_rds, key_pty_set,        CONF_RDS_PTY_SET);
@@ -259,9 +284,10 @@ conf_read()
     conf.ant_count          = conf_read_integer(keyfile, group_antenna, key_count,          CONF_ANTENNA_COUNT);
     conf.ant_clear_rds      = conf_read_boolean(keyfile, group_antenna, key_clear_rds,      CONF_ANTENNA_CLEAR_RDS);
     conf.ant_auto_switch    = conf_read_boolean(keyfile, group_antenna, key_auto_switch,    CONF_ANTENNA_AUTO_SWITCH);
-    conf_read_integers(keyfile, group_antenna, key_ant_start, ANT_COUNT, NULL, conf.ant_start);
-    conf_read_integers(keyfile, group_antenna, key_ant_stop, ANT_COUNT, NULL, conf.ant_stop);
+    conf_read_integers(keyfile, group_antenna, key_ant_start,  ANT_COUNT, NULL, conf.ant_start);
+    conf_read_integers(keyfile, group_antenna, key_ant_stop,   ANT_COUNT, NULL, conf.ant_stop);
     conf_read_integers(keyfile, group_antenna, key_ant_offset, ANT_COUNT, NULL, conf.ant_offset);
+    conf.ant_name           = conf_read_strings (keyfile, group_antenna, key_ant_name, default_ant_name);
 
     /* Logs */
     conf.rdsspy_port    = conf_read_integer(keyfile, group_logs, key_rdsspy_port,    CONF_LOGS_RDSSPY_PORT);
@@ -306,13 +332,6 @@ conf_read()
     conf.scheduler_timeouts = g_key_file_get_integer_list(keyfile, group_scheduler, key_timeouts, &length, NULL);
     conf.scheduler_n = (conf.scheduler_n > length) ? length : conf.scheduler_n;
     conf.scheduler_default_timeout = conf_read_integer(keyfile, group_scheduler, key_default_timeout, CONF_SCHEDULER_TIMEOUT);
-
-    /* Pattern */
-    conf.pattern_color = conf_read_integer(keyfile, group_pattern, key_color, CONF_PATTERN_COLOR);
-    conf.pattern_size  = conf_read_integer(keyfile, group_pattern, key_size,  CONF_PATTERN_SIZE);
-    conf.pattern_inv   = conf_read_boolean(keyfile, group_pattern, key_inv,   CONF_PATTERN_INV);
-    conf.pattern_fill  = conf_read_boolean(keyfile, group_pattern, key_fill,  CONF_PATTERN_FILL);
-    conf.pattern_avg   = conf_read_boolean(keyfile, group_pattern, key_avg,   CONF_PATTERN_AVG);
 
     /* Spectral scan */
     conf.scan_x          = conf_read_integer(keyfile, group_scan, key_x,          CONF_SCAN_X);
@@ -367,20 +386,24 @@ conf_write()
     g_key_file_set_integer(keyfile, group_interface, key_initial_freq,       conf.initial_freq);
     g_key_file_set_integer(keyfile, group_interface, key_event_action,       conf.event_action);
     g_key_file_set_boolean(keyfile, group_interface, key_utc,                conf.utc);
+    g_key_file_set_boolean(keyfile, group_interface, key_fm_10k_steps,       conf.fm_10k_steps);
     g_key_file_set_boolean(keyfile, group_interface, key_mw_10k_steps,       conf.mw_10k_steps);
     g_key_file_set_boolean(keyfile, group_interface, key_auto_connect,       conf.auto_connect);
     g_key_file_set_boolean(keyfile, group_interface, key_disconnect_confirm, conf.disconnect_confirm);
     g_key_file_set_boolean(keyfile, group_interface, key_auto_reconnect,     conf.auto_reconnect);
+    g_key_file_set_boolean(keyfile, group_interface, key_grab_focus,         conf.grab_focus);
+
+    /* Interface (appearance) */
     g_key_file_set_boolean(keyfile, group_interface, key_hide_decorations,   conf.hide_decorations);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_interference,  conf.hide_interference);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_radiotext,     conf.hide_radiotext);
     g_key_file_set_boolean(keyfile, group_interface, key_hide_statusbar,     conf.hide_statusbar);
     g_key_file_set_boolean(keyfile, group_interface, key_restore_position,   conf.restore_position);
-    g_key_file_set_boolean(keyfile, group_interface, key_grab_focus,         conf.grab_focus);
     g_key_file_set_boolean(keyfile, group_interface, key_title_tuner_info,   conf.title_tuner_info);
     g_key_file_set_integer(keyfile, group_interface, key_title_tuner_mode,   conf.title_tuner_mode);
     g_key_file_set_boolean(keyfile, group_interface, key_accessibility,      conf.accessibility);
     g_key_file_set_boolean(keyfile, group_interface, key_horizontal_af,      conf.horizontal_af);
+    g_key_file_set_boolean(keyfile, group_interface, key_dark_theme,         conf.dark_theme);
 
     /* Signal */
     g_key_file_set_integer(keyfile, group_signal, key_unit,    conf.signal_unit);
@@ -388,11 +411,15 @@ conf_write()
     g_key_file_set_integer(keyfile, group_signal, key_mode,    conf.signal_mode);
     g_key_file_set_integer(keyfile, group_signal, key_height,  conf.signal_height);
     g_key_file_set_double (keyfile, group_signal, key_offset,  conf.signal_offset);
-    g_key_file_set_boolean(keyfile, group_signal, key_grid,    conf.signal_grid);
+    g_key_file_set_boolean(keyfile, group_signal, key_scroll,  conf.signal_scroll);
     g_key_file_set_boolean(keyfile, group_signal, key_avg,     conf.signal_avg);
-    conf_save_color(keyfile, group_signal, key_color_mono,    &conf.color_mono);
-    conf_save_color(keyfile, group_signal, key_color_stereo,  &conf.color_stereo);
-    conf_save_color(keyfile, group_signal, key_color_rds,     &conf.color_rds);
+    g_key_file_set_boolean(keyfile, group_signal, key_grid,    conf.signal_grid);
+    conf_save_color(keyfile, group_signal, key_color_mono,         &conf.color_mono);
+    conf_save_color(keyfile, group_signal, key_color_stereo,       &conf.color_stereo);
+    conf_save_color(keyfile, group_signal, key_color_rds,          &conf.color_rds);
+    conf_save_color(keyfile, group_signal, key_color_mono_dark,    &conf.color_mono_dark);
+    conf_save_color(keyfile, group_signal, key_color_stereo_dark,  &conf.color_stereo_dark);
+    conf_save_color(keyfile, group_signal, key_color_rds_dark,     &conf.color_rds_dark);
 
     /* RDS */
     g_key_file_set_integer(keyfile, group_rds, key_pty_set,        conf.rds_pty_set);
@@ -413,6 +440,7 @@ conf_write()
     g_key_file_set_integer_list(keyfile, group_antenna, key_ant_start,      conf.ant_start, ANT_COUNT);
     g_key_file_set_integer_list(keyfile, group_antenna, key_ant_stop,       conf.ant_stop, ANT_COUNT);
     g_key_file_set_integer_list(keyfile, group_antenna, key_ant_offset,     conf.ant_offset, ANT_COUNT);
+    g_key_file_set_string_list (keyfile, group_antenna, key_ant_name,       (const gchar* const*)conf.ant_name, g_strv_length(conf.ant_name));
 
     /* Logs */
     g_key_file_set_integer(keyfile, group_logs, key_rdsspy_port,    conf.rdsspy_port);
@@ -464,13 +492,6 @@ conf_write()
         g_key_file_remove_key(keyfile, group_scheduler, key_timeouts, NULL);
     }
     g_key_file_set_integer(keyfile, group_scheduler, key_default_timeout, conf.scheduler_default_timeout);
-
-    /* Pattern */
-    g_key_file_set_integer(keyfile, group_pattern, key_color, conf.pattern_color);
-    g_key_file_set_integer(keyfile, group_pattern, key_size,  conf.pattern_size);
-    g_key_file_set_boolean(keyfile, group_pattern, key_inv,   conf.pattern_inv);
-    g_key_file_set_boolean(keyfile, group_pattern, key_fill,  conf.pattern_fill);
-    g_key_file_set_boolean(keyfile, group_pattern, key_avg,   conf.pattern_avg);
 
     /* Spectral scan */
     g_key_file_set_integer(keyfile, group_scan, key_x,          conf.scan_x);
@@ -599,7 +620,7 @@ static void
 conf_read_color(GKeyFile    *key_file,
                 const gchar *group_name,
                 const gchar *key,
-                GdkColor    *color,
+                GdkRGBA     *color,
                 const gchar *default_value)
 {
     gchar *value;
@@ -609,12 +630,12 @@ conf_read_color(GKeyFile    *key_file,
     if(err)
     {
         g_error_free(err);
-        gdk_color_parse(default_value, color);
+        gdk_rgba_parse(color, default_value);
         return;
     }
 
-    if(!gdk_color_parse(value, color))
-        gdk_color_parse(default_value, color);
+    if(!gdk_rgba_parse(color, value))
+        gdk_rgba_parse(color, default_value);
 
     g_free(value);
 }
@@ -623,30 +644,51 @@ static void
 conf_save_color(GKeyFile       *key_file,
                 const gchar    *group_name,
                 const gchar    *key,
-                const GdkColor *color)
+                const GdkRGBA *color)
 {
-    gchar *string = gdk_color_to_string(color);
+    gchar *string = gdk_rgba_to_string(color);
     g_key_file_set_string(key_file, group_name, key, string);
     g_free(string);
 }
 
 static gchar**
-conf_read_hosts(GKeyFile    *key_file,
-                const gchar *group_name,
-                const gchar *key,
-                const gchar *default_host)
+conf_read_strings(GKeyFile     *key_file,
+                  const gchar  *group_name,
+                  const gchar  *key,
+                  const gchar **default_values)
 {
     gchar **values;
-    GError *err = NULL;
+    gchar **new_values;
+    gint default_len = g_strv_length((gchar**)default_values);
+    gint read_len;
+    gint i;
 
-    values = g_key_file_get_string_list(key_file, group_name, key, NULL, &err);
-    if(err)
+    values = g_key_file_get_string_list(key_file, group_name, key, NULL, NULL);
+
+    if (values == NULL)
     {
-        g_error_free(err);
-        values = g_new(gchar*, 2);
-        values[0] = g_strdup(default_host);
-        values[1] = NULL;
+        values = g_new(gchar*, default_len+1);
+        for (i = 0; i < default_len+1; i++)
+            values[i] = g_strdup(default_values[i]);
+
+        return values;
     }
+
+    read_len = g_strv_length(values);
+    if (default_len > read_len)
+    {
+        new_values = g_new(gchar*, default_len+1);
+
+        for (i = 0; i < read_len; i++)
+            new_values[i] = g_strdup(strlen(values[i]) ? values[i] : default_values[i]);
+
+        for (; i < default_len + 1; i++)
+            new_values[i] = g_strdup(default_values[i]);
+
+        g_strfreev(values);
+        return new_values;
+    }
+
     return values;
 }
 

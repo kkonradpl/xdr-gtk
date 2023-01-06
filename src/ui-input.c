@@ -40,7 +40,7 @@ keyboard_press(GtkWidget   *widget,
         if(tuner_get_freq() < 1900)
             tuner_set_frequency(tuner_get_freq()+1);
         else
-            tuner_set_frequency(tuner_get_freq()+5);
+            tuner_set_frequency(tuner_get_freq()+(conf.fm_10k_steps ? 10 : 5));
         return TRUE;
     }
 
@@ -49,7 +49,7 @@ keyboard_press(GtkWidget   *widget,
         if(tuner_get_freq() <= 1900)
             tuner_set_frequency(tuner_get_freq()-1);
         else
-            tuner_set_frequency(tuner_get_freq()-5);
+            tuner_set_frequency(tuner_get_freq()-(conf.fm_10k_steps ? 10 : 5));
         return TRUE;
     }
 
@@ -129,9 +129,9 @@ keyboard_press(GtkWidget   *widget,
     }
 
     // presets
-    if(event->keyval >= GDK_F1 && event->keyval <= GDK_F12)
+    if(event->keyval >= GDK_KEY_F1 && event->keyval <= GDK_KEY_F12)
     {
-        gint id = event->keyval-GDK_F1;
+        gint id = event->keyval-GDK_KEY_F1;
         if(shift_pressed)
         {
             conf.presets[id] = tuner_get_freq();
@@ -192,17 +192,17 @@ keyboard_press(GtkWidget   *widget,
 
     if(ctrl_pressed)
     {
-        if(current == GDK_1)
+        if(current == GDK_KEY_1)
             conf.title_tuner_mode = 0;
-        else if(current == GDK_2)
+        else if(current == GDK_KEY_2)
             conf.title_tuner_mode = 1;
-        else if(current == GDK_3)
+        else if(current == GDK_KEY_3)
             conf.title_tuner_mode = 2;
-        else if(current == GDK_4)
+        else if(current == GDK_KEY_4)
             conf.title_tuner_mode = 3;
-        else if(current == GDK_5)
+        else if(current == GDK_KEY_5)
             conf.title_tuner_mode = 4;
-        else if(current == GDK_6)
+        else if(current == GDK_KEY_6)
             conf.title_tuner_mode = 5;
 
         g_source_remove(ui.title_timeout);
@@ -224,7 +224,7 @@ keyboard_press(GtkWidget   *widget,
     gint i = 0, j = 0, k = 0;
     gboolean flag = FALSE;
     g_snprintf(buff, 10, "%s", gtk_entry_get_text(GTK_ENTRY(ui.e_freq)));
-    if(event->keyval == GDK_Return)
+    if(event->keyval == GDK_KEY_Return)
     {
         for(i=0; i<strlen(buff); i++)
             if(buff[i]=='.')
@@ -262,7 +262,7 @@ keyboard_press(GtkWidget   *widget,
     {
         return FALSE;
     }
-    else if((event->keyval < GDK_KEY_0 || event->keyval > GDK_KEY_9) && (event->keyval < GDK_KEY_KP_0 || event->keyval > GDK_KEY_KP_9) && event->keyval != GDK_BackSpace && event->keyval != '.')
+    else if((event->keyval < GDK_KEY_0 || event->keyval > GDK_KEY_9) && (event->keyval < GDK_KEY_KP_0 || event->keyval > GDK_KEY_KP_9) && event->keyval != GDK_KEY_BackSpace && event->keyval != '.')
     {
         return TRUE;
     }
@@ -279,7 +279,7 @@ keyboard_press(GtkWidget   *widget,
         else
         {
             i=atoi(buff);
-            if(i>=20 && i<=200 && event->keyval != GDK_BackSpace && event->keyval != '.')
+            if(i>=20 && i<=200 && event->keyval != GDK_KEY_BackSpace && event->keyval != '.')
             {
                 switch(event->keyval)
                 {
@@ -318,8 +318,11 @@ keyboard_press(GtkWidget   *widget,
                     break;
                 }
 
-                gtk_entry_append_text(GTK_ENTRY(ui.e_freq), buff2);
+                gchar* content = gtk_editable_get_chars(GTK_EDITABLE(ui.e_freq), 0, -1);
+                gint position = strlen(content);
+                gtk_editable_insert_text(GTK_EDITABLE(ui.e_freq), buff2, sizeof(buff2), &position);
                 gtk_editable_set_position(GTK_EDITABLE(ui.e_freq), -1);
+                g_free(content);
                 return TRUE;
             }
         }
@@ -423,21 +426,18 @@ mouse_freq(GtkWidget *widget,
 }
 
 gboolean
-mouse_scroll(GtkWidget *widget,
-         GdkEventScroll  *event,
-         gpointer   nothing)
+mouse_scroll(GtkWidget      *widget,
+             GdkEventScroll *event,
+             gpointer        user_data)
 {
-    if(event->direction == GDK_SCROLL_DOWN)
-    {
-        tuner_modify_frequency(TUNER_FREQ_MODIFY_DOWN);
+    if (!conf.signal_scroll)
         return TRUE;
-    }
 
-    if(event->direction == GDK_SCROLL_UP)
-    {
+    if (event->direction == GDK_SCROLL_DOWN)
+        tuner_modify_frequency(TUNER_FREQ_MODIFY_DOWN);
+    else if (event->direction == GDK_SCROLL_UP)
         tuner_modify_frequency(TUNER_FREQ_MODIFY_UP);
-        return TRUE;
-    }
+
     return TRUE;
 }
 

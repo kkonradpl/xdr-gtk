@@ -4,6 +4,7 @@
 #include <gdk/gdkkeysyms.h>
 #ifdef G_OS_WIN32
 #include <winsock2.h>
+#include "win32.h"
 #endif
 #include "ui-connect.h"
 #include "ui.h"
@@ -26,6 +27,7 @@ static GtkListStore *ls_host;
 
 static conn_t *connecting;
 static gboolean wait_for_tuner;
+static guint dialog_callback = 0;
 static gboolean successfully_connected = FALSE;
 
 static void connection_dialog_destroy(GtkWidget*, gpointer);
@@ -36,6 +38,7 @@ static void connection_dialog_unlock(gboolean);
 static gboolean connection_dialog_key(GtkWidget*, GdkEventKey*, gpointer);
 static void connection_serial_state(gint);
 static void connection_dialog_connected(gint, gint);
+static gboolean connection_dialog_callback(gpointer);
 
 void
 connection_toggle()
@@ -79,7 +82,7 @@ connection_dialog(gboolean auto_connect)
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
     g_signal_connect(dialog, "destroy", G_CALLBACK(connection_dialog_destroy), NULL);
 
-    content = gtk_vbox_new(FALSE, 3);
+    content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
     gtk_container_add(GTK_CONTAINER(dialog), content);
 
     r_serial = gtk_radio_button_new_with_label(NULL, "Serial port");
@@ -127,7 +130,7 @@ connection_dialog(gboolean auto_connect)
     r_tcp = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(r_serial), "TCP/IP");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(r_tcp), conf.network);
     gtk_box_pack_start(GTK_BOX(content), r_tcp, TRUE, TRUE, 2);
-    box_tcp1 = gtk_hbox_new(FALSE, 5);
+    box_tcp1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_container_add(GTK_CONTAINER(content), box_tcp1);
     l_host = gtk_label_new("Host:");
     gtk_box_pack_start(GTK_BOX(box_tcp1), l_host, TRUE, FALSE, 1);
@@ -148,7 +151,8 @@ connection_dialog(gboolean auto_connect)
     gtk_box_pack_start(GTK_BOX(box_tcp1), e_host, TRUE, FALSE, 1);
     l_port = gtk_label_new("Port:");
     gtk_box_pack_start(GTK_BOX(box_tcp1), l_port, TRUE, FALSE, 1);
-    e_port = gtk_entry_new_with_max_length(5);
+    e_port = gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(e_port), 5);
     gtk_entry_set_width_chars(GTK_ENTRY(e_port), 5);
     gchar *s_port = g_strdup_printf("%d", conf.port);
     gtk_entry_set_text(GTK_ENTRY(e_port), s_port);
@@ -156,7 +160,7 @@ connection_dialog(gboolean auto_connect)
     g_signal_connect(e_port, "changed", G_CALLBACK(connection_dialog_select), r_tcp);
     gtk_box_pack_start(GTK_BOX(box_tcp1), e_port, TRUE, FALSE, 1);
 
-    box_tcp2 = gtk_hbox_new(FALSE, 5);
+    box_tcp2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_container_add(GTK_CONTAINER(content), box_tcp2);
     l_password = gtk_label_new("Password:");
     gtk_box_pack_start(GTK_BOX(box_tcp2), l_password, FALSE, FALSE, 1);
@@ -174,10 +178,11 @@ connection_dialog(gboolean auto_connect)
     g_signal_connect(c_password, "toggled", G_CALLBACK(connection_dialog_select), r_tcp);
     gtk_box_pack_start(GTK_BOX(box_tcp2), c_password, FALSE, FALSE, 1);
 
-    box_status_wrapper = gtk_hbox_new(TRUE, 5);
+    box_status_wrapper = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_pack_start(GTK_BOX(content), box_status_wrapper, FALSE, FALSE, 1);
 
-    box_status = gtk_hbox_new(FALSE, 5);
+    box_status = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_widget_set_hexpand(box_status, TRUE);
     gtk_box_pack_start(GTK_BOX(box_status_wrapper), box_status, FALSE, FALSE, 1);
 
     spinner = gtk_spinner_new();
@@ -186,15 +191,19 @@ connection_dialog(gboolean auto_connect)
     l_status = gtk_label_new(NULL);
     gtk_box_pack_start(GTK_BOX(box_status), l_status, FALSE, FALSE, 1);
 
-    box_button = gtk_hbutton_box_new();
+    box_button = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_button_box_set_layout(GTK_BUTTON_BOX(box_button), GTK_BUTTONBOX_END);
     gtk_box_set_spacing(GTK_BOX(box_button), 5);
     gtk_box_pack_start(GTK_BOX(content), box_button, FALSE, FALSE, 5);
-    b_connect = gtk_button_new_from_stock(GTK_STOCK_OK);
+
+    b_connect = gtk_button_new_with_label("OK");
+    gtk_button_set_image(GTK_BUTTON(b_connect), gtk_image_new_from_icon_name("gtk-ok", GTK_ICON_SIZE_BUTTON));
     g_signal_connect(dialog, "key-press-event", G_CALLBACK(connection_dialog_key), b_connect);
     g_signal_connect(b_connect, "clicked", G_CALLBACK(connection_dialog_connect), NULL);
     gtk_container_add(GTK_CONTAINER(box_button), b_connect);
-    b_cancel = gtk_button_new_from_stock(GTK_STOCK_CANCEL);
+
+    b_cancel = gtk_button_new_with_label("Cancel");
+    gtk_button_set_image(GTK_BUTTON(b_cancel), gtk_image_new_from_icon_name("gtk-cancel", GTK_ICON_SIZE_BUTTON));
     g_signal_connect_swapped(b_cancel, "clicked", G_CALLBACK(gtk_widget_destroy), dialog);
     gtk_container_add(GTK_CONTAINER(box_button), b_cancel);
 
@@ -213,6 +222,11 @@ connection_dialog(gboolean auto_connect)
     {
         gtk_button_clicked(GTK_BUTTON(b_connect));
     }
+
+#ifdef G_OS_WIN32
+    if (conf.dark_theme)
+        win32_dark_titlebar(dialog);
+#endif
 }
 
 static void
@@ -225,11 +239,18 @@ connection_dialog_destroy(GtkWidget *widget,
         connecting->canceled = TRUE;
         connecting = NULL;
     }
+
     if(wait_for_tuner)
     {
         /* Waiting for tuner, force its thread to end */
         tuner_thread_cancel(tuner.thread);
         wait_for_tuner = FALSE;
+    }
+
+    if(dialog_callback)
+    {
+        g_source_remove(dialog_callback);
+        dialog_callback = 0;
     }
 }
 
@@ -327,14 +348,15 @@ connection_dialog_key(GtkWidget   *widget,
                       gpointer     button)
 {
     guint current = gdk_keyval_to_upper(event->keyval);
-    if(current == GDK_Escape)
+    if(current == GDK_KEY_Escape)
     {
         gtk_widget_destroy(widget);
         return TRUE;
     }
-    else if(current == GDK_Return)
+    else if(current == GDK_KEY_Return)
     {
-        gtk_button_clicked(GTK_BUTTON(button));
+        if (gtk_widget_get_sensitive(GTK_WIDGET(button)))
+            gtk_button_clicked(GTK_BUTTON(button));
         return TRUE;
     }
     return FALSE;
@@ -377,29 +399,31 @@ connection_dialog_connected(gint mode,
     wait_for_tuner = TRUE;
     tuner.thread = tuner_thread_new(mode, fd);
 
-    while(!tuner.ready && tuner.thread)
-    {
-        if(gtk_events_pending())
-            gtk_main_iteration();
-        if(!gtk_events_pending())
-            g_usleep(10000);
-    }
+    dialog_callback = g_timeout_add(100, connection_dialog_callback, NULL);
+}
 
-    if(!tuner.thread)
+static gboolean
+connection_dialog_callback(gpointer userdata)
+{
+    if (!tuner.ready && tuner.thread)
+        return G_SOURCE_CONTINUE;
+
+    if (!tuner.thread)
     {
-        if(wait_for_tuner)
+        if (wait_for_tuner)
         {
             connection_dialog_unlock(TRUE);
             connection_dialog_status("Connection has been unexpectedly closed.");
             wait_for_tuner = FALSE;
         }
         successfully_connected = FALSE;
-        return;
+        dialog_callback = 0;
+        return G_SOURCE_REMOVE;
     }
 
     successfully_connected = TRUE;
 
-    if(tuner.send_settings)
+    if (tuner.send_settings)
     {
         tuner_set_volume();
         tuner_set_squelch();
@@ -416,6 +440,9 @@ connection_dialog_connected(gint mode,
     gtk_widget_set_sensitive(ui.b_connect, TRUE);
     wait_for_tuner = FALSE;
     gtk_widget_destroy(dialog);
+
+    dialog_callback = 0;
+    return G_SOURCE_REMOVE;
 }
 
 gboolean

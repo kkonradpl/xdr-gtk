@@ -28,6 +28,8 @@
 #define SERIAL_BUFFER 10000
 tuner_t tuner;
 
+#define CALLBACK_PRIORITY G_PRIORITY_HIGH_IDLE
+
 typedef struct tuner_thread
 {
     gintptr fd;
@@ -206,7 +208,7 @@ tuner_thread_cleanup:
 #endif
     }
 
-    g_idle_add(tuner_disconnect, thread);
+    g_idle_add_full(CALLBACK_PRIORITY, tuner_disconnect, thread, NULL);
     g_print("thread stop: %p\n", data);
     return NULL;
 }
@@ -218,7 +220,7 @@ tuner_parse(gchar  c,
     if(c == 'O' && msg[0] == 'K')
     {
         /* Tuner startup */
-        g_idle_add(tuner_ready, NULL);
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_ready, NULL, NULL);
     }
     else if(c == 'X')
     {
@@ -228,12 +230,12 @@ tuner_parse(gchar  c,
     else if(c == 'T')
     {
         /* Tuned frequency */
-        g_idle_add(tuner_freq, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_freq, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'V')
     {
         /* DAA tuning voltage */
-        g_idle_add(tuner_daa, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_daa, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'S' && strlen(msg) >= 2)
     {
@@ -256,13 +258,13 @@ tuner_parse(gchar  c,
                 break;
         }
         data->value = g_ascii_strtod(msg+1, NULL);
-        g_idle_add(tuner_signal, data);
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_signal, data, NULL);
 
         if((ptr = strchr(msg, ',')))
         {
-            g_idle_add(tuner_cci, GINT_TO_POINTER(atoi(ptr+1)));
+            g_idle_add_full(CALLBACK_PRIORITY, tuner_cci, GINT_TO_POINTER(atoi(ptr+1)), NULL);
             if((ptr = strchr(ptr+1, ',')))
-                g_idle_add(tuner_aci, GINT_TO_POINTER(atoi(ptr+1)));
+                g_idle_add_full(CALLBACK_PRIORITY, tuner_aci, GINT_TO_POINTER(atoi(ptr+1)), NULL);
         }
     }
     else if(c == 'P' && strlen(msg) >= 4)
@@ -277,87 +279,87 @@ tuner_parse(gchar  c,
                 err++;
         pi |= (((err > 3) ? 3 : err) << 16);
 
-        g_idle_add(tuner_pi, GUINT_TO_POINTER(pi));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_pi, GUINT_TO_POINTER(pi), NULL);
     }
     else if(c == 'R' && strlen(msg) == 14)
     {
         /* RDS data */
-        g_idle_add(tuner_rds, g_strdup(msg));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_rds, g_strdup(msg), NULL);
     }
     else if(c == 'U')
     {
         /* Spectral scan */
         tuner_scan_t *scan = tuner_scan_parse(msg);
         if(scan)
-            g_idle_add(tuner_scan, (gpointer)scan);
+            g_idle_add_full(CALLBACK_PRIORITY, tuner_scan, (gpointer)scan, NULL);
     }
     else if(c == 'N')
     {
         /* Stereo pilot injection level estimation */
-        g_idle_add(tuner_pilot, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_pilot, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'Y')
     {
         /* Sound volume control */
-        g_idle_add(tuner_volume, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_volume, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'A')
     {
         /* RF AGC threshold */
-        g_idle_add(tuner_agc, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_agc, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'D')
     {
         /* De-emphasis */
-        g_idle_add(tuner_deemphasis, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_deemphasis, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'Z')
     {
         /* Antenna switch */
-        g_idle_add(tuner_antenna, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_antenna, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'G')
     {
         /* RF & IF gain setting */
-        g_idle_add(tuner_gain, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_gain, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'M')
     {
         /* FM / AM mode */
-        g_idle_add(tuner_mode, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_mode, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'F')
     {
         /* Filter */
-        g_idle_add(tuner_filter, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_filter, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'Q')
     {
         /* Squelch */
-        g_idle_add(tuner_squelch, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_squelch, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'C')
     {
         /* Rotator control */
-        g_idle_add(tuner_rotator, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_rotator, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'I')
     {
         /* Custom signal level sampling interval */
-        g_idle_add(tuner_sampling_interval, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_sampling_interval, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == '!')
     {
         /* External event */
-        g_idle_add(tuner_event, NULL);
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_event, NULL, NULL);
     }
     else if(c == 'o')
     {
         /* Online users (network) */
         gchar *ptr;
-        g_idle_add(tuner_online, GINT_TO_POINTER(atoi(msg)));
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_online, GINT_TO_POINTER(atoi(msg)), NULL);
         if((ptr = strchr(msg, ',')))
-            g_idle_add(tuner_online_guests, GINT_TO_POINTER(atoi(ptr+1)));
+            g_idle_add_full(CALLBACK_PRIORITY, tuner_online_guests, GINT_TO_POINTER(atoi(ptr+1)), NULL);
     }
     else if(c == 'a')
     {
@@ -365,12 +367,12 @@ tuner_parse(gchar  c,
         gint auth = atoi(msg);
         if(!auth)
         {
-            g_idle_add(tuner_unauthorized, NULL);
+            g_idle_add_full(CALLBACK_PRIORITY, tuner_unauthorized, NULL, NULL);
             return FALSE;
         }
         else if(auth == 1)
         {
-            g_idle_add(tuner_ready, GINT_TO_POINTER(TRUE));
+            g_idle_add_full(CALLBACK_PRIORITY, tuner_ready, GINT_TO_POINTER(TRUE), NULL);
         }
     }
     return TRUE;

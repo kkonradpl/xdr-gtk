@@ -5,10 +5,10 @@
 
 static const gchar* const icons_volume[] =
 {
-    "audio-volume-muted",
-    "audio-volume-high",
-    "audio-volume-low",
-    "audio-volume-medium",
+    "audio-volume-muted-symbolic",
+    "audio-volume-high-symbolic",
+    "audio-volume-low-symbolic",
+    "audio-volume-medium-symbolic",
     NULL
 };
 
@@ -46,16 +46,16 @@ volume_init(gint value)
     GtkWidget *area;
     GtkWidget *label;
 
-    scale = gtk_scale_button_new(GTK_ICON_SIZE_MENU, 0.0, 100.0, 10.0, (const gchar **)icons_volume);
+    scale = gtk_scale_button_new(GTK_ICON_SIZE_LARGE_TOOLBAR, 0.0, 100.0, 2.5, (const gchar **)icons_volume);
     gtk_widget_set_can_focus(GTK_WIDGET(scale), FALSE);
     gtk_widget_set_has_tooltip(scale, TRUE);
     gtk_scale_button_set_value(GTK_SCALE_BUTTON(scale), value);
 
     label = gtk_label_new(NULL);
     volume_text(GTK_SCALE_BUTTON(scale), value, (gpointer)label);
-
-    area = gtk_bin_get_child(GTK_BIN(gtk_bin_get_child(GTK_BIN(gtk_scale_button_get_popup(GTK_SCALE_BUTTON(scale))))));
-    gtk_box_pack_start(GTK_BOX(area), label, TRUE, TRUE,  3);
+    area = gtk_bin_get_child(GTK_BIN(gtk_scale_button_get_popup(GTK_SCALE_BUTTON(scale))));
+    gtk_box_pack_end(GTK_BOX(area), label, TRUE, TRUE, 3);
+    gtk_widget_show(label);
 
     g_signal_connect(scale, "value-changed", G_CALLBACK(tuner_set_volume), NULL);
     g_signal_connect(scale, "query-tooltip", G_CALLBACK(volume_tooltip), NULL);
@@ -105,7 +105,7 @@ volume_text(GtkScaleButton *widget,
             gpointer        label)
 {
     gchar *str;
-    str = g_strdup_printf("<span size=\"small\">%d</span>", (gint)round(value));
+    str = g_strdup_printf("%d", (gint)round(value));
     gtk_label_set_markup(GTK_LABEL(label), str);
     g_free(str);
 }
@@ -117,16 +117,16 @@ squelch_init(gint value)
     GtkWidget *area;
     GtkWidget *label;
 
-    scale = gtk_scale_button_new(GTK_ICON_SIZE_MENU, -1.0, 100.0, 0.5, (const gchar **)icon_squelch_off);
+    scale = gtk_scale_button_new(GTK_ICON_SIZE_LARGE_TOOLBAR, -1.0, 100.0, 0.5, (const gchar **)icon_squelch_off);
     gtk_widget_set_can_focus(GTK_WIDGET(scale), FALSE);
     gtk_widget_set_has_tooltip(scale, TRUE);
     gtk_scale_button_set_value(GTK_SCALE_BUTTON(scale), value);
 
     label = gtk_label_new(NULL);
     squelch_text(GTK_SCALE_BUTTON(scale), value, (gpointer)label);
-
-    area = gtk_bin_get_child(GTK_BIN(gtk_bin_get_child(GTK_BIN(gtk_scale_button_get_popup(GTK_SCALE_BUTTON(scale))))));
-    gtk_box_pack_start(GTK_BOX(area), label, TRUE, TRUE,  3);
+    area = gtk_bin_get_child(GTK_BIN(gtk_scale_button_get_popup(GTK_SCALE_BUTTON(scale))));
+    gtk_box_pack_end(GTK_BOX(area), label, TRUE, TRUE, 3);
+    gtk_widget_show(label);
 
     g_signal_connect(scale, "value-changed", G_CALLBACK(squelch_icon), NULL);
     g_signal_connect(scale, "value-changed", G_CALLBACK(tuner_set_squelch), NULL);
@@ -183,13 +183,13 @@ squelch_text(GtkScaleButton *widget,
 
     if(v >= 0)
     {
-        str = g_strdup_printf("<span size=\"small\">%d</span>", v);
+        str = g_strdup_printf("%d", v);
         gtk_label_set_markup(GTK_LABEL(label), str);
         g_free(str);
     }
     else
     {
-        gtk_label_set_markup(GTK_LABEL(label), "<span size=\"small\">ST</span>");
+        gtk_label_set_markup(GTK_LABEL(label), "<span color=\"red\"><b>ST</b></span>");
     }
 }
 

@@ -28,6 +28,7 @@
 #define CONF_INTERFACE_FREQ_OFFSET         0
 #define CONF_INTERFACE_EVENT_ACTION        ACTION_NONE
 #define CONF_INTERFACE_UTC                 TRUE
+#define CONF_INTERFACE_FM_10K_STEPS        FALSE
 #define CONF_INTERFACE_MW_10K_STEPS        FALSE
 #define CONF_INTERFACE_AUTO_CONNECT        FALSE
 #define CONF_INTERFACE_DISCONNECT_CONFIRM  FALSE
@@ -42,18 +43,24 @@
 #define CONF_INTERFACE_TITLE_TUNER_MODE    0
 #define CONF_INTERFACE_ACCESSIBILITY       FALSE
 #define CONF_INTERFACE_HORIZONTAL_AF       FALSE
+#define CONF_INTERFACE_ROTATOR_ARROWS      FALSE
+#define CONF_INTERFACE_DARK_THEME          TRUE
 
 /* Signal */
-#define CONF_SIGNAL_OFFSET       0.0
-#define CONF_SIGNAL_UNIT         UNIT_DBF
-#define CONF_SIGNAL_DISPLAY      SIGNAL_GRAPH
-#define CONF_SIGNAL_MODE         GRAPH_DEFAULT
-#define CONF_SIGNAL_HEIGHT       100
-#define CONF_SIGNAL_GRID         TRUE
-#define CONF_SIGNAL_AVG          FALSE
-#define CONF_SIGNAL_COLOR_MONO   "#B5B5FF"
-#define CONF_SIGNAL_COLOR_STEREO "#8080FF"
-#define CONF_SIGNAL_COLOR_RDS    "#3333FF"
+#define CONF_SIGNAL_OFFSET            0.0
+#define CONF_SIGNAL_UNIT              UNIT_DBF
+#define CONF_SIGNAL_DISPLAY           SIGNAL_GRAPH
+#define CONF_SIGNAL_MODE              GRAPH_DEFAULT
+#define CONF_SIGNAL_HEIGHT            110
+#define CONF_SIGNAL_SCROLL            TRUE
+#define CONF_SIGNAL_GRID              TRUE
+#define CONF_SIGNAL_AVG               FALSE
+#define CONF_SIGNAL_COLOR_MONO        "#B5B5FF"
+#define CONF_SIGNAL_COLOR_STEREO      "#8080FF"
+#define CONF_SIGNAL_COLOR_RDS         "#3333FF"
+#define CONF_SIGNAL_COLOR_MONO_DARK   "#006600"
+#define CONF_SIGNAL_COLOR_STEREO_DARK "#35A128"
+#define CONF_SIGNAL_COLOR_RDS_DARK    "#8FF0A4"
 
 /* RDS */
 #define CONF_RDS_PTY_SET        RDS
@@ -71,6 +78,10 @@
 #define CONF_ANTENNA_COUNT          ANT_COUNT
 #define CONF_ANTENNA_CLEAR_RDS      TRUE
 #define CONF_ANTENNA_AUTO_SWITCH    FALSE
+#define CONF_ANTENNA_NAME_A         "Ant A"
+#define CONF_ANTENNA_NAME_B         "Ant B"
+#define CONF_ANTENNA_NAME_C         "Ant C"
+#define CONF_ANTENNA_NAME_D         "Ant D"
 
 /* Logs */
 #define CONF_LOGS_RDSSPY_PORT    7376
@@ -85,15 +96,15 @@
 #define CONF_LOGS_SCREEN_DIR     ""
 
 /* Keyboard */
-#define CONF_KEY_TUNE_UP        GDK_Right
-#define CONF_KEY_TUNE_DOWN      GDK_Left
-#define CONF_KEY_FINE_TUNE_UP   GDK_Up
-#define CONF_KEY_FINE_TUNE_DOWN GDK_Down
-#define CONF_KEY_JUMP_TUNE_UP   GDK_Page_Up
-#define CONF_KEY_JUMP_TUNE_DOWN GDK_Page_Down
-#define CONF_KEY_TUNE_BACK      GDK_B
-#define CONF_KEY_TUNE_RESET     GDK_R
-#define CONF_KEY_SCREENSHOT     GDK_S
+#define CONF_KEY_TUNE_UP        GDK_KEY_Right
+#define CONF_KEY_TUNE_DOWN      GDK_KEY_Left
+#define CONF_KEY_FINE_TUNE_UP   GDK_KEY_Up
+#define CONF_KEY_FINE_TUNE_DOWN GDK_KEY_Down
+#define CONF_KEY_JUMP_TUNE_UP   GDK_KEY_Page_Up
+#define CONF_KEY_JUMP_TUNE_DOWN GDK_KEY_Page_Down
+#define CONF_KEY_TUNE_BACK      GDK_KEY_B
+#define CONF_KEY_TUNE_RESET     GDK_KEY_R
+#define CONF_KEY_SCREENSHOT     GDK_KEY_S
 #define CONF_KEY_BW_UP          GDK_KEY_bracketright
 #define CONF_KEY_BW_DOWN        GDK_KEY_bracketleft
 #define CONF_KEY_BW_AUTO        GDK_KEY_backslash
@@ -123,13 +134,6 @@
 
 /* Scheduler */
 #define CONF_SCHEDULER_TIMEOUT 30
-
-/* Pattern */
-#define CONF_PATTERN_COLOR 3
-#define CONF_PATTERN_SIZE  600
-#define CONF_PATTERN_INV   FALSE
-#define CONF_PATTERN_FILL  TRUE
-#define CONF_PATTERN_AVG   FALSE
 
 /* Spectral scan */
 #define CONF_SCAN_X          -1

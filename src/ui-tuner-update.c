@@ -6,7 +6,7 @@
 #include "ui-signal.h"
 #include "stationlist.h"
 #include "conf.h"
-#include "pattern.h"
+#include "antpatt.h"
 #include "scan.h"
 #include "version.h"
 #include "log.h"
@@ -86,15 +86,13 @@ ui_update_stereo_flag()
 
         if(flag)
         {
-            gtk_label_set_text(GTK_LABEL(ui.l_st), (!forced_mono) ? "ST" : "MO");
-            gtk_widget_modify_fg(GTK_WIDGET(ui.l_st), GTK_STATE_NORMAL, &ui.colors.stereo);
+            gtk_label_set_markup(GTK_LABEL(ui.l_st), (!forced_mono) ? "<span color=\"" UI_COLOR_STEREO "\">ST</span>" : "<span color=\"" UI_COLOR_STEREO "\">MO</span>");
         }
         else
         {
             if(!conf.accessibility)
             {
-                gtk_label_set_text(GTK_LABEL(ui.l_st), (!forced_mono) ? "ST" : "MO");
-                gtk_widget_modify_fg(GTK_WIDGET(ui.l_st), GTK_STATE_NORMAL, &ui.colors.insensitive);
+                gtk_label_set_markup(GTK_LABEL(ui.l_st), (!forced_mono) ? "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">ST</span>" : "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">MO</span>");
             }
             else
             {
@@ -117,8 +115,7 @@ ui_update_rds_flag()
         {
             if(!conf.accessibility)
             {
-                gtk_label_set_text(GTK_LABEL(ui.l_rds), "RDS");
-                gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds), GTK_STATE_NORMAL, &ui.colors.insensitive);
+                gtk_label_set_markup(GTK_LABEL(ui.l_rds), "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">RDS</span>");
             }
             else
             {
@@ -127,8 +124,13 @@ ui_update_rds_flag()
         }
         else
         {
-            gtk_label_set_text(GTK_LABEL(ui.l_rds), "RDS");
-            gtk_widget_modify_fg(GTK_WIDGET(ui.l_rds), GTK_STATE_NORMAL, &conf.color_rds);
+            const GdkRGBA *color = (conf.dark_theme ? &conf.color_rds_dark : &conf.color_rds);
+            gchar *markup = g_strdup_printf("<span color=\"#%02X%02X%02X\">RDS</span>",
+                                            (uint8_t)(color->red*255),
+                                            (uint8_t)(color->green*255),
+                                            (uint8_t)(color->blue*255));
+            gtk_label_set_markup(GTK_LABEL(ui.l_rds), markup);
+            g_free(markup);
         }
     }
 }
@@ -162,11 +164,12 @@ ui_update_signal()
 
     signal_push(tuner.signal, tuner.stereo, tuner.rds, tuner_get_freq());
     scan_update_value(tuner_get_freq(), tuner.signal);
-    pattern_push(tuner.signal);
+    antpatt_push(tuner.signal);
     stationlist_rcvlevel(lround(tuner.signal));
 
     /* Add new sample to the buffer */
     samples[pos] = tuner.signal;
+    printf("RSSI %f %f\n", g_get_real_time()/1000.0/1000.0, tuner.signal);
 
     for(i=0; i<PEAK_HOLD_SAMPLES; i++)
        if(samples[i] > peak)
@@ -245,7 +248,7 @@ ui_update_cci()
     static gint pos = 0;
     gint peak = -1;
     gint last_pos = pos;
-    gchar buff[10];
+    gchar buff[20];
     gint i;
 
     /* Add new sample to the buffer */
@@ -279,8 +282,8 @@ ui_update_cci()
             if(samples[pos] < 0)
                 g_snprintf(buff, sizeof(buff), "CCI: ?");
             else
-                g_snprintf(buff, sizeof(buff), "CCI: %d%%", peak);
-            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(ui.p_cci), buff);
+                g_snprintf(buff, sizeof(buff), "CCI: <b>%d%%</b>", peak);
+            gtk_label_set_markup(GTK_LABEL(ui.l_cci), buff);
         }
     }
 }
@@ -293,7 +296,7 @@ ui_update_aci()
     static gint pos = 0;
     gint peak = -1;
     gint last_pos = pos;
-    gchar buff[10];
+    gchar buff[20];
     gint i;
 
     /* Add new sample to the buffer */
@@ -327,8 +330,8 @@ ui_update_aci()
             if(samples[pos] < 0)
                 g_snprintf(buff, sizeof(buff), "ACI: ?");
             else
-                g_snprintf(buff, sizeof(buff), "ACI: %d%%", peak);
-            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(ui.p_aci), buff);
+                g_snprintf(buff, sizeof(buff), "ACI: <b>%d%%</b>", peak);
+            gtk_label_set_markup(GTK_LABEL(ui.l_aci), buff);
         }
     }
 }
@@ -389,8 +392,7 @@ ui_update_tp()
     case 0:
         if(!conf.accessibility)
         {
-            gtk_label_set_text(GTK_LABEL(ui.l_tp), "TP");
-            gtk_widget_modify_fg(GTK_WIDGET(ui.l_tp), GTK_STATE_NORMAL, &ui.colors.insensitive);
+            gtk_label_set_markup(GTK_LABEL(ui.l_tp), "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">TP</span>");
         }
         else
         {
@@ -399,7 +401,6 @@ ui_update_tp()
         break;
     case 1:
         gtk_label_set_text(GTK_LABEL(ui.l_tp), "TP");
-        gtk_widget_modify_fg(GTK_WIDGET(ui.l_tp), GTK_STATE_NORMAL, &ui.colors.foreground);
         break;
     default:
         gtk_label_set_text(GTK_LABEL(ui.l_tp), "  ");
@@ -421,8 +422,7 @@ ui_update_ta()
     case 0:
         if(!conf.accessibility)
         {
-            gtk_label_set_text(GTK_LABEL(ui.l_ta), "TA");
-            gtk_widget_modify_fg(GTK_WIDGET(ui.l_ta), GTK_STATE_NORMAL, &ui.colors.insensitive);
+            gtk_label_set_markup(GTK_LABEL(ui.l_ta), "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">TA</span>");
         }
         else
         {
@@ -431,7 +431,6 @@ ui_update_ta()
         break;
     case 1:
         gtk_label_set_text(GTK_LABEL(ui.l_ta), "TA");
-        gtk_widget_modify_fg(GTK_WIDGET(ui.l_ta), GTK_STATE_NORMAL, &ui.colors.foreground);
         break;
     default:
         gtk_label_set_text(GTK_LABEL(ui.l_ta), "  ");
@@ -452,13 +451,13 @@ ui_update_ms()
     {
     case 0:
         if(!conf.accessibility)
-            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span color=\"" UI_COLOR_INSENSITIVE "\">M</span>S");
+            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">M</span>S");
         else
             gtk_label_set_text(GTK_LABEL(ui.l_ms), "Speech");
         break;
     case 1:
         if(!conf.accessibility)
-            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "M<span color=\"" UI_COLOR_INSENSITIVE "\">S</span>");
+            gtk_label_set_markup(GTK_LABEL(ui.l_ms), "M<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">S</span>");
         else
             gtk_label_set_text(GTK_LABEL(ui.l_ms), "Music ");
         break;
@@ -535,27 +534,29 @@ ui_update_ps(gboolean new_data)
     }
 
     for(i=0; i<8; i++)
-        c[i] = (tuner.rds_ps_err[i] ? 110+(tuner.rds_ps_err[i] * 12) : 0);
+    {
+        c[i] = (tuner.rds_ps_err[i] ? 60-(tuner.rds_ps_err[i] * 5) : 100);
+    }
 
-    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"#%02X%02X%02X\">%c</span>"
-                                "<span color=\"" UI_COLOR_INSENSITIVE "\">%c</span>",
+    m = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"%d%%\">%c</span>"
+                                "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">%c</span>",
                                 conf.rds_ps_progressive?'(':'[',
-                                c[0], c[0], c[0], tuner.rds_ps[0],
-                                c[1], c[1], c[1], tuner.rds_ps[1],
-                                c[2], c[2], c[2], tuner.rds_ps[2],
-                                c[3], c[3], c[3], tuner.rds_ps[3],
-                                c[4], c[4], c[4], tuner.rds_ps[4],
-                                c[5], c[5], c[5], tuner.rds_ps[5],
-                                c[6], c[6], c[6], tuner.rds_ps[6],
-                                c[7], c[7], c[7], tuner.rds_ps[7],
+                                c[0], tuner.rds_ps[0],
+                                c[1], tuner.rds_ps[1],
+                                c[2], tuner.rds_ps[2],
+                                c[3], tuner.rds_ps[3],
+                                c[4], tuner.rds_ps[4],
+                                c[5], tuner.rds_ps[5],
+                                c[6], tuner.rds_ps[6],
+                                c[7], tuner.rds_ps[7],
                                 conf.rds_ps_progressive?')':']');
     gtk_label_set_markup(GTK_LABEL(ui.l_ps), m);
     g_free(m);
@@ -584,9 +585,9 @@ ui_update_rt(gboolean flag)
         return;
     }
 
-    m = g_markup_printf_escaped("<span color=\"" UI_COLOR_INSENSITIVE "\">[</span>"
+    m = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">[</span>"
                                 "%s"
-                                "<span color=\"" UI_COLOR_INSENSITIVE "\">]</span>",
+                                "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">]</span>",
                                 tuner.rds_rt[flag]);
 
     gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), m);
@@ -601,7 +602,7 @@ ui_update_af(gint af)
     GtkListStore *model = ui.af_model;
     GtkTreeIter iter;
 
-    // if new frequency is found on the AF list, ui_update_af_check() will set it to 0
+    // if new frequency is found on the AF list, ui_update_af_check() will set it to zero
     gtk_tree_model_foreach(GTK_TREE_MODEL(model), (GtkTreeModelForeachFunc)ui_update_af_check, &af);
     if(af)
     {
@@ -647,11 +648,30 @@ ui_update_filter()
 void
 ui_update_rotator()
 {
-    const GdkColor *color = (tuner.rotator_waiting ? &ui.colors.action2 : &ui.colors.action);
-    gtk_widget_modify_bg(ui.b_cw,  GTK_STATE_ACTIVE,   (tuner.rotator == 1 ? color : NULL));
-    gtk_widget_modify_bg(ui.b_cw,  GTK_STATE_PRELIGHT, (tuner.rotator == 1 ? color : NULL));
-    gtk_widget_modify_bg(ui.b_ccw, GTK_STATE_ACTIVE,   (tuner.rotator == 2 ? color : NULL));
-    gtk_widget_modify_bg(ui.b_ccw, GTK_STATE_PRELIGHT, (tuner.rotator == 2 ? color : NULL));
+    const gchar* mode = (tuner.rotator_waiting ? "xdr-wait" : "xdr-action");
+    const gchar* mode_remove = (tuner.rotator_waiting ? "xdr-action" : "xdr-wait");
+
+    if (tuner.rotator == 1)
+    {
+        gtk_style_context_remove_class(gtk_widget_get_style_context(ui.b_cw), mode_remove);
+        gtk_style_context_add_class(gtk_widget_get_style_context(ui.b_cw), mode);
+    }
+    else
+    {
+        gtk_style_context_remove_class(gtk_widget_get_style_context(ui.b_cw), "xdr-wait");
+        gtk_style_context_remove_class(gtk_widget_get_style_context(ui.b_cw), "xdr-action");
+    }
+
+    if (tuner.rotator == 2)
+    {
+        gtk_style_context_remove_class(gtk_widget_get_style_context(ui.b_ccw), mode_remove);
+        gtk_style_context_add_class(gtk_widget_get_style_context(ui.b_ccw), mode);
+    }
+    else
+    {
+        gtk_style_context_remove_class(gtk_widget_get_style_context(ui.b_ccw), "xdr-wait");
+        gtk_style_context_remove_class(gtk_widget_get_style_context(ui.b_ccw), "xdr-action");
+    }
 }
 
 void

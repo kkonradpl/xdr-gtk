@@ -1,6 +1,6 @@
 /*
  *  XDR-GTK - user interface for XDR-F1HD tuner with XDR-I2C modification
- *  Copyright (c) 2012-2021  Konrad Kosmatka
+ *  Copyright (c) 2012-2023  Konrad Kosmatka
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -56,12 +56,17 @@ main(gint   argc,
     win32_init();
 #endif
     conf_init(get_config_path(argc, argv));
+
+    g_object_set(gtk_settings_get_default(),
+                 "gtk-application-prefer-dark-theme",
+                 conf.dark_theme, NULL);
+
     ui_init();
 
-    if(conf.rdsspy_auto)
+    if (conf.rdsspy_auto)
         rdsspy_toggle();
 
-    if(conf.srcp)
+    if (conf.srcp)
         stationlist_init();
 
     gtk_main();

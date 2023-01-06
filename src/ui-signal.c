@@ -31,30 +31,26 @@ typedef struct signal_buffer
 
 signal_buffer_t s;
 
-static GdkColor graph_color_border;
-static GdkColor graph_color_scale;
-static GdkColor graph_color_grid;
-static GdkColor graph_color_font;
+static GdkRGBA graph_color_border;
+static GdkRGBA graph_color_scale;
 
 static const double grid_pattern[] = {1.0, 1.0};
 static gint grid_pattern_len = sizeof(grid_pattern) / sizeof(grid_pattern[0]);
 
-static gboolean graph_draw(GtkWidget*, GdkEventExpose*, gpointer);
+static gboolean graph_draw(GtkWidget*, cairo_t*, gpointer);
 static gboolean graph_click(GtkWidget*, GdkEventButton*, gpointer);
 
 void
 signal_init()
 {
-    gdk_color_parse("#646464", &graph_color_border);
-    gdk_color_parse("#AAAAAA", &graph_color_scale);
-    gdk_color_parse("#C8C8C8", &graph_color_grid);
-    gdk_color_parse("#000000", &graph_color_font);
+    gdk_rgba_parse(&graph_color_border, "#646464");
+    gdk_rgba_parse(&graph_color_scale, "#AAAAAA");
 
-    s.len = (ui.graph->allocation.width)-GRAPH_OFFSET_LEFT;
+    s.len = (gtk_widget_get_allocated_width(ui.graph))-GRAPH_OFFSET_LEFT;
     s.data = g_new(signal_sample_t, s.len);
 
     gtk_widget_add_events(ui.graph, GDK_BUTTON_PRESS_MASK);
-    g_signal_connect(ui.graph, "expose-event", G_CALLBACK(graph_draw), NULL);
+    g_signal_connect(ui.graph, "draw", G_CALLBACK(graph_draw), NULL);
     g_signal_connect(ui.graph, "button-press-event", G_CALLBACK(graph_click), NULL);
 
     signal_resize();
@@ -69,11 +65,10 @@ signal_resize()
 }
 
 static gboolean
-graph_draw(GtkWidget      *widget,
-           GdkEventExpose *event,
-           gpointer        nothing)
+graph_draw(GtkWidget *widget,
+           cairo_t   *cr,
+           gpointer   nothing)
 {
-    cairo_t *cr;
     gdouble step;
     gint current_value;
     gdouble position;
@@ -84,7 +79,7 @@ graph_draw(GtkWidget      *widget,
     gdouble value;
     gchar text[10];
     gint offset_left = GRAPH_OFFSET_LEFT + (conf.signal_unit == UNIT_DBM ? GRAPH_OFFSET_DBM : 0);
-    gint draw_count = widget->allocation.width - offset_left;
+    gint draw_count = (gtk_widget_get_allocated_width(widget)) - offset_left;
 
     if(draw_count > s.len)
         draw_count = s.len;
@@ -101,20 +96,19 @@ graph_draw(GtkWidget      *widget,
         curr = ((curr==0) ? (s.len-1) : curr-1);
     }
 
-    cr = gdk_cairo_create(widget->window);
-    gdk_cairo_set_source_color(cr, &ui.colors.background);
-    cairo_paint(cr);
-
     if(max == G_MININT)
-    {
-        cairo_destroy(cr);
         return FALSE;
-    }
 
     if((max - min) == 0)
         max++;
     if((max - min) == 1)
         min--;
+
+    GdkRGBA color;
+    gtk_style_context_get_color(gtk_widget_get_style_context(widget), GTK_STATE_FLAG_NORMAL, &color);
+
+    GdkRGBA grid_color = color;
+    grid_color.alpha = 0.25;
 
     cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
     cairo_set_line_width(cr, 1.0);
@@ -130,7 +124,7 @@ graph_draw(GtkWidget      *widget,
         if(last_position + GRAPH_FONT_SIZE + 1.0 < position)
         {
             /* Draw a tick */
-            gdk_cairo_set_source_color(cr, &graph_color_scale);
+            gdk_cairo_set_source_rgba(cr, &graph_color_scale);
             cairo_move_to(cr, offset_left-0.5-GRAPH_SCALE_LINE_LENGTH/2.0, position);
             cairo_line_to(cr, offset_left-0.5+GRAPH_SCALE_LINE_LENGTH/2.0, position);
             cairo_stroke(cr);
@@ -139,7 +133,7 @@ graph_draw(GtkWidget      *widget,
             if(conf.signal_grid && current_value != min)
             {
                 cairo_save(cr);
-                gdk_cairo_set_source_color(cr, &graph_color_grid);
+                gdk_cairo_set_source_rgba(cr, &grid_color);
                 cairo_set_dash(cr, grid_pattern, grid_pattern_len, 0);
                 cairo_move_to(cr, offset_left-0.5+GRAPH_SCALE_LINE_LENGTH/2.0, position);
                 cairo_line_to(cr, offset_left-0.5+s.len+0.5, position);
@@ -148,12 +142,12 @@ graph_draw(GtkWidget      *widget,
             }
 
             /* Draw a label */
-            gdk_cairo_set_source_color(cr, &graph_color_font);
+            gdk_cairo_set_source_rgba(cr, &color);
             g_snprintf(text,
                        sizeof(text),
                        (conf.signal_unit == UNIT_DBM) ? "%4d" : "%3d",
                        current_value);
-            cairo_move_to(cr, -1.5, position+GRAPH_FONT_SIZE/2.0-1.0);
+            cairo_move_to(cr, round(-1.5), round(position+GRAPH_FONT_SIZE/2.0-1.0));
             cairo_show_text(cr, text);
 
             last_position = position;
@@ -170,11 +164,11 @@ graph_draw(GtkWidget      *widget,
         if(!isnan(s.data[curr].value))
         {
             if(s.data[curr].rds)
-                gdk_cairo_set_source_color(cr, &conf.color_rds);
+                gdk_cairo_set_source_rgba(cr, (conf.dark_theme ? &conf.color_rds_dark : &conf.color_rds));
             else if(s.data[curr].stereo)
-                gdk_cairo_set_source_color(cr, &conf.color_stereo);
+                gdk_cairo_set_source_rgba(cr, (conf.dark_theme ? &conf.color_stereo_dark : &conf.color_stereo));
             else
-                gdk_cairo_set_source_color(cr, &conf.color_mono);
+                gdk_cairo_set_source_rgba(cr, (conf.dark_theme ? &conf.color_mono_dark : &conf.color_mono));
 
             if(conf.signal_avg)
             {
@@ -209,13 +203,12 @@ graph_draw(GtkWidget      *widget,
     }
 
     /* Draw left vertical and bottom horizontal line */
-    gdk_cairo_set_source_color(cr, &graph_color_border);
+    gdk_cairo_set_source_rgba(cr, &graph_color_border);
     cairo_move_to(cr, offset_left-0.5, GRAPH_OFFSET_TOP+0.5);
     cairo_line_to(cr, offset_left-0.5, GRAPH_OFFSET_TOP+conf.signal_height+0.5);
     cairo_line_to(cr, offset_left-0.5+s.len+0.5, GRAPH_OFFSET_TOP+conf.signal_height+0.5);
     cairo_stroke(cr);
 
-    cairo_destroy(cr);
     return FALSE;
 }
 
