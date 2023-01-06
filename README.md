@@ -5,7 +5,7 @@ User interface for XDR-F1HD tuner with XDR-I2C modification.
 
 ![Screenshot](/xdr-gtk.png?raw=true)
 
-Copyright (C) 2012-2021  Konrad Kosmatka
+Copyright (C) 2012-2023  Konrad Kosmatka
 
 https://fmdx.pl/xdr-gtk/
 
@@ -16,7 +16,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 In order to build XDR-GTK you will need:
 - CMake
 - C compiler
-- GTK+ 2 & dependencies
+- GTK+ 3 & dependencies
 
 Once you have all the necessary dependencies, you can use scripts available in the `build` directory.
 
