@@ -1047,7 +1047,7 @@ settings_dialog(gint tab_num)
     gtk_box_pack_start(GTK_BOX(page_about), xdr_gtk_link, TRUE, FALSE, 10);
 
     xdr_gtk_copyright = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(xdr_gtk_copyright), "Copyright © 2012-2022  Konrad Kosmatka\n\n<span size=\"smaller\">Icon by Marek Farkaš (Noobish)</span>");
+    gtk_label_set_markup(GTK_LABEL(xdr_gtk_copyright), "Copyright © 2012-2023  Konrad Kosmatka\n\n<span size=\"smaller\">Icon by Marek Farkaš (Noobish)</span>");
     gtk_label_set_justify(GTK_LABEL(xdr_gtk_copyright), GTK_JUSTIFY_CENTER);
     gtk_box_pack_start(GTK_BOX(page_about), xdr_gtk_copyright, TRUE, FALSE, 5);
 
