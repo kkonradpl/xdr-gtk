@@ -169,7 +169,6 @@ ui_update_signal()
 
     /* Add new sample to the buffer */
     samples[pos] = tuner.signal;
-    printf("RSSI %f %f\n", g_get_real_time()/1000.0/1000.0, tuner.signal);
 
     for(i=0; i<PEAK_HOLD_SAMPLES; i++)
        if(samples[i] > peak)
