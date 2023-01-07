@@ -19,7 +19,13 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <dirent.h>
+#include <netinet/tcp.h>
+
 #endif
+
+#define SOCKET_TCP_KEEPCNT    2
+#define SOCKET_TCP_KEEPINTVL 10
+#define SOCKET_TCP_KEEPIDLE  30
 
 gint
 tuner_open_serial(const gchar *serial_port,
@@ -167,6 +173,30 @@ tuner_open_socket(gpointer ptr)
         g_idle_add(connection_socket_callback, data);
         return NULL;
     }
+
+#ifdef G_OS_WIN32
+    DWORD ret;
+    struct tcp_keepalive ka =
+    {
+        .onoff = 1,
+        .keepaliveinterval = SOCKET_TCP_KEEPINTVL * SOCKET_TCP_KEEPCNT * 1000 / 10,
+        .keepalivetime = SOCKET_TCP_KEEPIDLE * 1000
+    };
+    WSAIoctl(data->socketfd, SIO_KEEPALIVE_VALS, &ka, sizeof(ka), NULL, 0, &ret, NULL, NULL);
+#else
+    gint opt = 1;
+    if(setsockopt(data->socketfd, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof(opt)) >= 0)
+    {
+        opt = SOCKET_TCP_KEEPCNT;
+        setsockopt(data->socketfd, IPPROTO_TCP, TCP_KEEPCNT, &opt, sizeof(opt));
+
+        opt = SOCKET_TCP_KEEPINTVL;
+        setsockopt(data->socketfd, IPPROTO_TCP, TCP_KEEPINTVL, &opt, sizeof(opt));
+
+        opt = SOCKET_TCP_KEEPIDLE;
+        setsockopt(data->socketfd, IPPROTO_TCP, TCP_KEEPIDLE, &opt, sizeof(opt));
+    }
+#endif
 
     data->state = CONN_SUCCESS;
     g_idle_add(connection_socket_callback, data);
