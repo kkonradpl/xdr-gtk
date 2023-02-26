@@ -224,7 +224,8 @@ keyboard_press(GtkWidget   *widget,
     gint i = 0, j = 0, k = 0;
     gboolean flag = FALSE;
     g_snprintf(buff, 10, "%s", gtk_entry_get_text(GTK_ENTRY(ui.e_freq)));
-    if(event->keyval == GDK_KEY_Return)
+    if (event->keyval == GDK_KEY_Return ||
+        event->keyval == GDK_KEY_KP_Enter)
     {
         for(i=0; i<strlen(buff); i++)
             if(buff[i]=='.')
