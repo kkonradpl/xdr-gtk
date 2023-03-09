@@ -139,7 +139,9 @@ static void tune_ui_step_click(GtkWidget*, GdkEventButton*, gpointer);
 static void tune_ui_step_scroll(GtkWidget*, GdkEventScroll*, gpointer);
 static gboolean ui_toggle_gain(GtkWidget*, GdkEventButton*, gpointer);
 static gboolean ui_update_clock(gpointer);
-static void tune_ui_af(GtkTreeView*, GtkTreePath*, GtkTreeViewColumn*, gpointer);
+static void tune_ui_af(GtkTreeModel*, GtkTreePath*);
+static void tune_ui_af_treeview(GtkTreeView*, GtkTreePath*, GtkTreeViewColumn*, gpointer);
+static void tune_ui_af_iconview(GtkIconView*, gpointer);
 static void window_on_top(GtkToggleButton*);
 static void ui_toggle_band(GtkWidget*, GdkEventButton*, gpointer);
 static void ui_st_click(GtkWidget*, GdkEventButton*, gpointer);
@@ -195,8 +197,6 @@ ui_init()
     gtk_box_pack_start(GTK_BOX(ui.box), ui.box_ui, TRUE, TRUE, 0);
     ui.box_left = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_left, TRUE, TRUE, 0);
-    ui.box_right = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_right, FALSE, FALSE, 0);
 
     // ----------------
     ui.volume = volume_init(conf.volume);
@@ -427,20 +427,29 @@ ui_init()
 
     if(conf.horizontal_af)
     {
-        ui.af_iconview = gtk_icon_view_new_with_model(GTK_TREE_MODEL(ui.af_model));
-        gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(ui.af_iconview), -1);
-        gtk_icon_view_set_text_column(GTK_ICON_VIEW(ui.af_iconview), 1);
-        gtk_icon_view_set_spacing(GTK_ICON_VIEW(ui.af_iconview), 0);
-        gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(ui.af_iconview), 0);
-        //gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(ui.af_iconview), 0);
-        gtk_icon_view_set_margin(GTK_ICON_VIEW(ui.af_iconview), 0);
-        gtk_icon_view_set_item_padding(GTK_ICON_VIEW(ui.af_iconview), 0);
-        gtk_widget_set_can_focus(GTK_WIDGET(ui.af_iconview), FALSE);
+        ui.box_af = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        gtk_box_pack_start(GTK_BOX(ui.box_left), ui.box_af, TRUE, TRUE, 0);
 
-        ui.af_iconview_scroll = gtk_scrolled_window_new(NULL, NULL);
-        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_iconview_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-        gtk_container_add(GTK_CONTAINER(ui.af_iconview_scroll), ui.af_iconview);
-        gtk_box_pack_start(GTK_BOX(ui.box_left), ui.af_iconview_scroll, TRUE, TRUE, 0);
+        ui.l_af_title = gtk_label_new("A\nF");
+        gtk_label_set_yalign(GTK_LABEL(ui.l_af_title), 0.5);
+        gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_af_title), "xdr-af");
+        gtk_box_pack_start(GTK_BOX(ui.box_af), ui.l_af_title, FALSE, FALSE, 3);
+
+        ui.af_view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(ui.af_model));
+        gtk_icon_view_set_activate_on_single_click(GTK_ICON_VIEW(ui.af_view), TRUE);
+        gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(ui.af_view), -1);
+        gtk_icon_view_set_text_column(GTK_ICON_VIEW(ui.af_view), 1);
+        gtk_icon_view_set_spacing(GTK_ICON_VIEW(ui.af_view), 0);
+        gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(ui.af_view), 0);
+        gtk_icon_view_set_margin(GTK_ICON_VIEW(ui.af_view), 0);
+        gtk_icon_view_set_item_padding(GTK_ICON_VIEW(ui.af_view), 0);
+        gtk_widget_set_can_focus(GTK_WIDGET(ui.af_view), FALSE);
+        g_signal_connect(ui.af_view, "selection-changed", G_CALLBACK(tune_ui_af_iconview), NULL);
+
+        ui.af_scroll = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        gtk_container_add(GTK_CONTAINER(ui.af_scroll), ui.af_view);
+        gtk_box_pack_start(GTK_BOX(ui.box_af), ui.af_scroll, TRUE, TRUE, 0);
     }
 
     // ----------------
@@ -583,32 +592,35 @@ ui_init()
 
     if(!conf.horizontal_af)
     {
-        ui.l_af = gtk_label_new("  AF:  ");
-        gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_af), "xdr-af");
-        gtk_box_pack_start(GTK_BOX(ui.box_right), ui.l_af, FALSE, FALSE, 3);
+        ui.box_af = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+        gtk_box_pack_start(GTK_BOX(ui.box_ui), ui.box_af, FALSE, FALSE, 0);
 
-        ui.af_treeview = gtk_tree_view_new();
-        gtk_widget_set_can_focus(ui.af_treeview, FALSE);
-        gtk_tree_view_set_model(GTK_TREE_VIEW(ui.af_treeview), GTK_TREE_MODEL(ui.af_model));
-        gtk_tree_view_set_activate_on_single_click(GTK_TREE_VIEW(ui.af_treeview), TRUE);
+        ui.l_af_title = gtk_label_new("  AF:  ");
+        gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_af_title), "xdr-af");
+        gtk_box_pack_start(GTK_BOX(ui.box_af), ui.l_af_title, FALSE, FALSE, 3);
 
-        gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_treeview), -1, "ID",
+        ui.af_view = gtk_tree_view_new();
+        gtk_widget_set_can_focus(ui.af_view, FALSE);
+        gtk_tree_view_set_model(GTK_TREE_VIEW(ui.af_view), GTK_TREE_MODEL(ui.af_model));
+        gtk_tree_view_set_activate_on_single_click(GTK_TREE_VIEW(ui.af_view), TRUE);
+
+        gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_view), -1, "ID",
                                                     gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_ID, NULL);
-        gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_treeview), -1, "FREQ",
+        gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(ui.af_view), -1, "FREQ",
                                                     gtk_cell_renderer_text_new(), "text", AF_LIST_STORE_FREQ, NULL);
 
-        gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(ui.af_treeview), AF_LIST_STORE_ID),
+        gtk_tree_view_column_set_visible(gtk_tree_view_get_column(GTK_TREE_VIEW(ui.af_view), AF_LIST_STORE_ID),
                                          FALSE);
-        gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(ui.af_treeview), FALSE);
-        g_signal_connect(ui.af_treeview, "row-activated", G_CALLBACK(tune_ui_af), NULL);
+        gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(ui.af_view), FALSE);
+        g_signal_connect(ui.af_view, "row-activated", G_CALLBACK(tune_ui_af_treeview), NULL);
         ui.autoscroll = FALSE;
-        g_signal_connect(GTK_TREE_VIEW(ui.af_treeview), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
+        g_signal_connect(GTK_TREE_VIEW(ui.af_view), "size-allocate", G_CALLBACK(ui_af_autoscroll), NULL);
 
-        ui.af_treeview_scroll = gtk_scrolled_window_new(NULL, NULL);
-        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_treeview_scroll), GTK_POLICY_NEVER,
+        ui.af_scroll = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui.af_scroll), GTK_POLICY_NEVER,
                                        GTK_POLICY_AUTOMATIC);
-        gtk_container_add(GTK_CONTAINER(ui.af_treeview_scroll), ui.af_treeview);
-        gtk_box_pack_start(GTK_BOX(ui.box_right), ui.af_treeview_scroll, TRUE, TRUE, 0);
+        gtk_container_add(GTK_CONTAINER(ui.af_scroll), ui.af_view);
+        gtk_box_pack_start(GTK_BOX(ui.box_af), ui.af_scroll, TRUE, TRUE, 0);
     }
 
     // ----------------
@@ -979,26 +991,42 @@ ui_update_clock(gpointer label)
 }
 
 static void
-tune_ui_af(GtkTreeView       *treeview,
-           GtkTreePath       *path,
-           GtkTreeViewColumn *column,
-           gpointer           user_data)
+tune_ui_af_treeview(GtkTreeView       *widget,
+                    GtkTreePath       *path,
+                    GtkTreeViewColumn *column,
+                    gpointer           user_data)
 {
-    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
-    GtkTreeModel *model = gtk_tree_view_get_model(treeview);
+    GtkTreeModel *model = gtk_tree_view_get_model(widget);
+    tune_ui_af(model, path);
+}
+
+static void
+tune_ui_af_iconview(GtkIconView *widget,
+                    gpointer     user_data)
+{
+    GList *list = gtk_icon_view_get_selected_items(widget);
+    GtkTreeModel *model = gtk_icon_view_get_model(widget);
+
+    if (list && list->data)
+        tune_ui_af(model, (GtkTreePath*)list->data);
+
+    g_list_free_full(list, (GDestroyNotify)gtk_tree_path_free);
+}
+
+static void
+tune_ui_af(GtkTreeModel *model,
+           GtkTreePath  *path)
+{
     GtkTreeIter iter;
-    gint n = 0;
+    gint value = 0;
 
-    if (!selection)
-        return;
+    if (gtk_tree_model_get_iter(model, &iter, path))
+    {
+        gtk_tree_model_get(model, &iter, 0, &value, -1);
 
-    if (!gtk_tree_selection_get_selected(selection, &model, &iter))
-        return;
-
-    gtk_tree_model_get(model, &iter, 0, &n, -1);
-
-    if(n)
-        tuner_set_frequency(87500+n*100);
+        if(value)
+            tuner_set_frequency(87500 + value * 100);
+    }
 }
 
 void

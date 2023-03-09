@@ -607,7 +607,7 @@ ui_update_af(gint af)
     {
         if(!conf.horizontal_af)
         {
-            GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ui.af_treeview_scroll));
+            GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ui.af_scroll));
             ui.autoscroll = (gtk_adjustment_get_value(adj) == gtk_adjustment_get_lower(adj));
         }
 

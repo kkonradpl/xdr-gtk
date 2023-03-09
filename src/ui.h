@@ -38,7 +38,6 @@ typedef struct ui
     GtkWidget *box_buttons;
     GtkWidget *box_left_settings2;
     GtkWidget *box_rotator;
-    GtkWidget *box_right;
 
     GtkWidget *volume;
     GtkWidget *squelch;
@@ -68,15 +67,12 @@ typedef struct ui
     GtkWidget *l_pty;
     GtkWidget *event_sig, *l_sig;
 
-    GtkWidget *af_iconview;
-    GtkWidget *af_iconview_scroll;
-
     GtkWidget *b_connect;
     GtkWidget *b_pattern;
     GtkWidget *b_settings;
     GtkWidget *b_scheduler;
     GtkWidget *b_rdsspy;
-    GtkWidget *b_ontop, *b_ontop_icon;
+    GtkWidget *b_ontop;
 
     GtkWidget *c_ant;
     GtkListStore *ant;
@@ -96,9 +92,10 @@ typedef struct ui
     guint title_timeout;
     GtkWidget *l_status;
 
-    GtkWidget *l_af;
-    GtkWidget *af_treeview;
-    GtkWidget *af_treeview_scroll;
+    GtkWidget *box_af;
+    GtkWidget *l_af_title;
+    GtkWidget *af_view;
+    GtkWidget *af_scroll;
 
     gboolean autoscroll;
 } ui_t;
