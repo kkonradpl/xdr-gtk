@@ -110,8 +110,7 @@ static GtkWidget *page_scheduler, *scheduler_treeview, *scheduler_scroll;
 static GtkListStore *scheduler_liststore;
 static GtkCellRenderer *scheduler_renderer_freq, *scheduler_renderer_timeout;
 static GtkWidget *scheduler_add_box, *s_scheduler_freq, *s_scheduler_timeout;
-static GtkWidget *b_scheduler_add, *scheduler_right_align, *scheduler_right_box;
-static GtkWidget *b_scheduler_remove, *b_scheduler_clear;
+static GtkWidget *b_scheduler_add, *b_scheduler_remove, *b_scheduler_clear;
 
 /* About page */
 static GtkWidget *page_about;
@@ -1001,19 +1000,16 @@ settings_dialog(gint tab_num)
     g_signal_connect(b_scheduler_add, "clicked", G_CALLBACK(settings_scheduler_add), NULL);
     gtk_box_pack_start(GTK_BOX(scheduler_add_box), b_scheduler_add, TRUE, TRUE, 0);
 
-    scheduler_right_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_container_add(GTK_CONTAINER(scheduler_right_align), scheduler_right_box);
-
     b_scheduler_remove = gtk_button_new();
     gtk_widget_set_tooltip_text(b_scheduler_remove, "Remove");
     gtk_button_set_image(GTK_BUTTON(b_scheduler_remove), gtk_image_new_from_icon_name("list-remove", GTK_ICON_SIZE_BUTTON));
     g_signal_connect(b_scheduler_remove, "clicked", G_CALLBACK(settings_scheduler_remove), scheduler_treeview);
-    gtk_box_pack_start(GTK_BOX(scheduler_right_box), b_scheduler_remove, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(scheduler_add_box), b_scheduler_remove, FALSE, FALSE, 0);
 
-    b_scheduler_clear = gtk_button_new_with_label("Clear");
+    b_scheduler_clear = gtk_button_new();
     gtk_button_set_image(GTK_BUTTON(b_scheduler_clear), gtk_image_new_from_icon_name("edit-clear", GTK_ICON_SIZE_BUTTON));
     g_signal_connect_swapped(b_scheduler_clear, "clicked", G_CALLBACK(gtk_list_store_clear), scheduler_liststore);
-    gtk_box_pack_start(GTK_BOX(scheduler_right_box), b_scheduler_clear, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(scheduler_add_box), b_scheduler_clear, FALSE, FALSE, 0);
 
     settings_scheduler_load();
 
