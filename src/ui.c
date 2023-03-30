@@ -432,7 +432,7 @@ ui_init()
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings1), ui.box_buttons, FALSE, FALSE, 0);
 
     ui.b_connect = gtk_toggle_button_new();
-    gtk_button_set_image(GTK_BUTTON(ui.b_connect), gtk_image_new_from_icon_name("gtk-disconnect", GTK_ICON_SIZE_LARGE_TOOLBAR));
+    gtk_button_set_image(GTK_BUTTON(ui.b_connect), gtk_image_new_from_icon_name("xdr-gtk-connect", GTK_ICON_SIZE_LARGE_TOOLBAR));
     gtk_widget_set_focus_on_click(GTK_WIDGET(ui.b_connect), FALSE);
     gtk_widget_set_tooltip_text(ui.b_connect, "Connect");
     gtk_box_pack_start(GTK_BOX(ui.box_buttons), ui.b_connect, FALSE, FALSE, 0);
