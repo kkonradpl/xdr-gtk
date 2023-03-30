@@ -20,6 +20,7 @@
 #include "rdsspy.h"
 #include "stationlist.h"
 #include "log.h"
+#include "resources.h"
 #ifdef G_OS_WIN32
 #include "win32.h"
 #endif
@@ -52,6 +53,10 @@ main(gint   argc,
 {
     gtk_disable_setlocale();
     gtk_init(&argc, &argv);
+
+    g_resources_register(icons_get_resource());
+    gtk_icon_theme_add_resource_path(gtk_icon_theme_get_default(), "/org/xdr-gtk/icons");
+
 #ifdef G_OS_WIN32
     win32_init();
 #endif

@@ -45,7 +45,8 @@ set(SOURCE_FILES
         ui-tuner-set.h
         ui-tuner-update.c
         ui-tuner-update.h
-        version.h)
+        version.h
+        ${CMAKE_BINARY_DIR}/resources.c)
 
 set(SOURCE_FILES_MINGW
         win32.c
@@ -72,3 +73,5 @@ ELSE()
     add_executable(xdr-gtk ${SOURCE_FILES})
     target_link_libraries(xdr-gtk ${LIBRARIES})
 ENDIF()
+
+target_include_directories(xdr-gtk PRIVATE ${CMAKE_BINARY_DIR})

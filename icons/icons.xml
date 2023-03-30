@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+    <gresource prefix="/org/xdr-gtk/">
+        <file>icons/16x16/apps/xdr-gtk.png</file>
+        <file>icons/22x22/apps/xdr-gtk.png</file>
+        <file>icons/24x24/apps/xdr-gtk-squelch-st.png</file>
+        <file>icons/24x24/apps/xdr-gtk-scheduler.png</file>
+        <file>icons/24x24/apps/xdr-gtk-pattern.png</file>
+        <file>icons/24x24/apps/xdr-gtk-squelch-off.png</file>
+        <file>icons/24x24/apps/xdr-gtk-squelch-on.png</file>
+        <file>icons/24x24/apps/xdr-gtk-scan.png</file>
+        <file>icons/24x24/apps/xdr-gtk-settings.png</file>
+        <file>icons/24x24/apps/xdr-gtk.png</file>
+        <file>icons/24x24/apps/xdr-gtk-rdsspy.png</file>
+        <file>icons/24x24/apps/xdr-gtk-top.png</file>
+        <file>icons/32x32/apps/xdr-gtk.png</file>
+        <file>icons/48x48/apps/xdr-gtk.png</file>
+        <file>icons/scalable/apps/xdr-gtk.svg</file>
+    </gresource>
+</gresources>
+
