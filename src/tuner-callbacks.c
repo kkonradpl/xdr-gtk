@@ -9,9 +9,13 @@
 
 #define DEFAULT_SAMPLING_INTERVAL 66
 
-#define RDS_BLOCK_B 0
-#define RDS_BLOCK_C 1
-#define RDS_BLOCK_D 2
+#define RDS_BLOCK_A 0
+#define RDS_BLOCK_B 1
+#define RDS_BLOCK_C 2
+#define RDS_BLOCK_D 3
+
+static void tuner_rds(guint*, guint);
+
 
 gboolean
 tuner_ready(gpointer data)
@@ -139,10 +143,11 @@ tuner_pi(gpointer data)
 }
 
 gboolean
-tuner_rds(gpointer msg_ptr)
+tuner_rds_legacy(gpointer msg_ptr)
 {
     gchar *msg = (gchar*)msg_ptr;
-    guint data[3], errors, i;
+    guint data[4], errors, i;
+    guint errors_corrected = 0;
 
     if(tuner.rds_pi < 0)
     {
@@ -150,20 +155,73 @@ tuner_rds(gpointer msg_ptr)
         return FALSE;
     }
 
-    for(i=0; i<3; i++)
+    data[0] = tuner.rds_pi;
+
+    for (i = 1; i < 4; i++)
+    {
+        gchar hex[5];
+        strncpy(hex, msg+(i-1)*4, 4);
+        hex[4] = 0;
+        sscanf(hex, "%x", &data[i]);
+    }
+
+    sscanf(msg+12, "%x", &errors);
+
+    if (!tuner.rds)
+        errors_corrected |= (0x03 << 6);
+
+    errors_corrected |= (errors & 0x03) << 4;
+    errors_corrected |= (errors & 0x0C);
+    errors_corrected |= (errors & 0x30) >> 4;
+
+    tuner_rds(data, errors_corrected);
+    g_free(msg);
+    return FALSE;
+}
+
+gboolean
+tuner_rds_new(gpointer msg_ptr)
+{
+    gchar *msg = (gchar*)msg_ptr;
+    guint data[4], errors, i;
+
+    if(tuner.rds_pi < 0)
+    {
+        g_free(msg);
+        return FALSE;
+    }
+
+    for (i = 0; i < 4; i++)
     {
         gchar hex[5];
         strncpy(hex, msg+i*4, 4);
         hex[4] = 0;
         sscanf(hex, "%x", &data[i]);
     }
-    sscanf(msg+12, "%x", &errors);
 
+    sscanf(msg+16, "%x", &errors);
+
+    tuner_rds(data, errors);
+    g_free(msg);
+    return FALSE;
+}
+
+static void
+tuner_rds(guint *data,
+          guint  errors)
+{
     guchar group = (data[RDS_BLOCK_B] & 0xF000) >> 12;
     gboolean flag = (data[RDS_BLOCK_B] & 0x0800) >> 11;
-    guchar err[] = { (errors&3), ((errors&12)>>2), ((errors&48)>>4) };
+    guchar err[] =
+    {
+        (errors & 192) >> 6, /* Block A */
+        (errors & 48) >> 4,  /* Block B */
+        (errors & 12) >> 2,  /* Block C */
+        (errors & 3)         /* Block D */
+    };
+    guint i;
 
-    rdsspy_send((tuner.rds ? tuner.rds_pi : -1), msg, errors);
+    rdsspy_send(data, errors);
 
     // PTY, TP, TA, MS, AF, ECC: error-free blocks
     if(!err[RDS_BLOCK_B])
@@ -303,9 +361,6 @@ tuner_rds(gpointer msg_ptr)
             }
         }
     }
-
-    g_free(msg);
-    return FALSE;
 }
 
 gboolean

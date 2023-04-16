@@ -284,7 +284,12 @@ tuner_parse(gchar  c,
     else if(c == 'R' && strlen(msg) == 14)
     {
         /* RDS data */
-        g_idle_add_full(CALLBACK_PRIORITY, tuner_rds, g_strdup(msg), NULL);
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_rds_legacy, g_strdup(msg), NULL);
+    }
+    else if(c == 'R' && strlen(msg) == 18)
+    {
+        /* RDS data */
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_rds_new, g_strdup(msg), NULL);
     }
     else if(c == 'U')
     {

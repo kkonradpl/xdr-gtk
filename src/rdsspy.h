@@ -7,7 +7,7 @@ gboolean rdsspy_is_connected();
 void rdsspy_stop();
 
 void rdsspy_reset();
-void rdsspy_send(gint, gchar*, guint);
+void rdsspy_send(guint*, guint);
 
 #endif
 

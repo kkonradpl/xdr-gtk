@@ -199,8 +199,7 @@ rdsspy_reset()
 }
 
 void
-rdsspy_send(gint   pi,
-            gchar *msg,
+rdsspy_send(guint *data,
             guint  errors)
 {
     if(!rdsspy_is_connected())
@@ -209,43 +208,40 @@ rdsspy_send(gint   pi,
     gchar groups[4][5];
     gchar out[25];
 
-    /* 1st block (PI code) */
-    if(pi >= 0)
+    /* Block A */
+    if ((errors & 192) == 0)
     {
-        g_snprintf(groups[0], 5, "%04X", pi);
+        g_snprintf(groups[0], 5, "%04X", data[0]);
     }
     else
     {
         g_snprintf(groups[0], 5, "----");
     }
 
-    /* 2nd block */
-    if((errors&3) == 0)
+    /* Block B */
+    if((errors & 48) == 0)
     {
-        strncpy(groups[1], msg, 4);
-        groups[1][4] = 0;
+        g_snprintf(groups[1], 5, "%04X", data[1]);
     }
     else
     {
         g_snprintf(groups[1], 5, "----");
     }
 
-    /* 3rd block */
-    if((errors&12) == 0)
+    /* Block C */
+    if((errors & 12) == 0)
     {
-        strncpy(groups[2], msg+4, 4);
-        groups[2][4] = 0;
+        g_snprintf(groups[2], 5, "%04X", data[2]);
     }
     else
     {
         g_snprintf(groups[2], 5, "----");
     }
 
-    /* 4th block */
-    if((errors&48) == 0)
+    /* Block D */
+    if((errors & 3) == 0)
     {
-        strncpy(groups[3], msg+8, 4);
-        groups[3][4] = 0;
+        g_snprintf(groups[3], 5, "%04X", data[3]);
     }
     else
     {
