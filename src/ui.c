@@ -1347,8 +1347,21 @@ ui_screenshot()
                   "Unable to save a screenshot to:\n%s",
                   filename);
     }
-    cairo_surface_destroy(surface);
 
+    if (conf.screen_clipboard)
+    {
+        GdkPixbuf *pixbuf = gdk_pixbuf_get_from_surface(surface,
+                                                        0, 0,
+                                                        gtk_widget_get_allocated_width(ui.window),
+                                                        gtk_widget_get_allocated_height(ui.window));
+        if (pixbuf)
+        {
+            gtk_clipboard_set_image(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD), pixbuf);
+            g_object_unref(pixbuf);
+        }
+    }
+
+    cairo_surface_destroy(surface);
     g_free(filename);
 }
 

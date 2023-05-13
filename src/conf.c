@@ -52,6 +52,7 @@ static const gchar *key_title_tuner_mode   = "title_tuner_mode";
 static const gchar *key_accessibility      = "accessibility";
 static const gchar *key_horizontal_af      = "horizontal_af";
 static const gchar *key_dark_theme         = "dark_theme";
+static const gchar *key_screen_clipboard   = "screen_clipboard";
 static const gchar *key_unit               = "unit";
 static const gchar *key_display            = "display";
 static const gchar *key_mode               = "mode";
@@ -251,6 +252,7 @@ conf_read()
     conf.accessibility      = conf_read_boolean(keyfile, group_interface, key_accessibility,      CONF_INTERFACE_ACCESSIBILITY);
     conf.horizontal_af      = conf_read_boolean(keyfile, group_interface, key_horizontal_af,      CONF_INTERFACE_HORIZONTAL_AF);
     conf.dark_theme         = conf_read_boolean(keyfile, group_interface, key_dark_theme,         CONF_INTERFACE_DARK_THEME);
+    conf.screen_clipboard   = conf_read_boolean(keyfile, group_interface, key_screen_clipboard,   CONF_INTERFACE_SCREEN_CLIPBOARD);
 
     /* Graph */
     conf.signal_unit    = conf_read_integer(keyfile, group_signal, key_unit,     CONF_SIGNAL_UNIT);
@@ -404,6 +406,7 @@ conf_write()
     g_key_file_set_boolean(keyfile, group_interface, key_accessibility,      conf.accessibility);
     g_key_file_set_boolean(keyfile, group_interface, key_horizontal_af,      conf.horizontal_af);
     g_key_file_set_boolean(keyfile, group_interface, key_dark_theme,         conf.dark_theme);
+    g_key_file_set_boolean(keyfile, group_interface, key_screen_clipboard,   conf.screen_clipboard);
 
     /* Signal */
     g_key_file_set_integer(keyfile, group_signal, key_unit,    conf.signal_unit);
