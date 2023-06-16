@@ -184,6 +184,14 @@ tuner_open_socket(gpointer ptr)
     };
     WSAIoctl(data->socketfd, SIO_KEEPALIVE_VALS, &ka, sizeof(ka), NULL, 0, &ret, NULL, NULL);
 #else
+
+#if !defined(SOL_TCP) && defined(IPPROTO_TCP)
+#define SOL_TCP IPPROTO_TCP
+#endif
+#if !defined(TCP_KEEPIDLE) && defined(TCP_KEEPALIVE)
+#define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
+
     gint opt = 1;
     if(setsockopt(data->socketfd, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof(opt)) >= 0)
     {
