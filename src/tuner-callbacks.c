@@ -321,43 +321,59 @@ tuner_rds(guint *data,
     }
 
     // RT: user-defined error correction
-    if(err[RDS_BLOCK_B] <= conf.rds_rt_info_error)
+    if (err[RDS_BLOCK_B] <= conf.rds_rt_info_error)
     {
-        if(group == 2)
+        if (group == 2)
         {
-            short pos  = (data[RDS_BLOCK_B] & 15);
-            gboolean flag = (data[RDS_BLOCK_B] & 16) >> 4;
-            gchar rt[] = { data[RDS_BLOCK_C]>>8, data[RDS_BLOCK_C]&0xFF, data[RDS_BLOCK_D]>>8, data[RDS_BLOCK_D]&0xFF };
-            gboolean changed = FALSE;
-
-            for(i=0; i<4; i++)
+            gboolean rt_flag = (data[RDS_BLOCK_B] & 16) >> 4;
+            gchar rt[] =
             {
-                if(tuner.rds_rt[flag][pos*4+i] == rt[i])
-                    continue;
+                data[RDS_BLOCK_C] >> 8,
+                data[RDS_BLOCK_C] & 0xFF,
+                data[RDS_BLOCK_D] >> 8,
+                data[RDS_BLOCK_D] & 0xFF
+            };
 
-                if(rt[i] == 0x0D) // end of the RadioText message
+            gint length = flag ? 2 : 4;
+            gint offset = flag ? 2 : 0;
+            gboolean changed = FALSE;
+            for (i = offset; i < 4; i++)
+            {
+                gint pos = (data[RDS_BLOCK_B] & 15) * length + (i - offset);
+
+                if (tuner.rds_rt[rt_flag][pos] == rt[i])
                 {
-                    if ((i <= 1 && (errors&15) == 0) || (i >= 2 && (errors&51) == 0))
+                    /* No change */
+                    continue;
+                }
+
+                if (rt[i] == 0x0D)
+                {
+                    /* End of the RadioText message */
+                    if ((i <= 1 && (errors&15) == 0) ||
+                        (i >= 2 && (errors&51) == 0))
                     {
-                        tuner.rds_rt[flag][pos*4+i] = 0;
+                        tuner.rds_rt[rt_flag][pos] = 0;
                         changed = TRUE;
                     }
                 }
-                // only ASCII printable characters
-                else if(rt[i] >= 32 && rt[i] < 127)
+                else if (rt[i] >= 32 &&
+                         rt[i] < 127)
                 {
-                    if( (i <= 1 && ((errors&12)>>2) <= conf.rds_rt_data_error) || (i >= 2 && ((errors&48)>>4) <= conf.rds_rt_data_error) )
+                    /* Only ASCII printable characters */
+                    if ((i <= 1 && ((errors & 12) >> 2) <= conf.rds_rt_data_error) ||
+                        (i >= 2 && ((errors & 48) >> 4) <= conf.rds_rt_data_error))
                     {
-                        tuner.rds_rt[flag][pos*4+i] = rt[i];
+                        tuner.rds_rt[rt_flag][pos] = rt[i];
                         changed = TRUE;
                     }
                 }
             }
 
-            if(changed)
+            if (changed)
             {
-                tuner.rds_rt_avail[flag] = TRUE;
-                ui_update_rt(flag);
+                tuner.rds_rt_avail[rt_flag] = TRUE;
+                ui_update_rt(rt_flag);
             }
         }
     }
