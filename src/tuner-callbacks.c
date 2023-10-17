@@ -350,8 +350,9 @@ tuner_rds(guint *data,
                 if (rt[i] == 0x0D)
                 {
                     /* End of the RadioText message */
-                    if ((i <= 1 && (errors&15) == 0) ||
-                        (i >= 2 && (errors&51) == 0))
+                    if (!err[RDS_BLOCK_B] &&
+                        ((i <= 1 && !err[RDS_BLOCK_C]) ||
+                        (i >= 2 && !err[RDS_BLOCK_D])))
                     {
                         tuner.rds_rt[rt_flag][pos] = 0;
                         changed = TRUE;
@@ -361,8 +362,8 @@ tuner_rds(guint *data,
                          rt[i] < 127)
                 {
                     /* Only ASCII printable characters */
-                    if ((i <= 1 && ((errors & 12) >> 2) <= conf.rds_rt_data_error) ||
-                        (i >= 2 && ((errors & 48) >> 4) <= conf.rds_rt_data_error))
+                    if ((i <= 1 && err[RDS_BLOCK_C] <= conf.rds_rt_data_error) ||
+                        (i >= 2 && err[RDS_BLOCK_D] <= conf.rds_rt_data_error))
                     {
                         tuner.rds_rt[rt_flag][pos] = rt[i];
                         changed = TRUE;
