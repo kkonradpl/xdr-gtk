@@ -61,7 +61,7 @@ typedef struct tuner
     gint antenna;
     gint rfgain;
     gint ifgain;
-    gint filter;
+    gint bandwidth;
     gint squelch;
     gint rotator;
     gboolean rotator_waiting;
@@ -75,7 +75,7 @@ typedef struct tuner
     gboolean send_settings;
     gpointer thread;
 
-    gint64 last_set_filter;
+    gint64 last_set_bandwidth;
     gint64 last_set_deemph;
     gint64 last_set_agc;
     gint64 last_set_ant;

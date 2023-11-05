@@ -505,8 +505,14 @@ scan_toggle(GtkWidget *widget,
         antenna = ui_antenna_id(start);
         offset = tuner.offset[antenna];
         g_snprintf(buff, sizeof(buff),
-                   "Sa%d\nSb%d\nSc%d\nSf%d\nSz%d\nS%s",
-                   start+offset, stop+offset, step, tuner_filter_from_index(bw), antenna, (continuous?"m":""));
+                   "Sa%d\nSb%d\nSc%d\nSf%d\nSw%d\nSz%d\nS%s",
+                   start+offset,
+                   stop+offset,
+                   step,
+                   tuner_filter_from_index(bw),
+                   tuner_filter_bw_from_index(bw),
+                   antenna,
+                   (continuous?"m":""));
 
         tuner_write(tuner.thread, buff);
         scan_lock(TRUE);

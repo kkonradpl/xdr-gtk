@@ -656,7 +656,7 @@ ui_init()
     tuner.ifgain = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.x_if));
     tuner_clear_all();
     tuner.mode = MODE_FM;
-    tuner.filter = -1;
+    tuner.bandwidth = 0;
     for(i=0; i<ANT_COUNT; i++)
         tuner.offset[i] = conf.ant_offset[i];
     ui_update_mode();

@@ -24,7 +24,7 @@
 #include "conf.h"
 #include "rds-utils.h"
 
-#define DEBUG_READ  0
+#define DEBUG_READ  1
 #define DEBUG_WRITE 1
 
 #define SERIAL_BUFFER 10000
@@ -339,6 +339,11 @@ tuner_parse(gchar  c,
     {
         /* Filter */
         g_idle_add_full(CALLBACK_PRIORITY, tuner_filter, GINT_TO_POINTER(atoi(msg)), NULL);
+    }
+    else if(c == 'W')
+    {
+        /* Bandwidth */
+        g_idle_add_full(CALLBACK_PRIORITY, tuner_bandwidth, GINT_TO_POINTER(atoi(msg)), NULL);
     }
     else if(c == 'Q')
     {

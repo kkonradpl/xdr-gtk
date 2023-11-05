@@ -180,7 +180,7 @@ stationlist_cmd(gchar *param,
     else if(!g_ascii_strcasecmp(param, "bandwidth"))
     {
         if(!g_ascii_strcasecmp(value, "?"))
-            stationlist_bw(tuner_filter_bw(tuner.filter));
+            stationlist_bw(tuner.bandwidth);
         else
             g_idle_add(stationlist_set_bw, GINT_TO_POINTER(atoi(value)));
     }

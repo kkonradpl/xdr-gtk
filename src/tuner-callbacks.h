@@ -23,6 +23,7 @@ gboolean tuner_event(gpointer);
 gboolean tuner_gain(gpointer);
 gboolean tuner_mode(gpointer);
 gboolean tuner_filter(gpointer);
+gboolean tuner_bandwidth(gpointer);
 gboolean tuner_squelch(gpointer);
 gboolean tuner_rotator(gpointer);
 gboolean tuner_sampling_interval(gpointer);

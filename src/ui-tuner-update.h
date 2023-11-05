@@ -25,7 +25,7 @@ void ui_update_ps();
 void ui_update_rt(gboolean);
 void ui_update_af(gint);
 
-void ui_update_filter();
+void ui_update_bandwidth();
 void ui_update_rotator();
 void ui_update_forced_mono();
 void ui_update_scan(tuner_scan_t*);

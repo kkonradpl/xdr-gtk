@@ -285,16 +285,24 @@ tuner_mode(gpointer data)
     tuner_clear_signal();
     tuner_clear_rds();
     ui_update_mode();
-    tuner.filter = -1;
-    ui_update_filter();
+    tuner.bandwidth = 0;
+    ui_update_bandwidth();
     return FALSE;
 }
 
 gboolean
 tuner_filter(gpointer data)
 {
-    tuner.filter = GPOINTER_TO_INT(data);
-    ui_update_filter();
+    tuner.bandwidth = tuner_filter_bw(GPOINTER_TO_INT(data));
+    ui_update_bandwidth();
+    return FALSE;
+}
+
+gboolean
+tuner_bandwidth(gpointer data)
+{
+    tuner.bandwidth = GPOINTER_TO_INT(data);
+    ui_update_bandwidth();
     return FALSE;
 }
 

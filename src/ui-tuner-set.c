@@ -52,11 +52,16 @@ tuner_set_mode(gint mode)
 void
 tuner_set_bandwidth()
 {
-    gchar buffer[4];
-    g_snprintf(buffer, sizeof(buffer), "F%d",
-               tuner_filter_from_index(gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw))));
+    gchar buffer[16];
+    gint index = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw));
+
+    g_snprintf(buffer, sizeof(buffer), "F%d", tuner_filter_from_index(index));
     tuner_write(tuner.thread, buffer);
-    tuner.last_set_filter = g_get_real_time() / 1000;
+
+    g_snprintf(buffer, sizeof(buffer), "W%d", tuner_filter_bw_from_index(index));
+    tuner_write(tuner.thread, buffer);
+
+    tuner.last_set_bandwidth = g_get_real_time() / 1000;
 }
 
 void

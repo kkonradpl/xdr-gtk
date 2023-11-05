@@ -69,7 +69,7 @@ static const gint filters_bw[][FILTERS_COUNT] =
          17000,
          15000,
           9000,
-            -1
+             0
     },
     { /* AM */
         38600,
@@ -137,7 +137,7 @@ tuner_filter_bw_from_index(gint index)
 {
     if(index >= 0 && index < FILTERS_COUNT && (tuner.mode == MODE_FM || tuner.mode == MODE_AM))
         return filters_bw[tuner.mode][index];
-    return 0; /* unknown bandwidth */
+    return 0;
 }
 
 gint
@@ -147,7 +147,7 @@ tuner_filter_index_from_bw(gint bw)
     gint min = G_MAXINT;
     gint diff, i;
 
-    if(bw >= 0)
+    if(bw > 0)
     {
         for(i=0; i<FILTERS_COUNT-1; i++)
         {
@@ -159,6 +159,7 @@ tuner_filter_index_from_bw(gint bw)
             }
         }
     }
+    
     return index;
 }
 

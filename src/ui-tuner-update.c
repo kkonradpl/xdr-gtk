@@ -596,9 +596,9 @@ ui_update_af(gint af)
 }
 
 void
-ui_update_filter()
+ui_update_bandwidth()
 {
-    stationlist_bw(tuner_filter_bw(tuner.filter));
+    stationlist_bw(tuner.bandwidth);
 }
 
 void
@@ -699,7 +699,7 @@ ui_clear_af()
 void
 ui_update_service()
 {
-    tuner.last_set_filter = 0;
+    tuner.last_set_bandwidth = 0;
     tuner.last_set_deemph = 0;
     tuner.last_set_agc = 0;
     tuner.last_set_ant = 0;
@@ -756,9 +756,9 @@ update_service(gpointer user_data)
     }
 
     /* Filters */
-    value = tuner_filter_index(tuner.filter);
+    value = tuner_filter_index_from_bw(tuner.bandwidth);
     if(gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw)) != value &&
-       (current_time - tuner.last_set_filter > UPDATE_TIMEOUT))
+       (current_time - tuner.last_set_bandwidth > UPDATE_TIMEOUT))
     {
         g_signal_handlers_block_by_func(G_OBJECT(ui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
         gtk_combo_box_set_active(GTK_COMBO_BOX(ui.c_bw), value);
