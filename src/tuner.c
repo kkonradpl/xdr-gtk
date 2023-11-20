@@ -18,6 +18,7 @@
 
 #include "tuner.h"
 #include "log.h"
+#include "stationlist.h"
 #include "tuner-callbacks.h"
 #include "ui-tuner-update.h"
 #include "conf.h"
@@ -498,6 +499,113 @@ tuner_write_socket(gintptr  fd,
     return TRUE;
 }
 
+static void
+callback_pty(uint8_t  pty,
+             void    *user_data)
+{
+    ui_update_pty();
+}
+
+static void
+callback_tp(bool  tp,
+            void *user_data)
+{
+    ui_update_tp();
+}
+
+static void
+callback_ta(bool  tp,
+            void *user_data)
+{
+    ui_update_ta();
+}
+
+static void
+callback_ms(bool  tp,
+            void *user_data)
+{
+    ui_update_ms();
+}
+
+static void
+callback_af(uint8_t  af,
+            void    *user_data)
+{
+    ui_update_af(af);
+}
+
+static void
+callback_ecc(uint8_t  ecc,
+             void    *user_data)
+{
+    ui_update_ecc(ecc);
+}
+
+static void
+callback_ps(const char                  *ps,
+            const librds_string_error_t *ps_error,
+            void                        *user_data)
+{
+    ui_update_ps();
+    stationlist_ps(ps);
+
+    gboolean error = FALSE;
+    for (gint i = 0; i < LIBRDS_PS_LENGTH; i++)
+    {
+        if (ps_error[i])
+        {
+            error = TRUE;
+            break;
+        }
+    }
+
+    log_ps(ps, error);
+}
+
+static void
+callback_rt(const char                  *rt,
+            const librds_string_error_t *rt_error,
+            librds_rt_flag_t             flag,
+            void                        *user_data)
+{
+    ui_update_rt(flag);
+    stationlist_rt(flag, rt);
+    log_rt(flag, rt);
+}
+
+void
+tuner_rds_init()
+{
+    tuner.rds = librds_new();
+
+    tuner_rds_configure();
+
+    librds_register_pty(tuner.rds, callback_pty);
+    librds_register_tp(tuner.rds, callback_tp);
+    librds_register_ta(tuner.rds, callback_ta);
+    librds_register_ms(tuner.rds, callback_ms);
+    librds_register_af(tuner.rds, callback_af);
+    librds_register_ecc(tuner.rds, callback_ecc);
+    librds_register_ps(tuner.rds, callback_ps);
+    librds_register_rt(tuner.rds, callback_rt);
+}
+
+void
+tuner_rds_configure()
+{
+    librds_block_error_t ps_info_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_ps_info_error);
+    librds_block_error_t ps_data_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_ps_data_error);
+    librds_set_correction(tuner.rds, LIBRDS_STRING_PS, LIBRDS_BLOCK_TYPE_INFO, ps_info_error);
+    librds_set_correction(tuner.rds, LIBRDS_STRING_PS, LIBRDS_BLOCK_TYPE_DATA, ps_data_error);
+    librds_set_progressive(tuner.rds, LIBRDS_STRING_PS, conf.rds_ps_progressive);
+
+    librds_block_error_t rt_info_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_rt_info_error);
+    librds_block_error_t rt_data_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_rt_data_error);
+    librds_set_correction(tuner.rds, LIBRDS_STRING_RT, LIBRDS_BLOCK_TYPE_INFO, rt_info_error);
+    librds_set_correction(tuner.rds, LIBRDS_STRING_RT, LIBRDS_BLOCK_TYPE_DATA, rt_data_error);
+    librds_set_progressive(tuner.rds, LIBRDS_STRING_RT, conf.rds_rt_progressive);
+}
+
 void tuner_clear_all()
 {
     log_cleanup();
@@ -546,9 +654,7 @@ void tuner_clear_signal()
 
 void tuner_clear_rds()
 {
-    gint i;
-
-    tuner.rds = 0;
+    tuner.rds_timeout = 0;
     ui_update_rds_flag();
     tuner.rds_reset_timer = 0;
 
@@ -556,32 +662,15 @@ void tuner_clear_rds()
     tuner.rds_pi_err_level = G_MAXINT;
     ui_update_pi();
 
-    tuner.rds_tp = -1;
+    librds_clear(tuner.rds);
+
     ui_update_tp();
-
-    tuner.rds_ta = -1;
     ui_update_ta();
-
-    tuner.rds_ms = -1;
     ui_update_ms();
-
-    tuner.rds_pty = -1;
     ui_update_pty();
-
-    tuner.rds_ecc = -1;
     ui_update_ecc();
-
-    sprintf(tuner.rds_ps, "%8s", "");
-    for(i=0; i<8; i++)
-        tuner.rds_ps_err[i] = 0xFF;
-    tuner.rds_ps_avail = FALSE;
-    ui_update_ps(FALSE);
-
-    sprintf(tuner.rds_rt[0], "%64s", "");
-    tuner.rds_rt_avail[0] = FALSE;
+    ui_update_ps();
     ui_update_rt(0);
-    sprintf(tuner.rds_rt[1], "%64s", "");
-    tuner.rds_rt_avail[1] = FALSE;
     ui_update_rt(1);
 
     ui_clear_af();

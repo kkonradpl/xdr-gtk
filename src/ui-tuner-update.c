@@ -15,7 +15,6 @@
 #define PEAK_HOLD_SAMPLES 4
 #define UPDATE_TIMEOUT 2000
 
-static gboolean ui_update_af_check(GtkTreeModel*, GtkTreePath*, GtkTreeIter*, gpointer);
 static gboolean update_service(gpointer);
 static void service_update_rotator();
 
@@ -107,9 +106,9 @@ ui_update_rds_flag()
 {
     static gint last_flag = -1;
 
-    if(last_flag != tuner.rds)
+    if(last_flag != tuner.rds_timeout)
     {
-        last_flag = tuner.rds;
+        last_flag = tuner.rds_timeout;
 
         if(last_flag == 0)
         {
@@ -162,7 +161,7 @@ ui_update_signal()
         return;
     }
 
-    signal_push(tuner.signal, tuner.stereo, tuner.rds, tuner_get_freq());
+    signal_push(tuner.signal, tuner.stereo, tuner.rds_timeout, tuner_get_freq());
     scan_update_value(tuner_get_freq(), tuner.signal);
     antpatt_push(tuner.signal);
     stationlist_rcvlevel(lround(tuner.signal));
@@ -381,12 +380,14 @@ void
 ui_update_tp()
 {
     static gint last_tp = G_MININT;
+    gint tp = librds_get_tp(tuner.rds);
 
-    if(last_tp == tuner.rds_tp)
+    if (last_tp == tp)
         return;
-    last_tp = tuner.rds_tp;
 
-    switch(tuner.rds_tp)
+    last_tp = tp;
+
+    switch (tp)
     {
     case 0:
         if(!conf.accessibility)
@@ -411,12 +412,14 @@ void
 ui_update_ta()
 {
     static gint last_ta = G_MININT;
+    gint ta = librds_get_ta(tuner.rds);
 
-    if(last_ta == tuner.rds_ta)
+    if(last_ta == ta)
         return;
-    last_ta = tuner.rds_ta;
 
-    switch(tuner.rds_ta)
+    last_ta = ta;
+
+    switch(ta)
     {
     case 0:
         if(!conf.accessibility)
@@ -441,12 +444,14 @@ void
 ui_update_ms()
 {
     static gint last_ms = G_MININT;
+    gint ms = librds_get_ms(tuner.rds);
 
-    if(last_ms == tuner.rds_ms)
+    if(last_ms == ms)
         return;
-    last_ms = tuner.rds_ms;
 
-    switch(tuner.rds_ms)
+    last_ms = ms;
+
+    switch(ms)
     {
     case 0:
         if(!conf.accessibility)
@@ -473,12 +478,13 @@ void
 ui_update_pty()
 {
     static gint last_pty = G_MININT;
+    gint pty = librds_get_pty(tuner.rds);
     const gchar *pty_text;
 
-    if(last_pty == tuner.rds_pty)
+    if (last_pty == pty)
         return;
 
-    last_pty = tuner.rds_pty;
+    last_pty = pty;
 
     if(last_pty >= 0 && last_pty < 32)
     {
@@ -496,6 +502,8 @@ ui_update_pty()
 void
 ui_update_ecc()
 {
+    gint ecc = librds_get_ecc(tuner.rds);
+
     static const gchar* const ecc_list[][16] = {
         {"??", "DE", "DZ", "AD", "IL", "IT", "BE", "RU", "PS", "AL", "AT", "HU", "MT", "DE", "??", "EG" },
         {"??", "GR", "CY", "SM", "CH", "JO", "FI", "LU", "BG", "DK", "GI", "IQ", "GB", "LY", "RO", "FR" },
@@ -506,93 +514,47 @@ ui_update_ecc()
 
     /* ECC is currently displayed only in StationList and logs */
     if(tuner.rds_pi >= 0 &&
-       (tuner.rds_ecc >= 0xE0 && tuner.rds_ecc <= 0xE4))
+       (ecc >= 0xE0 && ecc <= 0xE4))
     {
-        stationlist_ecc(tuner.rds_ecc);
-        log_ecc(ecc_list[tuner.rds_ecc & 7][(guint16)tuner.rds_pi >> 12], tuner.rds_ecc);
+        stationlist_ecc(ecc);
+        log_ecc(ecc_list[ecc & 7][(guint16)tuner.rds_pi >> 12], ecc);
     }
 }
 
 void
-ui_update_ps(gboolean new_data)
+ui_update_ps()
 {
-    static gint last_ps_avail = G_MININT;
-    guchar c[8];
-    gint i;
-    gchar *m;
-
-    if(last_ps_avail == (gint)tuner.rds_ps_avail &&
-       tuner.rds_ps_avail != TRUE)
-        return;
-    last_ps_avail = tuner.rds_ps_avail;
-
-    if(!tuner.rds_ps_avail)
+    if (!librds_get_ps_available(tuner.rds))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_ps), " ");
         return;
     }
 
-    for(i=0; i<8; i++)
-    {
-        c[i] = (tuner.rds_ps_err[i] ? 60-(tuner.rds_ps_err[i] * 5) : 100);
-    }
+    gchar *markup;
+    markup = rds_utils_text_markup(librds_get_ps(tuner.rds),
+                                   librds_get_ps_errors(tuner.rds),
+                                   librds_get_progressive(tuner.rds, LIBRDS_STRING_PS));
 
-    m = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"%d%%\">%c</span>"
-                                "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">%c</span>",
-                                conf.rds_ps_progressive?'(':'[',
-                                c[0], tuner.rds_ps[0],
-                                c[1], tuner.rds_ps[1],
-                                c[2], tuner.rds_ps[2],
-                                c[3], tuner.rds_ps[3],
-                                c[4], tuner.rds_ps[4],
-                                c[5], tuner.rds_ps[5],
-                                c[6], tuner.rds_ps[6],
-                                c[7], tuner.rds_ps[7],
-                                conf.rds_ps_progressive?')':']');
-    gtk_label_set_markup(GTK_LABEL(ui.l_ps), m);
-    g_free(m);
-
-    if(new_data)
-    {
-        stationlist_ps(tuner.rds_ps);
-        log_ps(tuner.rds_ps, tuner.rds_ps_err);
-    }
+    gtk_label_set_markup(GTK_LABEL(ui.l_ps), markup);
+    g_free(markup);
 }
 
 void
 ui_update_rt(gboolean flag)
 {
-    static gint last_rt_avail[2] = {G_MININT, G_MININT};
-    gchar *m;
-
-    if(!tuner.rds_rt_avail[flag] && !last_rt_avail[flag])
-        return;
-
-    last_rt_avail[flag] = tuner.rds_rt_avail[flag];
-
-    if(!tuner.rds_rt_avail[flag])
+    if (!librds_get_rt_available(tuner.rds, flag))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_rt[flag]), " ");
         return;
     }
 
-    m = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">[</span>"
-                                "%s"
-                                "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">]</span>",
-                                tuner.rds_rt[flag]);
+    gchar *markup;
+    markup = rds_utils_text_markup(librds_get_rt(tuner.rds, flag),
+                                   librds_get_rt_errors(tuner.rds, flag),
+                                   librds_get_progressive(tuner.rds, LIBRDS_STRING_RT));
 
-    gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), m);
-    g_free(m);
-    stationlist_rt(flag, tuner.rds_rt[flag]);
-    log_rt(flag, tuner.rds_rt[flag]);
+    gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), markup);
+    g_free(markup);
 }
 
 void
@@ -601,11 +563,9 @@ ui_update_af(gint af)
     GtkListStore *model = ui.af_model;
     GtkTreeIter iter;
 
-    // if new frequency is found on the AF list, ui_update_af_check() will set it to zero
-    gtk_tree_model_foreach(GTK_TREE_MODEL(model), (GtkTreeModelForeachFunc)ui_update_af_check, &af);
     if(af)
     {
-        if(!conf.horizontal_af)
+        if (!conf.horizontal_af)
         {
             GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ui.af_scroll));
             ui.autoscroll = (gtk_adjustment_get_value(adj) == gtk_adjustment_get_lower(adj));
@@ -618,24 +578,6 @@ ui_update_af(gint af)
         log_af(af_new_freq);
         g_free(af_new_freq);
     }
-}
-
-static gboolean
-ui_update_af_check(GtkTreeModel *model,
-                   GtkTreePath  *path,
-                   GtkTreeIter  *iter,
-                   gpointer      user_data)
-{
-    gint *new_freq = (gint*)user_data;
-    gint freq;
-    
-    gtk_tree_model_get(model, iter, 0, &freq, -1);
-    if(freq == *new_freq)
-    {
-        *new_freq = 0;
-        return TRUE; // frequency is already on the list, stop searching.
-    }
-    return FALSE;
 }
 
 void

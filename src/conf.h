@@ -43,8 +43,8 @@ enum RDS_Mode
 enum RDS_Err_Correction
 {
     NO_ERR_CORR,
-    UP_TO_2_BIT_ERR_CORR,
-    UP_TO_5_BIT_ERR_CORR
+    SMALL_ERR_CORR,
+    LARGE_ERR_CORR
 };
 
 typedef struct settings
@@ -112,8 +112,11 @@ typedef struct settings
     enum RDS_Err_Correction rds_ps_info_error;
     enum RDS_Err_Correction rds_ps_data_error;
     gboolean rds_ps_progressive;
+    gboolean rds_ps_prog_override;
     enum RDS_Err_Correction rds_rt_info_error;
     enum RDS_Err_Correction rds_rt_data_error;
+    gboolean rds_rt_progressive;
+    gboolean rds_rt_prog_override;
 
     /* Antenna */
     gboolean ant_show_alignment;

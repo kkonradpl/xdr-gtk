@@ -13,13 +13,15 @@ void ui_update_cci_peak();
 void ui_update_aci();
 void ui_update_aci_peak();
 
+void ui_update_rds_init();
+
 void ui_update_pi();
 void ui_update_tp();
 void ui_update_ta();
 void ui_update_ms();
 void ui_update_pty();
 void ui_update_ecc();
-void ui_update_ps(gboolean);
+void ui_update_ps();
 void ui_update_rt(gboolean);
 void ui_update_af(gint);
 

@@ -248,7 +248,7 @@ stationlist_ecc(guchar ecc)
 }
 
 void
-stationlist_ps(gchar *ps)
+stationlist_ps(const gchar *ps)
 {
     if(stationlist_is_up())
     {
@@ -257,8 +257,8 @@ stationlist_ps(gchar *ps)
 }
 
 void
-stationlist_rt(gint   n,
-               gchar *rt)
+stationlist_rt(gint         n,
+               const gchar *rt)
 {
     GString *msg;
     gchar *msg_full;

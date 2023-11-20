@@ -3,6 +3,7 @@
 #include <glib.h>
 #include "conf.h"
 #include "tuner-filters.h"
+#include "librds.h"
 
 #define TUNER_THREAD_SERIAL 0
 #define TUNER_THREAD_SOCKET 1
@@ -47,20 +48,11 @@ typedef struct tuner
     gint     cci;
     gint     aci;
 
-    gint     rds;
-    gint64   rds_reset_timer;
-    gint     rds_pi;
-    gint     rds_pi_err_level;
-    gint     rds_tp;
-    gint     rds_ta;
-    gint     rds_ms;
-    gint     rds_pty;
-    gint     rds_ecc;
-    gchar    rds_ps[9];
-    guchar   rds_ps_err[8];
-    gboolean rds_ps_avail;
-    gchar    rds_rt[2][65];
-    gboolean rds_rt_avail[2];
+    librds_t *rds;
+    gint      rds_timeout;
+    gint64    rds_reset_timer;
+    gint      rds_pi;
+    gint      rds_pi_err_level;
 
     gint daa;
     gint volume;
@@ -104,6 +96,8 @@ gboolean tuner_write_socket(gintptr, gchar*, int);
 void tuner_thread_cancel(gpointer);
 void tuner_write(gpointer, gchar*);
 
+void tuner_rds_init();
+void tuner_rds_configure();
 void tuner_clear_all();
 void tuner_clear_signal();
 void tuner_clear_rds();

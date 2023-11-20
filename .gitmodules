@@ -1,0 +1,3 @@
+[submodule "librds"]
+	path = librds
+	url = https://github.com/kkonradpl/librds

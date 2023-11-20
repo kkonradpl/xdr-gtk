@@ -5,6 +5,7 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GTK REQUIRED gtk+-3.0)
 include_directories(${GTK_INCLUDE_DIRS})
+include_directories(librds/include)
 link_directories(${GTK_LIBRARY_DIRS})
 add_definitions(${GTK_CFLAGS_OTHER})
 
@@ -14,6 +15,7 @@ execute_process(COMMAND ${GLIB_COMPILE_RESOURCES} --generate-header --sourcedir=
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wno-overlength-strings")
 
+add_subdirectory(librds)
 add_subdirectory(src)
 
 if(NOT MINGW)

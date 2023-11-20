@@ -54,6 +54,7 @@ set(SOURCE_FILES_MINGW
         icon.rc)
 
 set(LIBRARIES
+        rds
         ${GTK_LIBRARIES}
         m)
 

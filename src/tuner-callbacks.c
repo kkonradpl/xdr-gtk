@@ -9,14 +9,6 @@
 
 #define DEFAULT_SAMPLING_INTERVAL 66
 
-#define RDS_BLOCK_A 0
-#define RDS_BLOCK_B 1
-#define RDS_BLOCK_C 2
-#define RDS_BLOCK_D 3
-
-static void tuner_rds(guint*, guint);
-
-
 gboolean
 tuner_ready(gpointer data)
 {
@@ -83,8 +75,8 @@ tuner_signal(gpointer data)
     tuner_signal_t *signal = (tuner_signal_t*)data;
     if(tuner.ready_tuned)
     {
-        if(tuner.rds)
-            tuner.rds--;
+        if(tuner.rds_timeout)
+            tuner.rds_timeout--;
 
         tuner.signal = signal->value;
         if(isnan(tuner.signal_max) || tuner.signal > tuner.signal_max)
@@ -131,7 +123,7 @@ tuner_pi(gpointer data)
 
     /* RDS stream: 1187.5 bps
      * One group: 104 bits (each has PI code) */
-    tuner.rds = ceil(1000 * 104 / 1187.5 / interval) + 1;
+    tuner.rds_timeout = ceil(1000 * 104 / 1187.5 / interval) + 1;
     tuner.rds_reset_timer = g_get_real_time();
 
     tuner.rds_pi = pi;
@@ -167,14 +159,14 @@ tuner_rds_legacy(gpointer msg_ptr)
 
     sscanf(msg+12, "%x", &errors);
 
-    if (!tuner.rds)
+    if (!tuner.rds_timeout)
         errors_corrected |= (0x03 << 6);
 
     errors_corrected |= (errors & 0x03) << 4;
     errors_corrected |= (errors & 0x0C);
     errors_corrected |= (errors & 0x30) >> 4;
 
-    tuner_rds(data, errors_corrected);
+    /* FIX ME */
     g_free(msg);
     return FALSE;
 }
@@ -201,183 +193,11 @@ tuner_rds_new(gpointer msg_ptr)
 
     sscanf(msg+16, "%x", &errors);
 
-    tuner_rds(data, errors);
-    g_free(msg);
-    return FALSE;
-}
-
-static void
-tuner_rds(guint *data,
-          guint  errors)
-{
-    guchar group = (data[RDS_BLOCK_B] & 0xF000) >> 12;
-    gboolean flag = (data[RDS_BLOCK_B] & 0x0800) >> 11;
-    guchar err[] =
-    {
-        (errors & 192) >> 6, /* Block A */
-        (errors & 48) >> 4,  /* Block B */
-        (errors & 12) >> 2,  /* Block C */
-        (errors & 3)         /* Block D */
-    };
-    guint i;
-
+    librds_parse(tuner.rds, msg);
     rdsspy_send(data, errors);
 
-    // PTY, TP, TA, MS, AF, ECC: error-free blocks
-    if(!err[RDS_BLOCK_B])
-    {
-        gchar pty = (data[RDS_BLOCK_B] & 0x03E0) >> 5;
-        gchar tp = (data[RDS_BLOCK_B] & 0x400) >> 10;
-
-        if(tuner.rds_pty != pty)
-        {
-            tuner.rds_pty = pty;
-            ui_update_pty();
-        }
-
-        if(tuner.rds_tp != tp)
-        {
-            tuner.rds_tp = tp;
-            ui_update_tp();
-        }
-
-        if(group == 0)
-        {
-            gchar ta = (data[RDS_BLOCK_B] & 0x10) >> 4;
-            gchar ms = (data[RDS_BLOCK_B] & 0x8) >> 3;
-            if(tuner.rds_ta != ta)
-            {
-                tuner.rds_ta = ta;
-                ui_update_ta();
-            }
-            if(tuner.rds_ms != ms)
-            {
-                tuner.rds_ms = ms;
-                ui_update_ms();
-            }
-
-            // AF
-            if(!err[RDS_BLOCK_C] && !flag)
-            {
-                guchar af[] = { data[RDS_BLOCK_C] >> 8, data[RDS_BLOCK_C] & 0xFF };
-                for(i=0; i<2; i++)
-                    if(af[i]>0 && af[i]<205)
-                        ui_update_af(af[i]);
-            }
-        }
-
-        // ECC
-        if(group == 1 && !flag && !err[RDS_BLOCK_C])
-        {
-            if(!(data[RDS_BLOCK_C] >> 12))
-            {
-                guchar ecc = data[RDS_BLOCK_C] & 255;
-                if(tuner.rds_ecc != ecc)
-                {
-                    tuner.rds_ecc = ecc;
-                    ui_update_ecc();
-                }
-            }
-        }
-    }
-
-    // PS: user-defined error correction
-    if(conf.rds_ps_progressive || err[RDS_BLOCK_B] <= conf.rds_ps_info_error)
-    {
-        if(err[RDS_BLOCK_B] < 3 &&
-           err[RDS_BLOCK_D] < 3 &&
-           group == 0 &&
-           (conf.rds_ps_progressive || (err[RDS_BLOCK_D] <= conf.rds_ps_data_error)))
-        {
-            gchar pos = data[RDS_BLOCK_B] & 3;
-            gchar ps[] = { data[RDS_BLOCK_D] >> 8, data[RDS_BLOCK_D] & 0xFF };
-            gboolean changed = FALSE;
-            guchar e = 2*err[RDS_BLOCK_B] + 3*err[RDS_BLOCK_D];
-
-            for(i=0; i<2; i++)
-            {
-                // only ASCII printable characters
-                if(ps[i] >= 32 && ps[i] < 127)
-                {
-                    gint p = pos*2+i;
-                    if(!conf.rds_ps_progressive || tuner.rds_ps_err[p] >= e)
-                    {
-                        if(tuner.rds_ps[p] != ps[i] || tuner.rds_ps_err[p] > e)
-                        {
-                            tuner.rds_ps[p] = ps[i];
-                            tuner.rds_ps_err[p] = e;
-                            changed = TRUE;
-                        }
-                    }
-                }
-            }
-
-            if(changed)
-            {
-                tuner.rds_ps_avail = TRUE;
-                ui_update_ps(TRUE);
-            }
-        }
-    }
-
-    // RT: user-defined error correction
-    if (err[RDS_BLOCK_B] <= conf.rds_rt_info_error)
-    {
-        if (group == 2)
-        {
-            gboolean rt_flag = (data[RDS_BLOCK_B] & 16) >> 4;
-            gchar rt[] =
-            {
-                data[RDS_BLOCK_C] >> 8,
-                data[RDS_BLOCK_C] & 0xFF,
-                data[RDS_BLOCK_D] >> 8,
-                data[RDS_BLOCK_D] & 0xFF
-            };
-
-            gint length = flag ? 2 : 4;
-            gint offset = flag ? 2 : 0;
-            gboolean changed = FALSE;
-            for (i = offset; i < 4; i++)
-            {
-                gint pos = (data[RDS_BLOCK_B] & 15) * length + (i - offset);
-
-                if (tuner.rds_rt[rt_flag][pos] == rt[i])
-                {
-                    /* No change */
-                    continue;
-                }
-
-                if (rt[i] == 0x0D)
-                {
-                    /* End of the RadioText message */
-                    if (!err[RDS_BLOCK_B] &&
-                        ((i <= 1 && !err[RDS_BLOCK_C]) ||
-                        (i >= 2 && !err[RDS_BLOCK_D])))
-                    {
-                        tuner.rds_rt[rt_flag][pos] = 0;
-                        changed = TRUE;
-                    }
-                }
-                else if (rt[i] >= 32 &&
-                         rt[i] < 127)
-                {
-                    /* Only ASCII printable characters */
-                    if ((i <= 1 && err[RDS_BLOCK_C] <= conf.rds_rt_data_error) ||
-                        (i >= 2 && err[RDS_BLOCK_D] <= conf.rds_rt_data_error))
-                    {
-                        tuner.rds_rt[rt_flag][pos] = rt[i];
-                        changed = TRUE;
-                    }
-                }
-            }
-
-            if (changed)
-            {
-                tuner.rds_rt_avail[rt_flag] = TRUE;
-                ui_update_rt(rt_flag);
-            }
-        }
-    }
+    g_free(msg);
+    return FALSE;
 }
 
 gboolean

@@ -73,8 +73,11 @@ static const gchar *key_reset_timeout      = "reset_timeout";
 static const gchar *key_ps_info_error      = "ps_info_error";
 static const gchar *key_ps_data_error      = "ps_data_error";
 static const gchar *key_ps_progressive     = "ps_progressive";
+static const gchar *key_ps_prog_override   = "ps_prog_override";
 static const gchar *key_rt_info_error      = "rt_info_error";
 static const gchar *key_rt_data_error      = "rt_data_error";
+static const gchar *key_rt_progressive     = "rt_progressive";
+static const gchar *key_rt_prog_override   = "rt_prog_override";
 static const gchar *key_show_alignment     = "show_alignment";
 static const gchar *key_swap_rotator       = "swap_rotator";
 static const gchar *key_count              = "count";
@@ -271,14 +274,17 @@ conf_read()
     conf_read_color(keyfile, group_signal, key_color_rds_dark,    &conf.color_rds_dark,    CONF_SIGNAL_COLOR_RDS_DARK);
 
     /* RDS */
-    conf.rds_pty_set        = conf_read_integer(keyfile, group_rds, key_pty_set,        CONF_RDS_PTY_SET);
-    conf.rds_reset          = conf_read_boolean(keyfile, group_rds, key_reset,          CONF_RDS_RESET);
-    conf.rds_reset_timeout  = conf_read_integer(keyfile, group_rds, key_reset_timeout,  CONF_RDS_RESET_TIMEOUT);
-    conf.rds_ps_info_error  = conf_read_integer(keyfile, group_rds, key_ps_info_error,  CONF_RDS_PS_INFO_ERROR);
-    conf.rds_ps_data_error  = conf_read_integer(keyfile, group_rds, key_ps_data_error,  CONF_RDS_PS_DATA_ERROR);
-    conf.rds_ps_progressive = conf_read_boolean(keyfile, group_rds, key_ps_progressive, CONF_RDS_PS_PROGRESSIVE);
-    conf.rds_rt_info_error  = conf_read_integer(keyfile, group_rds, key_rt_info_error,  CONF_RDS_RT_INFO_ERROR);
-    conf.rds_rt_data_error  = conf_read_integer(keyfile, group_rds, key_rt_data_error,  CONF_RDS_RT_DATA_ERROR);
+    conf.rds_pty_set          = conf_read_integer(keyfile, group_rds, key_pty_set,          CONF_RDS_PTY_SET);
+    conf.rds_reset            = conf_read_boolean(keyfile, group_rds, key_reset,            CONF_RDS_RESET);
+    conf.rds_reset_timeout    = conf_read_integer(keyfile, group_rds, key_reset_timeout,    CONF_RDS_RESET_TIMEOUT);
+    conf.rds_ps_info_error    = conf_read_integer(keyfile, group_rds, key_ps_info_error,    CONF_RDS_PS_INFO_ERROR);
+    conf.rds_ps_data_error    = conf_read_integer(keyfile, group_rds, key_ps_data_error,    CONF_RDS_PS_DATA_ERROR);
+    conf.rds_ps_progressive   = conf_read_boolean(keyfile, group_rds, key_ps_progressive,   CONF_RDS_PS_PROGRESSIVE);
+    conf.rds_ps_prog_override = conf_read_boolean(keyfile, group_rds, key_ps_prog_override, CONF_RDS_PS_PROG_OVERRIDE);
+    conf.rds_rt_info_error    = conf_read_integer(keyfile, group_rds, key_rt_info_error,    CONF_RDS_RT_INFO_ERROR);
+    conf.rds_rt_data_error    = conf_read_integer(keyfile, group_rds, key_rt_data_error,    CONF_RDS_RT_DATA_ERROR);
+    conf.rds_rt_progressive   = conf_read_boolean(keyfile, group_rds, key_rt_progressive,   CONF_RDS_RT_PROGRESSIVE);
+    conf.rds_rt_prog_override = conf_read_boolean(keyfile, group_rds, key_rt_prog_override, CONF_RDS_RT_PROG_OVERRIDE);
 
     /* Antenna */
     conf.ant_show_alignment = conf_read_boolean(keyfile, group_antenna, key_show_alignment, CONF_ANTENNA_SHOW_ALIGNMENT);
@@ -425,14 +431,17 @@ conf_write()
     conf_save_color(keyfile, group_signal, key_color_rds_dark,     &conf.color_rds_dark);
 
     /* RDS */
-    g_key_file_set_integer(keyfile, group_rds, key_pty_set,        conf.rds_pty_set);
-    g_key_file_set_boolean(keyfile, group_rds, key_reset,          conf.rds_reset);
-    g_key_file_set_integer(keyfile, group_rds, key_reset_timeout,  conf.rds_reset_timeout);
-    g_key_file_set_integer(keyfile, group_rds, key_ps_info_error,  conf.rds_ps_info_error);
-    g_key_file_set_integer(keyfile, group_rds, key_ps_data_error,  conf.rds_ps_data_error);
-    g_key_file_set_boolean(keyfile, group_rds, key_ps_progressive, conf.rds_ps_progressive);
-    g_key_file_set_integer(keyfile, group_rds, key_rt_info_error,  conf.rds_rt_info_error);
-    g_key_file_set_integer(keyfile, group_rds, key_rt_data_error,  conf.rds_rt_data_error);
+    g_key_file_set_integer(keyfile, group_rds, key_pty_set,          conf.rds_pty_set);
+    g_key_file_set_boolean(keyfile, group_rds, key_reset,            conf.rds_reset);
+    g_key_file_set_integer(keyfile, group_rds, key_reset_timeout,    conf.rds_reset_timeout);
+    g_key_file_set_integer(keyfile, group_rds, key_ps_info_error,    conf.rds_ps_info_error);
+    g_key_file_set_integer(keyfile, group_rds, key_ps_data_error,    conf.rds_ps_data_error);
+    g_key_file_set_boolean(keyfile, group_rds, key_ps_progressive,   conf.rds_ps_progressive);
+    g_key_file_set_boolean(keyfile, group_rds, key_ps_prog_override, conf.rds_ps_prog_override);
+    g_key_file_set_integer(keyfile, group_rds, key_rt_info_error,    conf.rds_rt_info_error);
+    g_key_file_set_integer(keyfile, group_rds, key_rt_data_error,    conf.rds_rt_data_error);
+    g_key_file_set_boolean(keyfile, group_rds, key_rt_progressive,   conf.rds_rt_progressive);
+    g_key_file_set_boolean(keyfile, group_rds, key_rt_prog_override, conf.rds_rt_prog_override);
 
     /* Antenna */
     g_key_file_set_boolean     (keyfile, group_antenna, key_show_alignment, conf.ant_show_alignment);

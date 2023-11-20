@@ -112,16 +112,13 @@ log_af(const gchar *af)
 }
 
 void
-log_ps(const gchar  *ps,
-       const guchar *err)
+log_ps(const gchar    *ps,
+       const gboolean  error)
 {
     gchar *tmp;
-    gboolean error;
 
     if(!log_prepare())
         return;
-
-    error = err[0] || err[1] || err[2] || err[3] || err[4] || err[5] || err[6] || err[7];
 
     /* Check whether the PS string is different from a last saved one */
     if(!strcmp(ps, ps_buff) && error == ps_buff_error)

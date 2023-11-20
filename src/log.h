@@ -4,7 +4,7 @@
 void log_cleanup();
 void log_pi(gint, gint);
 void log_af(const gchar*);
-void log_ps(const gchar*, const guchar*);
+void log_ps(const gchar*, gboolean);
 void log_rt(guint8, const gchar*);
 void log_pty(const gchar*);
 void log_ecc(const gchar* ecc, guint);

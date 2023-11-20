@@ -16,10 +16,10 @@ void stationlist_rcvlevel(gint);
 void stationlist_pi(gint);
 void stationlist_pty(gint);
 void stationlist_ecc(guchar);
-void stationlist_ps(gchar*);
-void stationlist_rt(gint, gchar*);
-void stationlist_bw(gint filter);
-void stationlist_af(gint af);
+void stationlist_ps(const gchar*);
+void stationlist_rt(gint, const gchar*);
+void stationlist_bw(gint);
+void stationlist_af(gint);
 void stationlist_af_clear();
 
 #endif

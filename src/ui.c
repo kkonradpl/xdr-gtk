@@ -631,13 +631,15 @@ ui_init()
         gtk_container_add(GTK_CONTAINER(ui.event_rt[i]), ui.l_rt[i]);
         gtk_event_box_set_visible_window(GTK_EVENT_BOX(ui.event_rt[i]), FALSE);
         gtk_box_pack_start(GTK_BOX(ui.box), ui.event_rt[i], FALSE, FALSE, 0);
-        g_signal_connect(ui.event_rt[i], "button-press-event", G_CALLBACK(mouse_rt), tuner.rds_rt[i]);
+        g_signal_connect(ui.event_rt[i], "button-press-event", G_CALLBACK(mouse_rt), GINT_TO_POINTER(i));
     }
 
     // ----------------
 
     ui.l_status = gtk_label_new(NULL);
     gtk_box_pack_start(GTK_BOX(ui.box), ui.l_status, FALSE, FALSE, 0);
+
+    tuner_rds_init();
 
     tuner.volume = lround(gtk_scale_button_get_value(GTK_SCALE_BUTTON(ui.volume)));
     tuner.squelch = lround(gtk_scale_button_get_value(GTK_SCALE_BUTTON(ui.squelch)));
@@ -894,22 +896,22 @@ ui_update_title(gpointer user_data)
     else if(conf.title_tuner_mode == 1)
     {
         /* RDS PS */
-        new_title = g_strdup(tuner.rds_ps);
+        new_title = g_strdup(librds_get_ps(tuner.rds));
     }
     else if(conf.title_tuner_mode == 2)
     {
         /* RDS RT (1) */
-        new_title = g_strdup(tuner.rds_rt[0]);
+        new_title = g_strdup(librds_get_rt(tuner.rds, LIBRDS_RT_FLAG_A));
     }
     else if(conf.title_tuner_mode == 3)
     {
         /* RDS RT (2) */
-        new_title = g_strdup(tuner.rds_rt[1]);
+        new_title = g_strdup(librds_get_rt(tuner.rds, LIBRDS_RT_FLAG_B));
     }
     else if(conf.title_tuner_mode == 4)
     {
         /* RDS PTY */
-        new_title = g_strdup(rds_utils_pty_to_string((gboolean)conf.rds_pty_set, tuner.rds_pty));
+        new_title = g_strdup(rds_utils_pty_to_string((gboolean)conf.rds_pty_set, librds_get_pty(tuner.rds)));
     }
     else if(conf.title_tuner_mode == 5)
     {
@@ -1295,9 +1297,18 @@ signal_tooltip(GtkWidget  *label,
 void
 ui_toggle_ps_mode()
 {
-    conf.rds_ps_progressive = !conf.rds_ps_progressive;
-    if(tuner.rds_ps_avail)
-        ui_update_ps(FALSE);
+    conf.rds_ps_progressive = !librds_get_progressive(tuner.rds, LIBRDS_STRING_PS);
+    tuner_rds_configure();
+    ui_update_ps();
+}
+
+void
+ui_toggle_rt_mode()
+{
+    conf.rds_rt_progressive = !librds_get_progressive(tuner.rds, LIBRDS_STRING_RT);
+    tuner_rds_configure();
+    ui_update_rt(0);
+    ui_update_rt(1);
 }
 
 void

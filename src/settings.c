@@ -52,8 +52,8 @@ static GtkWidget *page_rds;
 static GtkWidget *grid_rds;
 static GtkWidget *l_pty, *c_pty;
 static GtkWidget *x_rds_reset, *l_rds_timeout, *s_rds_timeout;
-static GtkWidget *l_ps_error, *l_ps_info_error, *c_ps_info_error, *l_ps_data_error, *c_ps_data_error;
-static GtkWidget *x_psprog, *l_rt_error, *l_rt_info_error, *c_rt_info_error, *l_rt_data_error, *c_rt_data_error;
+static GtkWidget *l_ps_error, *l_ps_info_error, *c_ps_info_error, *l_ps_data_error, *c_ps_data_error, *x_ps_prog, *x_ps_prog_override;
+static GtkWidget *l_rt_error, *l_rt_info_error, *c_rt_info_error, *l_rt_data_error, *c_rt_data_error, *x_rt_prog, *x_rt_prog_override;
 
 /* Antenna page */
 static GtkWidget *page_ant;
@@ -473,8 +473,8 @@ settings_dialog(gint tab_num)
 
     c_ps_info_error = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_info_error), "no errors");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_info_error), "max 2-bit");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_info_error), "max 5-bit");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_info_error), "small");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_info_error), "large");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_ps_info_error), conf.rds_ps_info_error);
     gtk_grid_attach(GTK_GRID(grid_rds), c_ps_info_error, 1, row, 1, 1);
 
@@ -485,16 +485,22 @@ settings_dialog(gint tab_num)
 
     c_ps_data_error = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_data_error), "no errors");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_data_error), "max 2-bit");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_data_error), "max 5-bit");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_data_error), "small");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_ps_data_error), "large");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_ps_data_error), conf.rds_ps_data_error);
     gtk_grid_attach(GTK_GRID(grid_rds), c_ps_data_error, 1, row, 1, 1);
 
     row++;
-    x_psprog = gtk_check_button_new_with_label("PS progressive correction");
-    gtk_widget_set_tooltip_text(x_psprog, "Replace characters in the RDS PS only with lower or the same error level. This also overrides the error correction to 5/5bit. Useful for static RDS PS. For a quick toggle, click a right mouse button on the displayed RDS PS.");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_psprog), conf.rds_ps_progressive);
-    gtk_grid_attach(GTK_GRID(grid_rds), x_psprog, 0, row, 2, 1);
+    x_ps_prog = gtk_check_button_new_with_label("PS progressive correction");
+    gtk_widget_set_tooltip_text(x_ps_prog, "Replace characters in the RDS PS only with lower or the same error level. Useful for static RDS PS. For a quick toggle, click a right mouse button on the displayed RDS PS.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_ps_prog), conf.rds_ps_progressive);
+    gtk_grid_attach(GTK_GRID(grid_rds), x_ps_prog, 0, row, 2, 1);
+
+    row++;
+    x_ps_prog_override = gtk_check_button_new_with_label("Override PS progressive correction to maximum");
+    gtk_widget_set_tooltip_text(x_ps_prog_override, "Overrides the error correction to maximum when in PS progressive mode.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_ps_prog_override), conf.rds_ps_prog_override);
+    gtk_grid_attach(GTK_GRID(grid_rds), x_ps_prog_override, 0, row, 2, 1);
 
     row++;
     gtk_grid_attach(GTK_GRID(grid_rds), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), 0, row, 2, 1);
@@ -510,8 +516,8 @@ settings_dialog(gint tab_num)
 
     c_rt_info_error = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_info_error), "no errors");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_info_error), "max 2-bit");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_info_error), "max 5-bit");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_info_error), "small");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_info_error), "large");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_rt_info_error), conf.rds_rt_info_error);
     gtk_grid_attach(GTK_GRID(grid_rds), c_rt_info_error, 1, row, 1, 1);
 
@@ -522,11 +528,22 @@ settings_dialog(gint tab_num)
 
     c_rt_data_error = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_data_error), "no errors");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_data_error), "max 2-bit");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_data_error), "max 5-bit");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_data_error), "small");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c_rt_data_error), "large");
     gtk_combo_box_set_active(GTK_COMBO_BOX(c_rt_data_error), conf.rds_rt_data_error);
     gtk_grid_attach(GTK_GRID(grid_rds), c_rt_data_error, 1, row, 1, 1);
 
+    row++;
+    x_rt_prog = gtk_check_button_new_with_label("RT progressive correction");
+    gtk_widget_set_tooltip_text(x_rt_prog, "Replace characters in the RDS RT only with lower or the same error level. For a quick toggle, click a right mouse button on the displayed RDS RT.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_rt_prog), conf.rds_rt_progressive);
+    gtk_grid_attach(GTK_GRID(grid_rds), x_rt_prog, 0, row, 2, 1);
+
+    row++;
+    x_rt_prog_override = gtk_check_button_new_with_label("Override RT progressive correction to maximum");
+    gtk_widget_set_tooltip_text(x_rt_prog_override, "Overrides the error correction to maximum when in RT progressive mode.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_rt_prog_override), conf.rds_rt_prog_override);
+    gtk_grid_attach(GTK_GRID(grid_rds), x_rt_prog_override, 0, row, 2, 1);
 
     /* Antenna page */
     page_ant = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -1137,9 +1154,14 @@ settings_dialog(gint tab_num)
     conf.rds_reset_timeout = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_rds_timeout));
     conf.rds_ps_info_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_ps_info_error));
     conf.rds_ps_data_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_ps_data_error));
-    conf.rds_ps_progressive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_psprog));
+    conf.rds_ps_progressive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ps_prog));
+    conf.rds_ps_prog_override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ps_prog_override));
     conf.rds_rt_info_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rt_info_error));
     conf.rds_rt_data_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_rt_data_error));
+    conf.rds_rt_progressive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rt_prog));
+    conf.rds_rt_prog_override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rt_prog_override));
+
+    tuner_rds_configure();
 
     /* Antenna page */
     conf.ant_show_alignment = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_alignment));
