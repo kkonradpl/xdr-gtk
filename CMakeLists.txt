@@ -15,7 +15,10 @@ execute_process(COMMAND ${GLIB_COMPILE_RESOURCES} --generate-header --sourcedir=
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wno-overlength-strings")
 
+option(LIBRDS_DISABLE_TESTS "" ON)
+option(LIBRDS_DISABLE_EXAMPLES "" ON)
 add_subdirectory(librds)
+
 add_subdirectory(src)
 
 if(NOT MINGW)
