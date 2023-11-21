@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include "tuner-callbacks.h"
 #include "ui-tuner-update.h"
 #include "tuner.h"
 #include "conf.h"
@@ -138,18 +139,9 @@ gboolean
 tuner_rds_legacy(gpointer msg_ptr)
 {
     gchar *msg = (gchar*)msg_ptr;
-    guint data[4], errors, i;
-    guint errors_corrected = 0;
+    guint data[4], errors;
 
-    if(tuner.rds_pi < 0)
-    {
-        g_free(msg);
-        return FALSE;
-    }
-
-    data[0] = tuner.rds_pi;
-
-    for (i = 1; i < 4; i++)
+    for (guint i = 1; i < 4; i++)
     {
         gchar hex[5];
         strncpy(hex, msg+(i-1)*4, 4);
@@ -158,16 +150,28 @@ tuner_rds_legacy(gpointer msg_ptr)
     }
 
     sscanf(msg+12, "%x", &errors);
+    g_free(msg);
+
+    guint errors_corrected = 0;
 
     if (!tuner.rds_timeout)
+    {
         errors_corrected |= (0x03 << 6);
+    }
 
     errors_corrected |= (errors & 0x03) << 4;
     errors_corrected |= (errors & 0x0C);
     errors_corrected |= (errors & 0x30) >> 4;
 
-    /* FIX ME */
-    g_free(msg);
+    char *new_format;
+    new_format = g_strdup_printf("%04X%04X%04X%04X%02X",
+                                 tuner.rds_pi,
+                                 data[1],
+                                 data[2],
+                                 data[3],
+                                 errors_corrected);
+
+    tuner_rds_new(new_format);
     return FALSE;
 }
 
