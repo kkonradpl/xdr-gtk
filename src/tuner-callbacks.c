@@ -197,7 +197,7 @@ tuner_rds_new(gpointer msg_ptr)
 
     sscanf(msg+16, "%x", &errors);
 
-    librds_parse(tuner.rds, msg);
+    librds_parse_string(tuner.rds, msg);
     rdsspy_send(data, errors);
 
     g_free(msg);
