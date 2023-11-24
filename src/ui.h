@@ -4,7 +4,7 @@
 
 #ifdef G_OS_WIN32
 #define PATH_SEP "\\"
-#define LOG_NL "\r\n"
+#define LOG_NL "\n"
 #else
 #define PATH_SEP "/"
 #define LOG_NL "\n"
