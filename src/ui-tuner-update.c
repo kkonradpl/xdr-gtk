@@ -524,7 +524,7 @@ ui_update_ecc()
 void
 ui_update_ps()
 {
-    if (!librds_get_ps_available(tuner.rds))
+    if (!librds_string_get_available(librds_get_ps(tuner.rds)))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_ps), " ");
         return;
@@ -532,8 +532,7 @@ ui_update_ps()
 
     gchar *markup;
     markup = rds_utils_text_markup(librds_get_ps(tuner.rds),
-                                   librds_get_ps_errors(tuner.rds),
-                                   librds_get_progressive(tuner.rds, LIBRDS_STRING_PS));
+                                   librds_get_text_progressive(tuner.rds, LIBRDS_TEXT_PS));
 
     gtk_label_set_markup(GTK_LABEL(ui.l_ps), markup);
     g_free(markup);
@@ -542,7 +541,7 @@ ui_update_ps()
 void
 ui_update_rt(gboolean flag)
 {
-    if (!librds_get_rt_available(tuner.rds, flag))
+    if (!librds_string_get_available(librds_get_rt(tuner.rds, flag)))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_rt[flag]), " ");
         return;
@@ -550,8 +549,7 @@ ui_update_rt(gboolean flag)
 
     gchar *markup;
     markup = rds_utils_text_markup(librds_get_rt(tuner.rds, flag),
-                                   librds_get_rt_errors(tuner.rds, flag),
-                                   librds_get_progressive(tuner.rds, LIBRDS_STRING_RT));
+                                   librds_get_text_progressive(tuner.rds, LIBRDS_TEXT_RT));
 
     gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), markup);
     g_free(markup);

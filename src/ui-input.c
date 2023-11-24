@@ -6,6 +6,7 @@
 #include "ui.h"
 #include "scan.h"
 #include "ui-tuner-set.h"
+#include "rds-utils.h"
 #include "tuner.h"
 #include "conf.h"
 #include "log.h"
@@ -398,18 +399,20 @@ mouse_freq(GtkWidget *widget,
     gchar buff[30];
     gchar *ps;
 
-    if (librds_get_ps_available(tuner.rds))
+    if (librds_string_get_available(librds_get_ps(tuner.rds)))
     {
+        ps = rds_utils_text(librds_get_ps(tuner.rds));
         if(conf.replace_spaces)
         {
-            ps = replace_spaces(librds_get_ps(tuner.rds));
-            g_snprintf(buff, sizeof(buff), "%s %s %s", freq_text, pi_text, ps);
-            g_free(ps);
+            char *replaced = replace_spaces(ps);
+            g_snprintf(buff, sizeof(buff), "%s %s %s", freq_text, pi_text, replaced);
+            g_free(replaced);
         }
         else
         {
-            g_snprintf(buff, sizeof(buff), "%s %s %s", freq_text, pi_text, librds_get_ps(tuner.rds));
+            g_snprintf(buff, sizeof(buff), "%s %s %s", freq_text, pi_text, ps);
         }
+        g_free(ps);
     }
     else if(tuner.rds_pi >= 0)
     {
@@ -468,25 +471,24 @@ mouse_ps(GtkWidget      *widget,
         return FALSE;
     }
 
-    if (!librds_get_ps_available(tuner.rds))
+    if (!librds_string_get_available(librds_get_ps(tuner.rds)))
     {
         return FALSE;
     }
 
+    gchar *ps = rds_utils_text(librds_get_ps(tuner.rds));
     if (conf.replace_spaces)
     {
-        gchar *ps = replace_spaces(librds_get_ps(tuner.rds));
-        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
-                               ps,
-                               -1);
-        g_free(ps);
+        gchar *str = replace_spaces(ps);
+        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD), str, -1);
+        g_free(str);
     }
     else
     {
-        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
-                               librds_get_ps(tuner.rds),
-                               -1);
+        gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD), ps, -1);
     }
+
+    g_free(ps);
     return TRUE;
 }
 
@@ -495,8 +497,7 @@ mouse_rt(GtkWidget      *widget,
          GdkEventButton *event,
          gpointer        data)
 {
-    librds_rt_flag_t flag = (librds_rt_flag_t)data;
-    gchar *str;
+    librds_rt_flag_t flag = (librds_rt_flag_t)GPOINTER_TO_INT(data);
 
     if (event->type == GDK_BUTTON_PRESS &&
         event->button == 3) // right click
@@ -505,9 +506,11 @@ mouse_rt(GtkWidget      *widget,
         return FALSE;
     }
 
-    if(conf.replace_spaces)
+    gchar *rt = rds_utils_text(librds_get_rt(tuner.rds, flag));
+
+    if (conf.replace_spaces)
     {
-        str = replace_spaces(librds_get_rt(tuner.rds, flag));
+        gchar *str = replace_spaces(rt);
         gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
                                str,
                                -1);
@@ -516,9 +519,10 @@ mouse_rt(GtkWidget      *widget,
     else
     {
         gtk_clipboard_set_text(gtk_widget_get_clipboard(ui.window, GDK_SELECTION_CLIPBOARD),
-                               librds_get_rt(tuner.rds, flag),
+                               rt,
                                -1);
     }
 
+    g_free(rt);
     return FALSE;
 }

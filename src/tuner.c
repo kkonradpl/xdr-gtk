@@ -22,6 +22,7 @@
 #include "tuner-callbacks.h"
 #include "ui-tuner-update.h"
 #include "conf.h"
+#include "rds-utils.h"
 
 #define DEBUG_READ  0
 #define DEBUG_WRITE 1
@@ -542,35 +543,40 @@ callback_ecc(uint8_t  ecc,
 }
 
 static void
-callback_ps(const char                  *ps,
-            const librds_string_error_t *ps_error,
-            void                        *user_data)
+callback_ps(const librds_string_t *ps,
+            void                  *user_data)
 {
     ui_update_ps();
-    stationlist_ps(ps);
+
+    gchar *ps_text = rds_utils_text(ps);
+    stationlist_ps(ps_text);
 
     gboolean error = FALSE;
-    for (gint i = 0; i < LIBRDS_PS_LENGTH; i++)
+    const librds_string_error_t *errors = librds_string_get_errors(ps);
+    const uint8_t length = librds_string_get_length(ps);
+    for (gint i = 0; i < length; i++)
     {
-        if (ps_error[i])
+        if (errors[i])
         {
             error = TRUE;
             break;
         }
     }
 
-    log_ps(ps, error);
+    log_ps(ps_text, error);
+    g_free(ps_text);
 }
 
 static void
-callback_rt(const char                  *rt,
-            const librds_string_error_t *rt_error,
-            librds_rt_flag_t             flag,
-            void                        *user_data)
+callback_rt(const librds_string_t *rt,
+            librds_rt_flag_t       flag,
+            void                  *user_data)
 {
     ui_update_rt(flag);
-    stationlist_rt(flag, rt);
-    log_rt(flag, rt);
+    gchar *rt_text = rds_utils_text(rt);
+    stationlist_rt(flag, rt_text);
+    log_rt(flag, rt_text);
+    g_free(rt_text);
 }
 
 void
@@ -595,15 +601,15 @@ tuner_rds_configure()
 {
     librds_block_error_t ps_info_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_ps_info_error);
     librds_block_error_t ps_data_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_ps_data_error);
-    librds_set_correction(tuner.rds, LIBRDS_STRING_PS, LIBRDS_BLOCK_TYPE_INFO, ps_info_error);
-    librds_set_correction(tuner.rds, LIBRDS_STRING_PS, LIBRDS_BLOCK_TYPE_DATA, ps_data_error);
-    librds_set_progressive(tuner.rds, LIBRDS_STRING_PS, conf.rds_ps_progressive);
+    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_PS, LIBRDS_BLOCK_TYPE_INFO, ps_info_error);
+    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_PS, LIBRDS_BLOCK_TYPE_DATA, ps_data_error);
+    librds_set_text_progressive(tuner.rds, LIBRDS_TEXT_PS, conf.rds_ps_progressive);
 
     librds_block_error_t rt_info_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_rt_info_error);
     librds_block_error_t rt_data_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_rt_data_error);
-    librds_set_correction(tuner.rds, LIBRDS_STRING_RT, LIBRDS_BLOCK_TYPE_INFO, rt_info_error);
-    librds_set_correction(tuner.rds, LIBRDS_STRING_RT, LIBRDS_BLOCK_TYPE_DATA, rt_data_error);
-    librds_set_progressive(tuner.rds, LIBRDS_STRING_RT, conf.rds_rt_progressive);
+    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_RT, LIBRDS_BLOCK_TYPE_INFO, rt_info_error);
+    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_RT, LIBRDS_BLOCK_TYPE_DATA, rt_data_error);
+    librds_set_text_progressive(tuner.rds, LIBRDS_TEXT_RT, conf.rds_rt_progressive);
 }
 
 void tuner_clear_all()
