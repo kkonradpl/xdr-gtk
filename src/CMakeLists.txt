@@ -54,7 +54,7 @@ set(SOURCE_FILES_MINGW
         icon.rc)
 
 set(LIBRARIES
-        rds_static
+        rdsparser_static
         ${GTK_LIBRARIES}
         m)
 

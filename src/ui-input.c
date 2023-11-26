@@ -399,9 +399,9 @@ mouse_freq(GtkWidget *widget,
     gchar buff[30];
     gchar *ps;
 
-    if (librds_string_get_available(librds_get_ps(tuner.rds)))
+    if (rdsparser_string_get_available(rdsparser_get_ps(tuner.rds)))
     {
-        ps = rds_utils_text(librds_get_ps(tuner.rds));
+        ps = rds_utils_text(rdsparser_get_ps(tuner.rds));
         if(conf.replace_spaces)
         {
             char *replaced = replace_spaces(ps);
@@ -471,12 +471,12 @@ mouse_ps(GtkWidget      *widget,
         return FALSE;
     }
 
-    if (!librds_string_get_available(librds_get_ps(tuner.rds)))
+    if (!rdsparser_string_get_available(rdsparser_get_ps(tuner.rds)))
     {
         return FALSE;
     }
 
-    gchar *ps = rds_utils_text(librds_get_ps(tuner.rds));
+    gchar *ps = rds_utils_text(rdsparser_get_ps(tuner.rds));
     if (conf.replace_spaces)
     {
         gchar *str = replace_spaces(ps);
@@ -497,7 +497,7 @@ mouse_rt(GtkWidget      *widget,
          GdkEventButton *event,
          gpointer        data)
 {
-    librds_rt_flag_t flag = (librds_rt_flag_t)GPOINTER_TO_INT(data);
+    rdsparser_rt_flag_t flag = (rdsparser_rt_flag_t)GPOINTER_TO_INT(data);
 
     if (event->type == GDK_BUTTON_PRESS &&
         event->button == 3) // right click
@@ -506,7 +506,7 @@ mouse_rt(GtkWidget      *widget,
         return FALSE;
     }
 
-    gchar *rt = rds_utils_text(librds_get_rt(tuner.rds, flag));
+    gchar *rt = rds_utils_text(rdsparser_get_rt(tuner.rds, flag));
 
     if (conf.replace_spaces)
     {

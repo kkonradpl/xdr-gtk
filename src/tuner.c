@@ -501,59 +501,61 @@ tuner_write_socket(gintptr  fd,
 }
 
 static void
-callback_pty(uint8_t  pty,
-             void    *user_data)
+callback_pty(rdsparser_t *rds,
+             void        *user_data)
 {
     ui_update_pty();
 }
 
 static void
-callback_tp(bool  tp,
-            void *user_data)
+callback_tp(rdsparser_t *rds,
+            void        *user_data)
 {
     ui_update_tp();
 }
 
 static void
-callback_ta(bool  tp,
-            void *user_data)
+callback_ta(rdsparser_t *rds,
+            void        *user_data)
 {
     ui_update_ta();
 }
 
 static void
-callback_ms(bool  tp,
-            void *user_data)
+callback_ms(rdsparser_t *rds,
+            void        *user_data)
 {
     ui_update_ms();
 }
 
 static void
-callback_af(uint8_t  af,
-            void    *user_data)
+callback_ecc(rdsparser_t *rds,
+             void        *user_data)
 {
-    ui_update_af(af);
+    ui_update_ecc();
 }
 
 static void
-callback_ecc(uint8_t  ecc,
-             void    *user_data)
+callback_af(rdsparser_t *rds,
+            uint8_t      new_af,
+            void        *user_data)
 {
-    ui_update_ecc(ecc);
+    ui_update_af(new_af);
 }
 
 static void
-callback_ps(const librds_string_t *ps,
-            void                  *user_data)
+callback_ps(rdsparser_t *rds,
+            void        *user_data)
 {
     ui_update_ps();
 
+    const rdsparser_string_t *ps = rdsparser_get_ps(rds);
     gchar *ps_text = rds_utils_text(ps);
     stationlist_ps(ps_text);
 
     gboolean error = FALSE;
-    const librds_string_error_t *errors = librds_string_get_errors(ps);
-    const uint8_t length = librds_string_get_length(ps);
+    const rdsparser_string_error_t *errors = rdsparser_string_get_errors(ps);
+    const uint8_t length = rdsparser_string_get_length(ps);
     for (gint i = 0; i < length; i++)
     {
         if (errors[i])
@@ -568,11 +570,12 @@ callback_ps(const librds_string_t *ps,
 }
 
 static void
-callback_rt(const librds_string_t *rt,
-            librds_rt_flag_t       flag,
-            void                  *user_data)
+callback_rt(rdsparser_t         *rds,
+            rdsparser_rt_flag_t  flag,
+            void                *user_data)
 {
     ui_update_rt(flag);
+    const rdsparser_string_t *rt = rdsparser_get_rt(rds, flag);
     gchar *rt_text = rds_utils_text(rt);
     stationlist_rt(flag, rt_text);
     log_rt(flag, rt_text);
@@ -582,34 +585,34 @@ callback_rt(const librds_string_t *rt,
 void
 tuner_rds_init()
 {
-    tuner.rds = librds_new();
+    tuner.rds = rdsparser_new();
 
     tuner_rds_configure();
 
-    librds_register_pty(tuner.rds, callback_pty);
-    librds_register_tp(tuner.rds, callback_tp);
-    librds_register_ta(tuner.rds, callback_ta);
-    librds_register_ms(tuner.rds, callback_ms);
-    librds_register_af(tuner.rds, callback_af);
-    librds_register_ecc(tuner.rds, callback_ecc);
-    librds_register_ps(tuner.rds, callback_ps);
-    librds_register_rt(tuner.rds, callback_rt);
+    rdsparser_register_pty(tuner.rds, callback_pty);
+    rdsparser_register_tp(tuner.rds, callback_tp);
+    rdsparser_register_ta(tuner.rds, callback_ta);
+    rdsparser_register_ms(tuner.rds, callback_ms);
+    rdsparser_register_ecc(tuner.rds, callback_ecc);
+    rdsparser_register_af(tuner.rds, callback_af);
+    rdsparser_register_ps(tuner.rds, callback_ps);
+    rdsparser_register_rt(tuner.rds, callback_rt);
 }
 
 void
 tuner_rds_configure()
 {
-    librds_block_error_t ps_info_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_ps_info_error);
-    librds_block_error_t ps_data_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_ps_data_error);
-    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_PS, LIBRDS_BLOCK_TYPE_INFO, ps_info_error);
-    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_PS, LIBRDS_BLOCK_TYPE_DATA, ps_data_error);
-    librds_set_text_progressive(tuner.rds, LIBRDS_TEXT_PS, conf.rds_ps_progressive);
+    rdsparser_block_error_t ps_info_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_ps_info_error);
+    rdsparser_block_error_t ps_data_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_ps_data_error);
+    rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_PS, RDSPARSER_BLOCK_TYPE_INFO, ps_info_error);
+    rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_PS, RDSPARSER_BLOCK_TYPE_DATA, ps_data_error);
+    rdsparser_set_text_progressive(tuner.rds, RDSPARSER_TEXT_PS, conf.rds_ps_progressive);
 
-    librds_block_error_t rt_info_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_rt_info_error);
-    librds_block_error_t rt_data_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? LIBRDS_BLOCK_ERROR_LARGE : conf.rds_rt_data_error);
-    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_RT, LIBRDS_BLOCK_TYPE_INFO, rt_info_error);
-    librds_set_text_correction(tuner.rds, LIBRDS_TEXT_RT, LIBRDS_BLOCK_TYPE_DATA, rt_data_error);
-    librds_set_text_progressive(tuner.rds, LIBRDS_TEXT_RT, conf.rds_rt_progressive);
+    rdsparser_block_error_t rt_info_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_rt_info_error);
+    rdsparser_block_error_t rt_data_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_rt_data_error);
+    rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_RT, RDSPARSER_BLOCK_TYPE_INFO, rt_info_error);
+    rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_RT, RDSPARSER_BLOCK_TYPE_DATA, rt_data_error);
+    rdsparser_set_text_progressive(tuner.rds, RDSPARSER_TEXT_RT, conf.rds_rt_progressive);
 }
 
 void tuner_clear_all()
@@ -668,7 +671,7 @@ void tuner_clear_rds()
     tuner.rds_pi_err_level = G_MAXINT;
     ui_update_pi();
 
-    librds_clear(tuner.rds);
+    rdsparser_clear(tuner.rds);
 
     ui_update_tp();
     ui_update_ta();

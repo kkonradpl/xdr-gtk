@@ -1,5 +1,5 @@
 #include <gtk/gtk.h>
-#include "librds.h"
+#include "rdsparser.h"
 #include "ui.h"
 
 const gchar*
@@ -15,11 +15,11 @@ rds_utils_pty_to_string(gboolean rbds, gint number)
 }
 
 gchar*
-rds_utils_text(const librds_string_t *rds_string)
+rds_utils_text(const rdsparser_string_t *rds_string)
 {
     GString *string = g_string_new(NULL);
-    const wchar_t *content = librds_string_get_content(rds_string);
-    uint8_t len = librds_string_get_length(rds_string);
+    const wchar_t *content = rdsparser_string_get_content(rds_string);
+    uint8_t len = rdsparser_string_get_length(rds_string);
 
     for (gint i = 0; i < len; i++)
     {
@@ -34,13 +34,13 @@ rds_utils_text(const librds_string_t *rds_string)
 }
 
 gchar*
-rds_utils_text_markup(const librds_string_t *rds_string,
-                      gboolean               progressive)
+rds_utils_text_markup(const rdsparser_string_t *rds_string,
+                      gboolean                  progressive)
 {
     GString *string = g_string_new(NULL);
-    const wchar_t *content = librds_string_get_content(rds_string);
-    const uint8_t *errors = librds_string_get_errors(rds_string);
-    uint8_t len = librds_string_get_length(rds_string);
+    const wchar_t *content = rdsparser_string_get_content(rds_string);
+    const uint8_t *errors = rdsparser_string_get_errors(rds_string);
+    uint8_t len = rdsparser_string_get_length(rds_string);
 
     g_string_append_printf(string,
                            "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">%c</span>",
@@ -55,7 +55,7 @@ rds_utils_text_markup(const librds_string_t *rds_string,
         gchar* buffer_escaped = g_markup_printf_escaped("%s", buffer);
         const gint max_alpha = 70;
         const gint alpha_range = 50;
-        gint alpha = errors[i] * (alpha_range / (LIBRDS_STRING_ERROR_LARGEST + 1));
+        gint alpha = errors[i] * (alpha_range / (RDSPARSER_STRING_ERROR_LARGEST + 1));
 
         if (alpha)
         {

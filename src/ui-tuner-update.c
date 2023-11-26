@@ -380,7 +380,7 @@ void
 ui_update_tp()
 {
     static gint last_tp = G_MININT;
-    gint tp = librds_get_tp(tuner.rds);
+    gint tp = rdsparser_get_tp(tuner.rds);
 
     if (last_tp == tp)
         return;
@@ -412,7 +412,7 @@ void
 ui_update_ta()
 {
     static gint last_ta = G_MININT;
-    gint ta = librds_get_ta(tuner.rds);
+    gint ta = rdsparser_get_ta(tuner.rds);
 
     if(last_ta == ta)
         return;
@@ -444,7 +444,7 @@ void
 ui_update_ms()
 {
     static gint last_ms = G_MININT;
-    gint ms = librds_get_ms(tuner.rds);
+    gint ms = rdsparser_get_ms(tuner.rds);
 
     if(last_ms == ms)
         return;
@@ -478,7 +478,7 @@ void
 ui_update_pty()
 {
     static gint last_pty = G_MININT;
-    gint pty = librds_get_pty(tuner.rds);
+    gint pty = rdsparser_get_pty(tuner.rds);
     const gchar *pty_text;
 
     if (last_pty == pty)
@@ -502,7 +502,7 @@ ui_update_pty()
 void
 ui_update_ecc()
 {
-    gint ecc = librds_get_ecc(tuner.rds);
+    gint ecc = rdsparser_get_ecc(tuner.rds);
 
     static const gchar* const ecc_list[][16] = {
         {"??", "DE", "DZ", "AD", "IL", "IT", "BE", "RU", "PS", "AL", "AT", "HU", "MT", "DE", "??", "EG" },
@@ -524,15 +524,15 @@ ui_update_ecc()
 void
 ui_update_ps()
 {
-    if (!librds_string_get_available(librds_get_ps(tuner.rds)))
+    if (!rdsparser_string_get_available(rdsparser_get_ps(tuner.rds)))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_ps), " ");
         return;
     }
 
     gchar *markup;
-    markup = rds_utils_text_markup(librds_get_ps(tuner.rds),
-                                   librds_get_text_progressive(tuner.rds, LIBRDS_TEXT_PS));
+    markup = rds_utils_text_markup(rdsparser_get_ps(tuner.rds),
+                                   rdsparser_get_text_progressive(tuner.rds, RDSPARSER_TEXT_PS));
 
     gtk_label_set_markup(GTK_LABEL(ui.l_ps), markup);
     g_free(markup);
@@ -541,15 +541,15 @@ ui_update_ps()
 void
 ui_update_rt(gboolean flag)
 {
-    if (!librds_string_get_available(librds_get_rt(tuner.rds, flag)))
+    if (!rdsparser_string_get_available(rdsparser_get_rt(tuner.rds, flag)))
     {
         gtk_label_set_text(GTK_LABEL(ui.l_rt[flag]), " ");
         return;
     }
 
     gchar *markup;
-    markup = rds_utils_text_markup(librds_get_rt(tuner.rds, flag),
-                                   librds_get_text_progressive(tuner.rds, LIBRDS_TEXT_RT));
+    markup = rds_utils_text_markup(rdsparser_get_rt(tuner.rds, flag),
+                                   rdsparser_get_text_progressive(tuner.rds, RDSPARSER_TEXT_RT));
 
     gtk_label_set_markup(GTK_LABEL(ui.l_rt[flag]), markup);
     g_free(markup);

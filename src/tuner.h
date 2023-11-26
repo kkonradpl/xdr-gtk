@@ -3,7 +3,7 @@
 #include <glib.h>
 #include "conf.h"
 #include "tuner-filters.h"
-#include "librds.h"
+#include "rdsparser.h"
 
 #define TUNER_THREAD_SERIAL 0
 #define TUNER_THREAD_SOCKET 1
@@ -48,11 +48,11 @@ typedef struct tuner
     gint     cci;
     gint     aci;
 
-    librds_t *rds;
-    gint      rds_timeout;
-    gint64    rds_reset_timer;
-    gint      rds_pi;
-    gint      rds_pi_err_level;
+    rdsparser_t *rds;
+    gint         rds_timeout;
+    gint64       rds_reset_timer;
+    gint         rds_pi;
+    gint         rds_pi_err_level;
 
     gint daa;
     gint volume;

@@ -896,22 +896,22 @@ ui_update_title(gpointer user_data)
     else if(conf.title_tuner_mode == 1)
     {
         /* RDS PS */
-        new_title = rds_utils_text(librds_get_ps(tuner.rds));
+        new_title = rds_utils_text(rdsparser_get_ps(tuner.rds));
     }
     else if(conf.title_tuner_mode == 2)
     {
         /* RDS RT (1) */
-        new_title = rds_utils_text(librds_get_rt(tuner.rds, LIBRDS_RT_FLAG_A));
+        new_title = rds_utils_text(rdsparser_get_rt(tuner.rds, RDSPARSER_RT_FLAG_A));
     }
     else if(conf.title_tuner_mode == 3)
     {
         /* RDS RT (2) */
-        new_title = rds_utils_text(librds_get_rt(tuner.rds, LIBRDS_RT_FLAG_B));
+        new_title = rds_utils_text(rdsparser_get_rt(tuner.rds, RDSPARSER_RT_FLAG_B));
     }
     else if(conf.title_tuner_mode == 4)
     {
         /* RDS PTY */
-        new_title = g_strdup(rds_utils_pty_to_string((gboolean)conf.rds_pty_set, librds_get_pty(tuner.rds)));
+        new_title = g_strdup(rds_utils_pty_to_string((gboolean)conf.rds_pty_set, rdsparser_get_pty(tuner.rds)));
     }
     else if(conf.title_tuner_mode == 5)
     {
@@ -1297,7 +1297,7 @@ signal_tooltip(GtkWidget  *label,
 void
 ui_toggle_ps_mode()
 {
-    conf.rds_ps_progressive = !librds_get_text_progressive(tuner.rds, LIBRDS_TEXT_PS);
+    conf.rds_ps_progressive = !rdsparser_get_text_progressive(tuner.rds, RDSPARSER_TEXT_PS);
     tuner_rds_configure();
     ui_update_ps();
 }
@@ -1305,7 +1305,7 @@ ui_toggle_ps_mode()
 void
 ui_toggle_rt_mode()
 {
-    conf.rds_rt_progressive = !librds_get_text_progressive(tuner.rds, LIBRDS_TEXT_RT);
+    conf.rds_rt_progressive = !rdsparser_get_text_progressive(tuner.rds, RDSPARSER_TEXT_RT);
     tuner_rds_configure();
     ui_update_rt(0);
     ui_update_rt(1);
