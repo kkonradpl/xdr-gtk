@@ -570,7 +570,7 @@ ui_update_af(gint af)
         }
 
         gtk_list_store_append(model, &iter);
-        gchar *af_new_freq = g_strdup_printf("%.1f", ((87500+af*100)/1000.0));
+        gchar *af_new_freq = g_strdup_printf("%.1f", (af/1000.0));
         gtk_list_store_set(model, &iter, 0, af, 1, af_new_freq, -1);
         stationlist_af(af);
         log_af(af_new_freq);

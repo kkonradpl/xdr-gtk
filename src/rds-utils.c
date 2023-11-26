@@ -1,5 +1,5 @@
 #include <gtk/gtk.h>
-#include "rdsparser.h"
+#include <librdsparser.h>
 #include "ui.h"
 
 const gchar*

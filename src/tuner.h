@@ -1,9 +1,9 @@
 #ifndef XDR_TUNER_H_
 #define XDR_TUNER_H_
 #include <glib.h>
+#include <librdsparser.h>
 #include "conf.h"
 #include "tuner-filters.h"
-#include "rdsparser.h"
 
 #define TUNER_THREAD_SERIAL 0
 #define TUNER_THREAD_SOCKET 1

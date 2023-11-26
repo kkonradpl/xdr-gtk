@@ -537,7 +537,7 @@ callback_ecc(rdsparser_t *rds,
 
 static void
 callback_af(rdsparser_t *rds,
-            uint8_t      new_af,
+            uint32_t     new_af,
             void        *user_data)
 {
     ui_update_af(new_af);
