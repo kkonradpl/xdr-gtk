@@ -1023,7 +1023,7 @@ tune_ui_af(GtkTreeModel *model,
         gtk_tree_model_get(model, &iter, 0, &value, -1);
 
         if(value)
-            tuner_set_frequency(87500 + value * 100);
+            tuner_set_frequency(value);
     }
 }
 
