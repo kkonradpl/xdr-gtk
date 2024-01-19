@@ -12,6 +12,7 @@
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #endif
 #include "stationlist.h"
 #include "conf.h"

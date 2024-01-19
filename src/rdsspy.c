@@ -11,6 +11,7 @@
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <signal.h>
 #endif
 #include "rdsspy.h"
