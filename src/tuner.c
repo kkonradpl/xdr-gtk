@@ -602,6 +602,8 @@ tuner_rds_init()
 void
 tuner_rds_configure()
 {
+    rdsparser_set_extended_check(tuner.rds, conf.rds_extended_check);
+
     rdsparser_block_error_t ps_info_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_ps_info_error);
     rdsparser_block_error_t ps_data_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_ps_data_error);
     rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_PS, RDSPARSER_BLOCK_TYPE_INFO, ps_info_error);

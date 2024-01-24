@@ -51,7 +51,7 @@ static GtkWidget *x_scroll, *x_avg, *x_grid;
 static GtkWidget *page_rds;
 static GtkWidget *grid_rds;
 static GtkWidget *l_pty, *c_pty;
-static GtkWidget *x_rds_reset, *l_rds_timeout, *s_rds_timeout;
+static GtkWidget *x_rds_reset, *l_rds_timeout, *s_rds_timeout, *x_rds_extended_check;
 static GtkWidget *l_ps_error, *l_ps_info_error, *c_ps_info_error, *l_ps_data_error, *c_ps_data_error, *x_ps_prog, *x_ps_prog_override;
 static GtkWidget *l_rt_error, *l_rt_info_error, *c_rt_info_error, *l_rt_data_error, *c_rt_data_error, *x_rt_prog, *x_rt_prog_override;
 
@@ -458,6 +458,13 @@ settings_dialog(gint tab_num)
     gtk_grid_attach(GTK_GRID(grid_rds), l_rds_timeout, 0, row, 1, 1);
     s_rds_timeout = gtk_spin_button_new(GTK_ADJUSTMENT(gtk_adjustment_new(conf.rds_reset_timeout, 1.0, 10000.0, 10.0, 60.0, 0.0)), 0, 0);
     gtk_grid_attach(GTK_GRID(grid_rds), s_rds_timeout, 1, row, 1, 1);
+
+    row++;
+    x_rds_extended_check = gtk_check_button_new_with_label("Extended data check (decreases sensitivity)");
+    gtk_widget_set_tooltip_text(x_rds_extended_check, "Improve RDS reception reliablity by double checking the PTY, TP, TA, MS, ECC and AFs");
+    gtk_widget_set_hexpand(x_rds_extended_check, TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_rds_extended_check), conf.rds_extended_check);
+    gtk_grid_attach(GTK_GRID(grid_rds), x_rds_extended_check, 0, row, 2, 1);
 
     row++;
     gtk_grid_attach(GTK_GRID(grid_rds), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), 0, row, 2, 1);
@@ -1152,6 +1159,7 @@ settings_dialog(gint tab_num)
     conf.rds_pty_set = gtk_combo_box_get_active(GTK_COMBO_BOX(c_pty));
     conf.rds_reset = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rds_reset));
     conf.rds_reset_timeout = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(s_rds_timeout));
+    conf.rds_extended_check = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_rds_extended_check));
     conf.rds_ps_info_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_ps_info_error));
     conf.rds_ps_data_error = gtk_combo_box_get_active(GTK_COMBO_BOX(c_ps_data_error));
     conf.rds_ps_progressive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_ps_prog));

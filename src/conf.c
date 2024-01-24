@@ -70,6 +70,7 @@ static const gchar *key_color_rds_dark     = "color_rds_dark";
 static const gchar *key_pty_set            = "pty_set";
 static const gchar *key_reset              = "reset";
 static const gchar *key_reset_timeout      = "reset_timeout";
+static const gchar *key_extended_check     = "extended_check";
 static const gchar *key_ps_info_error      = "ps_info_error";
 static const gchar *key_ps_data_error      = "ps_data_error";
 static const gchar *key_ps_progressive     = "ps_progressive";
@@ -277,6 +278,7 @@ conf_read()
     conf.rds_pty_set          = conf_read_integer(keyfile, group_rds, key_pty_set,          CONF_RDS_PTY_SET);
     conf.rds_reset            = conf_read_boolean(keyfile, group_rds, key_reset,            CONF_RDS_RESET);
     conf.rds_reset_timeout    = conf_read_integer(keyfile, group_rds, key_reset_timeout,    CONF_RDS_RESET_TIMEOUT);
+    conf.rds_extended_check   = conf_read_boolean(keyfile, group_rds, key_extended_check,   CONF_RDS_EXTENDED_CHECK);
     conf.rds_ps_info_error    = conf_read_integer(keyfile, group_rds, key_ps_info_error,    CONF_RDS_PS_INFO_ERROR);
     conf.rds_ps_data_error    = conf_read_integer(keyfile, group_rds, key_ps_data_error,    CONF_RDS_PS_DATA_ERROR);
     conf.rds_ps_progressive   = conf_read_boolean(keyfile, group_rds, key_ps_progressive,   CONF_RDS_PS_PROGRESSIVE);
@@ -434,6 +436,7 @@ conf_write()
     g_key_file_set_integer(keyfile, group_rds, key_pty_set,          conf.rds_pty_set);
     g_key_file_set_boolean(keyfile, group_rds, key_reset,            conf.rds_reset);
     g_key_file_set_integer(keyfile, group_rds, key_reset_timeout,    conf.rds_reset_timeout);
+    g_key_file_set_boolean(keyfile, group_rds, key_extended_check,   conf.rds_extended_check);
     g_key_file_set_integer(keyfile, group_rds, key_ps_info_error,    conf.rds_ps_info_error);
     g_key_file_set_integer(keyfile, group_rds, key_ps_data_error,    conf.rds_ps_data_error);
     g_key_file_set_boolean(keyfile, group_rds, key_ps_progressive,   conf.rds_ps_progressive);

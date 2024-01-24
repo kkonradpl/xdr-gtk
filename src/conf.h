@@ -109,6 +109,7 @@ typedef struct settings
     enum RDS_Mode rds_pty_set;
     gboolean rds_reset;
     gint rds_reset_timeout;
+    gboolean rds_extended_check;
     enum RDS_Err_Correction rds_ps_info_error;
     enum RDS_Err_Correction rds_ps_data_error;
     gboolean rds_ps_progressive;
