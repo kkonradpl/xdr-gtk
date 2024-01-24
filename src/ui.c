@@ -911,7 +911,10 @@ ui_update_title(gpointer user_data)
     else if(conf.title_tuner_mode == 4)
     {
         /* RDS PTY */
-        new_title = g_strdup(rds_utils_pty_to_string((gboolean)conf.rds_pty_set, rdsparser_get_pty(tuner.rds)));
+        GString *string;
+        string = g_string_new("PTY: ");
+        string = g_string_append(string, rdsparser_pty_lookup_short(rdsparser_get_pty(tuner.rds), conf.rds_pty_set));
+        new_title = g_string_free(string, FALSE);
     }
     else if(conf.title_tuner_mode == 5)
     {
