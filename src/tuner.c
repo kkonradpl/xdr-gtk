@@ -529,10 +529,10 @@ callback_ms(rdsparser_t *rds,
 }
 
 static void
-callback_ecc(rdsparser_t *rds,
-             void        *user_data)
+callback_country(rdsparser_t *rds,
+                 void        *user_data)
 {
-    ui_update_ecc();
+    ui_update_country();
 }
 
 static void
@@ -593,7 +593,7 @@ tuner_rds_init()
     rdsparser_register_tp(tuner.rds, callback_tp);
     rdsparser_register_ta(tuner.rds, callback_ta);
     rdsparser_register_ms(tuner.rds, callback_ms);
-    rdsparser_register_ecc(tuner.rds, callback_ecc);
+    rdsparser_register_country(tuner.rds, callback_country);
     rdsparser_register_af(tuner.rds, callback_af);
     rdsparser_register_ps(tuner.rds, callback_ps);
     rdsparser_register_rt(tuner.rds, callback_rt);
@@ -679,7 +679,7 @@ void tuner_clear_rds()
     ui_update_ta();
     ui_update_ms();
     ui_update_pty();
-    ui_update_ecc();
+    ui_update_country();
     ui_update_ps();
     ui_update_rt(0);
     ui_update_rt(1);

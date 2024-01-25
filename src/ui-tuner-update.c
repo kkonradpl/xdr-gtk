@@ -500,24 +500,17 @@ ui_update_pty()
 }
 
 void
-ui_update_ecc()
+ui_update_country()
 {
-    gint ecc = rdsparser_get_ecc(tuner.rds);
-
-    static const gchar* const ecc_list[][16] = {
-        {"??", "DE", "DZ", "AD", "IL", "IT", "BE", "RU", "PS", "AL", "AT", "HU", "MT", "DE", "??", "EG" },
-        {"??", "GR", "CY", "SM", "CH", "JO", "FI", "LU", "BG", "DK", "GI", "IQ", "GB", "LY", "RO", "FR" },
-        {"??", "MA", "CZ", "PL", "VA", "SK", "SY", "TN", "??", "LI", "IS", "MC", "LT", "YU", "ES", "NO" },
-        {"??", "??", "IE", "TR", "MK", "??", "??", "??", "NL", "LV", "LB", "??", "HR", "??", "SE", "BY" },
-        {"??", "MD", "EE", "??", "??", "??", "UA", "??", "PT", "SI", "??", "??", "??", "??", "??", "BA" },
-    };
+    rdsparser_ecc_t ecc = rdsparser_get_ecc(tuner.rds);
 
     /* ECC is currently displayed only in StationList and logs */
-    if(tuner.rds_pi >= 0 &&
-       (ecc >= 0xE0 && ecc <= 0xE4))
+    if (ecc != RDSPARSER_ECC_UNKNOWN)
     {
-        stationlist_ecc(ecc);
-        log_ecc(ecc_list[ecc & 7][(guint16)tuner.rds_pi >> 12], ecc);
+        stationlist_ecc((guchar)ecc);
+
+        rdsparser_country_t country = rdsparser_get_country(tuner.rds);
+        log_ecc(rdsparser_country_lookup_iso(country), ecc);
     }
 }
 
