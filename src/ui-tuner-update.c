@@ -503,15 +503,28 @@ void
 ui_update_country()
 {
     rdsparser_ecc_t ecc = rdsparser_get_ecc(tuner.rds);
+    const gchar *country_iso = NULL;
+    const gchar *country_name = NULL;
 
-    /* ECC is currently displayed only in StationList and logs */
     if (ecc != RDSPARSER_ECC_UNKNOWN)
     {
-        stationlist_ecc((guchar)ecc);
-
         rdsparser_country_t country = rdsparser_get_country(tuner.rds);
-        log_ecc(rdsparser_country_lookup_iso(country), ecc);
+        country_iso = rdsparser_country_lookup_iso(country);
+        country_name = rdsparser_country_lookup_name(country);
+
+        stationlist_ecc((guchar)ecc);
+        log_ecc(country_name, ecc);
     }
+
+    GString *tooltip = g_string_new("RDS PI/ECC country");
+    if (country_name)
+    {
+        g_string_append_printf(tooltip, " (%s)", country_name);
+    }
+
+    gtk_label_set_text(GTK_LABEL(ui.l_country), (country_iso ? country_iso : "  "));
+    gtk_widget_set_tooltip_text(ui.l_country, tooltip->str);
+    g_string_free(tooltip, TRUE);
 }
 
 void

@@ -402,6 +402,12 @@ ui_init()
     gtk_widget_set_tooltip_text(ui.l_ms, "RDS Music/Speech flag");
     gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_ms, TRUE, TRUE, 3);
 
+    ui.l_country = gtk_label_new(NULL);
+    gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_country), "xdr-status");
+    gtk_label_set_xalign(GTK_LABEL(ui.l_country), 0.0);
+    gtk_label_set_width_chars(GTK_LABEL(ui.l_country), 2);
+    gtk_box_pack_start(GTK_BOX(ui.box_left_indicators), ui.l_country, TRUE, TRUE, 3);
+
     ui.l_pty = gtk_label_new(NULL);
     gtk_style_context_add_class(gtk_widget_get_style_context(ui.l_pty), "xdr-status");
     gtk_label_set_xalign(GTK_LABEL(ui.l_pty), 0.0);
