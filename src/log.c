@@ -10,8 +10,8 @@
 #include "ui.h"
 
 static FILE *logfp = NULL;
-static gchar ps_buff[9];
-static gchar rt_buff[2][65];
+static GString *ps_buff = NULL;
+static GString *rt_buff[2] = {NULL, NULL};
 static gboolean ps_buff_error;
 static gchar *default_log_path = "." PATH_SEP "logs";
 
@@ -38,9 +38,9 @@ log_prepare()
 
     directory = ((conf.log_dir && strlen(conf.log_dir)) ? conf.log_dir : default_log_path);
 
-    g_sprintf(ps_buff, "%8s", "");
-    g_sprintf(rt_buff[0], "%64s", "");
-    g_sprintf(rt_buff[1], "%64s", "");
+    ps_buff = ps_buff ? g_string_truncate(ps_buff, 0) : g_string_new("");
+    rt_buff[0] = rt_buff[0] ? g_string_truncate(rt_buff[0], 0) : g_string_new("");
+    rt_buff[1] = rt_buff[1] ? g_string_truncate(rt_buff[1], 0) : g_string_new("");
     ps_buff_error = TRUE;
 
     g_snprintf(path, sizeof(path), "%s" PATH_SEP, directory);
@@ -121,10 +121,10 @@ log_ps(const gchar    *ps,
         return;
 
     /* Check whether the PS string is different from a last saved one */
-    if(!strcmp(ps, ps_buff) && error == ps_buff_error)
+    if(!strcmp(ps, ps_buff->str) && error == ps_buff_error)
         return;
 
-    strcpy(ps_buff, ps);
+    ps_buff = g_string_assign(ps_buff, ps);
     ps_buff_error = error;
 
     log_timestamp();
@@ -156,10 +156,10 @@ log_rt(guint8       i,
         return;
 
     /* Check whether the RT string is different from a last saved one */
-    if(!strcmp(rt, rt_buff[i]))
+    if(!strcmp(rt, rt_buff[i]->str))
         return;
 
-    strcpy(rt_buff[i], rt);
+    rt_buff[i] = g_string_assign(rt_buff[i], rt);
 
     log_timestamp();
 
