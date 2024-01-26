@@ -117,7 +117,7 @@ gint ui_antenna_id(gint);
 void ui_antenna_update();
 void ui_toggle_ps_mode();
 void ui_toggle_rt_mode();
-void ui_screenshot();
+void ui_screenshot(gboolean);
 void ui_activate();
 void ui_rotator_button_swap();
 void ui_status(gint, gchar*, ...);

@@ -679,7 +679,7 @@ ui_action()
             ui_activate();
             break;
         case ACTION_SCREENSHOT:
-            ui_screenshot();
+            ui_screenshot(FALSE);
             break;
     }
 }

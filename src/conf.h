@@ -87,7 +87,6 @@ typedef struct settings
     gboolean accessibility;
     gboolean horizontal_af;
     gboolean dark_theme;
-    gboolean screen_clipboard;
     gboolean extended_frequency;
 
     /* Graph */

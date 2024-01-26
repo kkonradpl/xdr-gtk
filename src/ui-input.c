@@ -80,7 +80,7 @@ keyboard_press(GtkWidget   *widget,
 
     if(current == conf.key_screenshot)
     {
-        ui_screenshot();
+        ui_screenshot(shift_pressed);
         return TRUE;
     }
 

@@ -1320,7 +1320,7 @@ ui_toggle_rt_mode()
 }
 
 void
-ui_screenshot()
+ui_screenshot(gboolean clipboard)
 {
     static gchar default_path[] = "." PATH_SEP "screenshots";
     gchar t[20], *filename;
@@ -1367,7 +1367,7 @@ ui_screenshot()
                   filename);
     }
 
-    if (conf.screen_clipboard)
+    if (clipboard)
     {
         GdkPixbuf *pixbuf = gdk_pixbuf_get_from_surface(surface,
                                                         0, 0,
