@@ -196,14 +196,14 @@ ui_update_signal()
             switch(conf.signal_unit)
             {
             case UNIT_DBM:
-                str = g_markup_printf_escaped("<span color=\"#777777\">%4d%s</span>%4ddBm",
+                str = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_SECONDARY "%%\">%4d%s</span>%4ddBm",
                                               signal_max,
                                               ((fabs(conf.signal_offset) < 0.01) ? "↑" : "↥"),
                                               signal_curr);
                 break;
 
             case UNIT_DBUV:
-                str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span>%3d dBµV",
+                str = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_SECONDARY "%%\">%3d%s</span>%3d dBµV",
                                               signal_max,
                                               ((fabs(conf.signal_offset) < 0.01) ? "↑" : "↥"),
                                               signal_curr);
@@ -211,7 +211,7 @@ ui_update_signal()
 
             case UNIT_DBF:
             default:
-                str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span>%3d dBf",
+                str = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_SECONDARY "%%\">%3d%s</span>%3d dBf",
                                               signal_max,
                                               ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
                                               signal_curr);
@@ -220,7 +220,7 @@ ui_update_signal()
         }
         else
         {
-            str = g_markup_printf_escaped("<span color=\"#777777\">%3d%s</span> %3d",
+            str = g_markup_printf_escaped("<span alpha=\"" UI_ALPHA_SECONDARY "%%\">%3d%s</span> %3d",
                                           signal_max,
                                           ((fabs(conf.signal_offset) < 0.1) ? "↑" : "↥"),
                                           signal_curr);
@@ -351,15 +351,15 @@ ui_update_pi()
     {
         if(tuner.rds_pi_err_level >= 3)
             g_snprintf(buffer, sizeof(buffer),
-                       "%04X<span color=\"#777777\">\342\201\207</span>",
+                       "%04X<span alpha=\"" UI_ALPHA_SECONDARY "%%\">\342\201\207</span>",
                        tuner.rds_pi);
         else if(tuner.rds_pi_err_level == 2)
             g_snprintf(buffer, sizeof(buffer),
-                       "%04X<span color=\"#777777\">?</span>",
+                       "%04X<span alpha=\"" UI_ALPHA_SECONDARY "%%\">?</span>",
                        tuner.rds_pi);
         else if(tuner.rds_pi_err_level == 1)
             g_snprintf(buffer, sizeof(buffer),
-                       "%04X<span color=\"#AAAAAA\">?</span>",
+                       "%04X<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">?</span>",
                        tuner.rds_pi);
         else
             g_snprintf(buffer, sizeof(buffer),

@@ -11,6 +11,7 @@
 #endif
 
 #define UI_ALPHA_INSENSITIVE "25"
+#define UI_ALPHA_SECONDARY   "50"
 
 #define AF_LIST_STORE_ID   0
 #define AF_LIST_STORE_FREQ 1
