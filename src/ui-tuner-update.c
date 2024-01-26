@@ -22,7 +22,7 @@ void
 ui_update_freq()
 {
     static gint last_freq = G_MININT;
-    gchar buffer[8];
+    gchar buffer[16];
 
     if(conf.scan_mark_tuned)
         scan_force_redraw();

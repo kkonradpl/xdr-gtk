@@ -270,7 +270,7 @@ ui_init()
     gtk_widget_set_tooltip_text(ui.b_tune_back, "Tune back to the previous frequency");
 
     ui.e_freq = gtk_entry_new();
-    gtk_entry_set_max_length(GTK_ENTRY(ui.e_freq), 7);
+    gtk_entry_set_max_length(GTK_ENTRY(ui.e_freq), 8);
     gtk_entry_set_width_chars(GTK_ENTRY(ui.e_freq), 8);
     gtk_style_context_add_class(gtk_widget_get_style_context(ui.e_freq), "xdr-entry");
     gtk_box_pack_start(GTK_BOX(ui.box_left_tune), ui.e_freq, FALSE, FALSE, 0);

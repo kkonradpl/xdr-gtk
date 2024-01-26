@@ -14,7 +14,7 @@ tuner_set_frequency(gint freq)
     static gint freq_waiting = -1;
     static gint64 last_request = 0;
     gint64 now = g_get_real_time();
-    gchar buffer[8];
+    gchar buffer[16];
     gint real_freq;
     gint ant;
 

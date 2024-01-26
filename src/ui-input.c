@@ -221,43 +221,14 @@ keyboard_press(GtkWidget   *widget,
     gtk_widget_grab_focus(ui.e_freq);
     gtk_editable_set_position(GTK_EDITABLE(ui.e_freq), -1);
 
-    gchar buff[10], buff2[10];
-    gint i = 0, j = 0, k = 0;
-    gboolean flag = FALSE;
-    g_snprintf(buff, 10, "%s", gtk_entry_get_text(GTK_ENTRY(ui.e_freq)));
     if (event->keyval == GDK_KEY_Return ||
         event->keyval == GDK_KEY_KP_Enter)
     {
-        for(i=0; i<strlen(buff); i++)
-            if(buff[i]=='.')
-                flag = TRUE;
-        if(flag)
-        {
-            k=strlen(buff);
-            for(i=0; i<k; i++)
-            {
-                if(buff[i] != '.')
-                    buff2[j++] = buff[i];
-                else
-                {
-                    buff2[j] = '0';
-                    buff2[j+1] = '0';
-                    buff2[j+2] = '0';
-                    buff2[j+3] = 0x00;
-                    if(k>(i+4))
-                        k=i+4;
-                }
-            }
-        }
-        else
-            g_snprintf(buff2, 10, "%s000", buff);
-
-        gint i = atoi(buff2);
-        if(i>=100)
-            tuner_set_frequency(atoi(buff2));
+        gdouble freq = g_ascii_strtod(gtk_entry_get_text(GTK_ENTRY(ui.e_freq)), NULL);
+        if (freq < 100000)
+            tuner_set_frequency((gint)(freq * 1000));
 
         gtk_entry_set_text(GTK_ENTRY(ui.e_freq), "");
-        gtk_editable_set_position(GTK_EDITABLE(ui.e_freq), 2);
         return TRUE;
     }
     else if(event->state & GDK_CONTROL_MASK)
@@ -270,6 +241,11 @@ keyboard_press(GtkWidget   *widget,
     }
     else
     {
+        gchar buff[10], buff2[10];
+        gboolean flag = FALSE;
+        gint i;
+
+        g_snprintf(buff, 16, "%s", gtk_entry_get_text(GTK_ENTRY(ui.e_freq)));
         for(i=0; i<strlen(buff); i++)
             if(buff[i]=='.')
                 flag = TRUE;
@@ -278,7 +254,7 @@ keyboard_press(GtkWidget   *widget,
             if(event->keyval == '.')
                 return TRUE;
         }
-        else
+        else if (!conf.extended_frequency)
         {
             i=atoi(buff);
             if(i>=20 && i<=200 && event->keyval != GDK_KEY_BackSpace && event->keyval != '.')

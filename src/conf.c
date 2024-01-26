@@ -42,6 +42,7 @@ static const gchar *key_auto_connect       = "auto_connect";
 static const gchar *key_disconnect_confirm = "disconnect_confirm";
 static const gchar *key_auto_reconnect     = "auto_reconnect";
 static const gchar *key_grab_focus         = "grab_focus";
+static const gchar *key_extended_frequency = "extended_frequency";
 static const gchar *key_hide_decorations   = "hide_decorations";
 static const gchar *key_hide_interference  = "hide_interference";
 static const gchar *key_hide_radiotext     = "hide_radiotext";
@@ -244,6 +245,7 @@ conf_read()
     conf.disconnect_confirm = conf_read_boolean(keyfile, group_interface, key_disconnect_confirm, CONF_INTERFACE_DISCONNECT_CONFIRM);
     conf.auto_reconnect     = conf_read_boolean(keyfile, group_interface, key_auto_reconnect,     CONF_INTERFACE_AUTO_RECONNECT);
     conf.grab_focus         = conf_read_boolean(keyfile, group_interface, key_grab_focus,         CONF_INTERFACE_GRAB_FOCUS);
+    conf.extended_frequency = conf_read_boolean(keyfile, group_interface, key_extended_frequency, CONF_INTERFACE_EXTENDED_FREQUENCY);
 
     /* Interface (second part) */
     conf.hide_decorations   = conf_read_boolean(keyfile, group_interface, key_hide_decorations,   CONF_INTERFACE_HIDE_DECORATIONS);
@@ -402,6 +404,7 @@ conf_write()
     g_key_file_set_boolean(keyfile, group_interface, key_disconnect_confirm, conf.disconnect_confirm);
     g_key_file_set_boolean(keyfile, group_interface, key_auto_reconnect,     conf.auto_reconnect);
     g_key_file_set_boolean(keyfile, group_interface, key_grab_focus,         conf.grab_focus);
+    g_key_file_set_boolean(keyfile, group_interface, key_extended_frequency, conf.extended_frequency);
 
     /* Interface (appearance) */
     g_key_file_set_boolean(keyfile, group_interface, key_hide_decorations,   conf.hide_decorations);
