@@ -486,12 +486,23 @@ ui_update_pty()
 
     last_pty = pty;
 
-    if(last_pty >= 0 && last_pty < 32)
+    if (last_pty > 0 && last_pty < 32)
     {
         pty_text = rdsparser_pty_lookup_short(pty, conf.rds_pty_set);
         gtk_label_set_text(GTK_LABEL(ui.l_pty), pty_text);
         stationlist_pty(last_pty);
         log_pty(pty_text);
+    }
+    else if (last_pty == 0)
+    {
+        if (!conf.accessibility)
+        {
+            gtk_label_set_markup(GTK_LABEL(ui.l_pty), "<span alpha=\"" UI_ALPHA_INSENSITIVE "%%\">None</span>");
+        }
+        else
+        {
+            gtk_label_set_text(GTK_LABEL(ui.l_pty), "None");
+        }
     }
     else
     {
