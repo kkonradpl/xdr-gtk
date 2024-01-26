@@ -582,6 +582,27 @@ callback_rt(rdsparser_t         *rds,
     g_free(rt_text);
 }
 
+static void
+callback_ct(rdsparser_t          *rds,
+            const rdsparser_ct_t *ct,
+            void                 *user_data)
+{
+    int16_t offset = rdsparser_ct_get_offset(ct);
+    char *datetime = g_strdup_printf("%04d-%02d-%02d %02d:%02d %c%02d:%02d",
+                                     rdsparser_ct_get_year(ct),
+                                     rdsparser_ct_get_month(ct),
+                                     rdsparser_ct_get_day(ct),
+                                     rdsparser_ct_get_hour(ct),
+                                     rdsparser_ct_get_minute(ct),
+                                     (offset >= 0) ? '+' : '-',
+                                     abs(offset / 60),
+                                     abs(offset % 60));
+
+    log_ct(datetime);
+    g_free(datetime);
+
+}
+
 void
 tuner_rds_init()
 {
@@ -597,6 +618,7 @@ tuner_rds_init()
     rdsparser_register_af(tuner.rds, callback_af);
     rdsparser_register_ps(tuner.rds, callback_ps);
     rdsparser_register_rt(tuner.rds, callback_rt);
+    rdsparser_register_ct(tuner.rds, callback_ct);
 }
 
 void

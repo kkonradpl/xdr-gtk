@@ -48,7 +48,12 @@ log_prepare()
 
     tt = time(NULL);
     strftime(t, sizeof(t), "%Y-%m-%d", (conf.utc)?gmtime(&tt):localtime(&tt));
-    strftime(t2, sizeof(t2), "%H%M%S", (conf.utc)?gmtime(&tt):localtime(&tt));
+
+    if (conf.utc)
+        strftime(t2, sizeof(t2), "%H%M%SZ", gmtime(&tt));
+    else
+        strftime(t2, sizeof(t2), "%H%M%S", localtime(&tt));
+
     g_snprintf(path, sizeof(path), "%s" PATH_SEP "%s" PATH_SEP, directory, t);
     g_mkdir(path, 0755);
 
@@ -70,7 +75,12 @@ log_timestamp()
     if(logfp)
     {
         tt = time(NULL);
-        strftime(t, sizeof(t), "%Y-%m-%d %H:%M:%S", (conf.utc)?gmtime(&tt):localtime(&tt));
+
+        if (conf.utc)
+            strftime(t, sizeof(t), "%Y-%m-%d %H:%M:%SZ", gmtime(&tt));
+        else
+            strftime(t, sizeof(t), "%Y-%m-%d %H:%M:%S", localtime(&tt));
+
         fprintf(logfp, "%s\t", t);
     }
 }
@@ -197,6 +207,18 @@ log_ecc(const gchar *ecc,
         fprintf(logfp, "ECC\t?? (%02X)%s", ecc_raw, LOG_NL);
     else
         fprintf(logfp, "ECC\t%s%s", ecc, LOG_NL);
+}
+
+
+void
+log_ct(const char *datetime)
+{
+    if(!log_prepare())
+        return;
+
+    log_timestamp();
+
+    fprintf(logfp, "CT\t%s%s", datetime, LOG_NL);
 }
 
 gchar*
