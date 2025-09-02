@@ -635,13 +635,13 @@ tuner_rds_configure()
     rdsparser_block_error_t ps_data_error = (conf.rds_ps_progressive && conf.rds_ps_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_ps_data_error);
     rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_PS, RDSPARSER_BLOCK_TYPE_INFO, ps_info_error);
     rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_PS, RDSPARSER_BLOCK_TYPE_DATA, ps_data_error);
-    rdsparser_set_text_progressive(tuner.rds, RDSPARSER_TEXT_PS, conf.rds_ps_progressive);
+    rdsparser_set_text_progressive(tuner.rds, RDSPARSER_TEXT_PS, (conf.rds_ps_progressive ? RDSPARSER_PROGRESSIVE_AUTO : RDSPARSER_PROGRESSIVE_DISABLED));
 
     rdsparser_block_error_t rt_info_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_rt_info_error);
     rdsparser_block_error_t rt_data_error = (conf.rds_rt_progressive && conf.rds_rt_prog_override ? RDSPARSER_BLOCK_ERROR_LARGE : conf.rds_rt_data_error);
     rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_RT, RDSPARSER_BLOCK_TYPE_INFO, rt_info_error);
     rdsparser_set_text_correction(tuner.rds, RDSPARSER_TEXT_RT, RDSPARSER_BLOCK_TYPE_DATA, rt_data_error);
-    rdsparser_set_text_progressive(tuner.rds, RDSPARSER_TEXT_RT, conf.rds_rt_progressive);
+    rdsparser_set_text_progressive(tuner.rds, RDSPARSER_TEXT_RT, (conf.rds_rt_progressive ? RDSPARSER_PROGRESSIVE_AUTO : RDSPARSER_PROGRESSIVE_DISABLED));
 }
 
 void tuner_clear_all()
