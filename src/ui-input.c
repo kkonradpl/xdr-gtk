@@ -22,6 +22,7 @@ keyboard_press(GtkWidget   *widget,
     guint current = gdk_keyval_to_upper(event->keyval);
     gboolean shift_pressed = (event->state & GDK_SHIFT_MASK);
     gboolean ctrl_pressed = (event->state & GDK_CONTROL_MASK);
+    gboolean alt_pressed = (event->state & GDK_MOD1_MASK);
 
     // tuning
     if(current == conf.key_tune_down)
@@ -41,7 +42,7 @@ keyboard_press(GtkWidget   *widget,
         if(tuner_get_freq() < 1900)
             tuner_set_frequency(tuner_get_freq()+1);
         else
-            tuner_set_frequency(tuner_get_freq()+(conf.fm_10k_steps ? 10 : 5));
+            tuner_set_frequency(tuner_get_freq()+(conf.fm_10k_steps || conf.tef668x_mode ? 10 : 5));
         return TRUE;
     }
 
@@ -50,7 +51,7 @@ keyboard_press(GtkWidget   *widget,
         if(tuner_get_freq() <= 1900)
             tuner_set_frequency(tuner_get_freq()-1);
         else
-            tuner_set_frequency(tuner_get_freq()-(conf.fm_10k_steps ? 10 : 5));
+            tuner_set_frequency(tuner_get_freq()-(conf.fm_10k_steps || conf.tef668x_mode ? 10 : 5));
         return TRUE;
     }
 
@@ -208,6 +209,22 @@ keyboard_press(GtkWidget   *widget,
 
         g_source_remove(ui.title_timeout);
         ui_update_title(NULL);
+
+        return TRUE;
+    }
+
+    if (alt_pressed)
+    {
+        if(current == GDK_KEY_1)
+        {
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.x_rf), !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.x_rf)));
+            tuner_set_gain();
+        }
+        else if(current == GDK_KEY_2)
+        {
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.x_if), !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ui.x_if)));
+            tuner_set_gain();
+        }
 
         return TRUE;
     }

@@ -13,6 +13,6 @@
 #define SETTINGS_TAB_SCHEDULER 7
 #define SETTINGS_TAB_ABOUT     8
 
-void settings_dialog();
+void settings_dialog(gint);
 
 #endif

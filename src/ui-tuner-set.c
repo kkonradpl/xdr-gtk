@@ -55,8 +55,12 @@ tuner_set_bandwidth()
     gchar buffer[16];
     gint index = gtk_combo_box_get_active(GTK_COMBO_BOX(ui.c_bw));
 
-    g_snprintf(buffer, sizeof(buffer), "F%d", tuner_filter_from_index(index));
-    tuner_write(tuner.thread, buffer);
+    if (!conf.tef668x_mode)
+    {
+        /* Indexes are only valid for XDR bandwidths */
+        g_snprintf(buffer, sizeof(buffer), "F%d", tuner_filter_from_index(index));
+        tuner_write(tuner.thread, buffer);
+    }
 
     g_snprintf(buffer, sizeof(buffer), "W%d", tuner_filter_bw_from_index(index));
     tuner_write(tuner.thread, buffer);

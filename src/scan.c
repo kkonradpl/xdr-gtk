@@ -462,7 +462,7 @@ scan_toggle(GtkWidget *widget,
 {
     gint start, stop, step, bw;
     gboolean continuous;
-    gchar buff[100];
+    gchar buff[128], buffbw[64];
     gint samples;
     gint offset;
     gint antenna;
@@ -504,13 +504,27 @@ scan_toggle(GtkWidget *widget,
 
         antenna = ui_antenna_id(start);
         offset = tuner.offset[antenna];
+
+        if (!conf.tef668x_mode)
+        {
+            g_snprintf(buffbw, sizeof(buffbw),
+                       "Sf%d\nSw%d\n",
+                       tuner_filter_from_index(bw),
+                       tuner_filter_bw_from_index(bw));
+        }
+        else
+        {
+            g_snprintf(buffbw, sizeof(buffbw),
+                       "Sw%d\n",
+                       tuner_filter_bw_from_index(bw));
+        }
+
         g_snprintf(buff, sizeof(buff),
-                   "Sa%d\nSb%d\nSc%d\nSf%d\nSw%d\nSz%d\nS%s",
+                   "Sa%d\nSb%d\nSc%d\n%sSz%d\nS%s",
                    start+offset,
                    stop+offset,
                    step,
-                   tuner_filter_from_index(bw),
-                   tuner_filter_bw_from_index(bw),
+                   buffbw,
                    antenna,
                    (continuous?"m":""));
 

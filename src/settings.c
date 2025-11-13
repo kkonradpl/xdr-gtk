@@ -27,7 +27,7 @@ static GtkWidget *l_init_freq, *s_init_freq, *l_init_freq_unit;
 static GtkWidget *l_event, *c_event;
 static GtkWidget *x_utc, *x_autoconnect, *x_fmstep, *x_amstep;
 static GtkWidget *x_disconnect_confirm, *x_auto_reconnect, *x_grab_focus;
-static GtkWidget *x_extended_frequency;
+static GtkWidget *x_extended_frequency, *x_tef668x_mode;
 
 /* Appearance page */
 static GtkWidget *page_appearance;
@@ -232,6 +232,11 @@ settings_dialog(gint tab_num)
     x_extended_frequency = gtk_check_button_new_with_label("Extended frequency tuning mode");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_extended_frequency), conf.extended_frequency);
     gtk_grid_attach(GTK_GRID(grid_interface), x_extended_frequency, 0, row, 3, 1);
+
+    row++;
+    x_tef668x_mode = gtk_check_button_new_with_label("TEF668X mode");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(x_tef668x_mode), conf.tef668x_mode);
+    gtk_grid_attach(GTK_GRID(grid_interface), x_tef668x_mode, 0, row, 3, 1);
 
 
     /* Interface page */
@@ -1101,6 +1106,13 @@ settings_dialog(gint tab_num)
     conf.auto_reconnect = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_auto_reconnect));
     conf.grab_focus = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_grab_focus));
     conf.extended_frequency = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_extended_frequency));
+
+    gboolean new_mode = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_tef668x_mode));
+    if (new_mode != conf.tef668x_mode)
+    {
+        conf.tef668x_mode = new_mode;
+        ui_interface_change();
+    }
 
     /* Appearance page */
     conf.hide_decorations = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x_hide_decorations));

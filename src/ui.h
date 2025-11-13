@@ -123,6 +123,7 @@ void ui_rotator_button_swap();
 void ui_status(gint, gchar*, ...);
 void ui_decorations(gboolean);
 gboolean ui_dialog_confirm_disconnect();
+void ui_interface_change();
 
 #endif
 

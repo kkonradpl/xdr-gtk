@@ -88,6 +88,7 @@ typedef struct settings
     gboolean horizontal_af;
     gboolean dark_theme;
     gboolean extended_frequency;
+    gboolean tef668x_mode;
 
     /* Graph */
     gdouble signal_offset;

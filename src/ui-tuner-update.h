@@ -30,7 +30,7 @@ void ui_update_rotator();
 void ui_update_forced_mono();
 void ui_update_scan(tuner_scan_t*);
 void ui_update_disconnected();
-void ui_update_pilot();
+void ui_update_pilot(gint);
 void ui_action();
 void ui_unauthorized();
 void ui_unauthorized();

@@ -300,7 +300,7 @@ ui_init()
 
     // ----------------
 
-    ui.adj_align = gtk_adjustment_new(0.0, 0.0, 127.0, 0.5, 1.0, 0);
+    ui.adj_align = gtk_adjustment_new(0.0, 0.0, 0.0, 0.5, 1.0, 0);
     ui.hs_align = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(ui.adj_align));
     gtk_style_context_add_class(gtk_widget_get_style_context(ui.hs_align), "xdr-align");
     gtk_scale_set_digits(GTK_SCALE(ui.hs_align), 0);
@@ -491,7 +491,7 @@ ui_init()
     gtk_widget_set_focus_on_click(GTK_WIDGET(ui.c_agc), FALSE);
     g_signal_connect(G_OBJECT(ui.c_agc), "changed", G_CALLBACK(tuner_set_agc), NULL);
 
-    ui.x_rf = gtk_check_button_new_with_label("RF+");
+    ui.x_rf = gtk_check_button_new_with_label(NULL);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings1), ui.x_rf, FALSE, FALSE, 0);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.x_rf), conf.rfgain);
     g_signal_connect(ui.x_rf, "button-press-event", G_CALLBACK(ui_toggle_gain), NULL);
@@ -558,7 +558,7 @@ ui_init()
     gtk_widget_set_focus_on_click(GTK_WIDGET(ui.c_bw), FALSE);
     g_signal_connect(G_OBJECT(ui.c_bw), "changed", G_CALLBACK(tuner_set_bandwidth), NULL);
 
-    ui.x_if = gtk_check_button_new_with_label("IF+");
+    ui.x_if = gtk_check_button_new_with_label(NULL);
     gtk_box_pack_start(GTK_BOX(ui.box_left_settings2), ui.x_if, FALSE, FALSE, 0);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui.x_if), conf.ifgain);
     g_signal_connect(ui.x_if, "button-press-event", G_CALLBACK(ui_toggle_gain), NULL);
@@ -683,6 +683,7 @@ ui_init()
         gtk_widget_hide(ui.l_status);
     ui_rotator_button_swap();
     ui_antenna_update();
+    ui_interface_change();
 
     gtk_widget_add_events(GTK_WIDGET(ui.window), GDK_CONFIGURE);
     g_signal_connect(ui.window, "configure-event", G_CALLBACK(ui_window_event), NULL);
@@ -1469,4 +1470,16 @@ ui_af_autoscroll(GtkWidget     *widget,
         gtk_adjustment_set_value(adj, gtk_adjustment_get_lower(adj));
         ui.autoscroll = FALSE;
     }
+}
+
+void
+ui_interface_change()
+{
+    gtk_button_set_label(GTK_BUTTON(ui.x_rf), conf.tef668x_mode ? "cEQ" : "RF+");
+    gtk_button_set_label(GTK_BUTTON(ui.x_if), conf.tef668x_mode ? "iMS" : "IF+");
+    gtk_adjustment_set_upper(ui.adj_align, conf.tef668x_mode ? 36 : 127);
+
+    g_signal_handlers_block_by_func(G_OBJECT(ui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
+    ui_bandwidth_fill(ui.c_bw, TRUE);
+    g_signal_handlers_unblock_by_func(G_OBJECT(ui.c_bw), GINT_TO_POINTER(tuner_set_bandwidth), NULL);
 }
