@@ -165,7 +165,7 @@ tuner_rds_legacy(gpointer msg_ptr)
 
     char *new_format;
     new_format = g_strdup_printf("%04X%04X%04X%04X%02X",
-                                 tuner.rds_pi,
+                                 (tuner.rds_pi >= 0 ? tuner.rds_pi : 0),
                                  data[1],
                                  data[2],
                                  data[3],
@@ -180,12 +180,6 @@ tuner_rds_new(gpointer msg_ptr)
 {
     gchar *msg = (gchar*)msg_ptr;
     guint data[4], errors, i;
-
-    if(tuner.rds_pi < 0)
-    {
-        g_free(msg);
-        return FALSE;
-    }
 
     for (i = 0; i < 4; i++)
     {
